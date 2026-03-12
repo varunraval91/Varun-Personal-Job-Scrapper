@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node test-api.js)",
+      "Bash(npm start:*)"
+    ]
+  }
+}
