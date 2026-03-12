@@ -1,0 +1,1 @@
+Job search and CV/CL generator app
