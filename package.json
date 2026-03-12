@@ -1,0 +1,11 @@
+{
+  "name": "Varun-Personal-Job-Scrapper",
+  "version": "1.0.0",
+  "description": "Varun's Personal Job Scrapper - job search and CV/CL generator app",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "Varun Raval",
+  "license": "MIT"
+}
