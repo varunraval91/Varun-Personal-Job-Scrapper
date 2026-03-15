@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(node -e \":*)",
-      "WebFetch(domain:jobs.sap.com)"
+      "WebFetch(domain:jobs.sap.com)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
+      "Bash(npm run:*)",
+      "Bash(node -e \"const { retrieveContext } = require\\(''./src/rag_engine''\\); retrieveContext\\(''Python SQL ETL Data Engineer SAP BTP''\\).then\\(r => { console.log\\(''Skills:'', r.skills.length\\); r.skills.forEach\\(\\(s,i\\) => console.log\\(''  ''+\\(i+1\\)+''. [''+s.id+''] ''+s.metadata.skill_name+'' — ''+s.relevance\\)\\); console.log\\(''Projects:'', r.projects.length\\); console.log\\(''Work:'', r.work.length\\); }\\).catch\\(e => console.error\\(''ERROR:'', e.message\\)\\)\")"
     ]
   }
 }
