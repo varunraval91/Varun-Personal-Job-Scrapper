@@ -1,0 +1,302 @@
+%===============================================================
+% VARUN RAVAL – CV STYLE GUIDE
+% Reference template: copy preamble into every new CV
+%===============================================================
+
+\documentclass[11pt,a4paper]{article}
+
+%---------------------------------------------------------------
+% BASIC PACKAGES
+%---------------------------------------------------------------
+\usepackage[margin=1.8cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+% CONTENT_PLACEHOLDER
+
+%---------------------------------------------------------------
+% COLORS
+% heading  #111111  near-black  → section titles, bold labels, name
+% body     #333333  dark gray   → main paragraph text
+% lighttext#666666  mid gray    → dates, locations, subtitles
+% linkcolor#003366  dark blue   → all hyperlinks
+%---------------------------------------------------------------
+\definecolor{heading}{HTML}{111111}
+\definecolor{body}{HTML}{333333}
+\definecolor{lighttext}{HTML}{666666}
+\definecolor{linkcolor}{HTML}{003366}
+
+\hypersetup{
+  colorlinks=true,
+  urlcolor=linkcolor,
+  linkcolor=linkcolor
+}
+
+%---------------------------------------------------------------
+% GLOBAL TEXT SETTINGS
+% • No paragraph indent
+% • 1pt paragraph skip (tight but not cramped)
+% • 1.05 line stretch (slight breathing room)
+% • List items: 1pt spacing, 1.8em left margin
+%---------------------------------------------------------------
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1pt}
+\renewcommand{\baselinestretch}{1.05}
+
+\setlist[itemize]{
+  leftmargin=1.8em,
+  itemsep=1pt,
+  topsep=1pt
+}
+
+%---------------------------------------------------------------
+% SECTION FORMATTING
+% • \large\bfseries in heading color
+% • 0pt left indent, 6pt before, 2pt after
+% • Always use \section* (no numbering)
+% • Always follow with \sectrule
+%---------------------------------------------------------------
+\usepackage{titlesec}
+
+\titleformat{\section}{
+  \large\bfseries\color{heading}
+}{}{0pt}{}
+
+\titlespacing*{\section}{0pt}{6pt}{2pt}
+
+%---------------------------------------------------------------
+% CUSTOM COMMANDS
+%
+% \sectrule  → thin horizontal rule used after every section header
+%              usage: \section*{TITLE} ... content ... \sectrule
+%
+% \name{X}   → Huge bold heading-color name at top of document
+%---------------------------------------------------------------
+\newcommand{\sectrule}{\vspace{2pt}\hrule\vspace{3pt}}
+
+\newcommand{\name}[1]{%
+  {\Huge\bfseries\color{heading} #1}\par\vspace{4pt}
+}
+
+%---------------------------------------------------------------
+% HEADER BLOCK PATTERN
+% \name{FULL NAME}
+% {\small
+%   \color{lighttext} Location line \par
+%   \color{body}
+%   \textbf{Phone:} ... \quad \textbf{Email:} \href{...}{...} \par
+%   \textbf{LinkedIn:} \href{...}{...} \quad \textbf{GitHub:} \href{...}{...} \par
+%   \textbf{Availability:} April 2026 -- Oct 2027 as working student, internship and thesis \par
+%   \textbf{Work authorization:} ... \par
+%   \textbf{Languages:} ...
+% }
+% \vspace{3pt}
+% \sectrule
+%---------------------------------------------------------------
+
+%---------------------------------------------------------------
+% AVAILABILITY LINE (fixed wording – use in every CV)
+% April 2026 -- Oct 2027 as working student, internship and thesis
+%---------------------------------------------------------------
+
+%---------------------------------------------------------------
+% SECTION CONTENT PATTERNS
+%
+% ── Plain paragraph section (Profile, Key Competencies) ──────
+% \section*{SECTION TITLE}
+% {\color{body}
+%   Text here.\par
+%   {\color{heading}\textbf{Sub-label:}} More text.
+% }
+% \vspace{2pt}
+% \sectrule
+%
+% ── Entry with date (Education, Work Experience, Projects) ───
+% {\color{heading}\textbf{Title}} \hfill
+% {\color{lighttext}Date range}\par
+% {\color{body}\textit{Subtitle / tech stack / institution}}\par
+% {\color{body}
+%   Description text.
+% }
+% \vspace{3pt}   ← between entries; \vspace{2pt}\sectrule after last
+%
+% ── Skills line (bold label + body text on same line) ────────
+% {\color{heading}\textbf{Category:}} {\color{body}Skill A; Skill B; Skill C.}\par
+%
+% ── Key Competencies (inline bullets) ────────────────────────
+% {\color{body}
+%   {\color{heading}\textbf{Category:}} item, item, item.\par
+%   {\color{heading}\textbf{Category:}} item, item, item.
+% }
+%
+% ── Bullet-list entries (Projects with detail) ───────────────
+% {\color{heading}\textbf{Project Title}} \hfill {\color{lighttext}Date}\par
+% {\color{body}\textit{Tech stack}}\par
+% \begin{itemize}
+%   \item First point.
+%   \item Second point.
+% \end{itemize}
+%---------------------------------------------------------------
+
+%---------------------------------------------------------------
+% SPACING RULES SUMMARY
+% \vspace{3pt}  between entries within a section
+% \vspace{2pt}  before \sectrule at end of section
+% \vspace{2pt}\sectrule  closes every section
+% \vspace{4pt}  after \name{}
+% \vspace{3pt}  after header block before first \sectrule
+%---------------------------------------------------------------
+
+%---------------------------------------------------------------
+% FONT & TYPOGRAPHY NOTES
+% • Body text:   \color{body}    #333333
+% • Dates:       \color{lighttext} #666666
+% • Bold labels: \color{heading}\textbf{...}
+% • Italics:     \textit{...} for tech stacks and subtitles
+% • Inline sep:  $\bullet$ for flat competency lists
+%                $\cdot$   for tech stack inline separators
+%                $\rightarrow$ for pipeline flow arrows
+% • Escape:      \% \& \textasciitilde{} \textbf{...}
+% • Monospace:   \texttt{...} for code identifiers (view names, etc.)
+%---------------------------------------------------------------
+
+\begin{document}
+\pagestyle{empty}
+
+%===============================================================
+% EXAMPLE SECTION – delete when using as real CV
+%===============================================================
+\name{FULL NAME}
+
+{\small
+\color{lighttext}%
+City / Region, Country (commute / hybrid note)\par
+\color{body}%
+\textbf{Phone:} (+XX) XXXXXXXXXXX \quad
+\textbf{Email:} \href{mailto:email@example.com}{email@example.com}\par
+\textbf{LinkedIn:} \href{https://linkedin.com/in/profile}{linkedin.com/in/profile} \quad
+\textbf{GitHub:} \href{https://github.com/profile}{github.com/profile}\par
+\textbf{Availability:} April 2026 -- Oct 2027 as working student, internship and thesis\par
+\textbf{Work authorization:} Eligible to work as student in Germany\par
+\textbf{Languages:} English (fluent), German (B1 -- actively improving)
+}
+
+\vspace{3pt}
+\sectrule
+
+\section*{PROFILE / TARGET FOCUS}
+
+{\color{body}
+Profile text goes here in one or two concise paragraphs.
+{\color{heading}\textbf{Sub-focus label:}} Additional focused text if needed.
+}
+
+\vspace{2pt}
+\sectrule
+
+\section*{KEY COMPETENCIES}
+
+{\color{body}
+{\color{heading}\textbf{Category One:}} Skill, skill, skill, skill.\par
+{\color{heading}\textbf{Category Two:}} Skill, skill, skill, skill.\par
+{\color{heading}\textbf{Category Three:}} Skill, skill, skill, skill.
+}
+
+\vspace{2pt}
+\sectrule
+
+\section*{TECHNICAL SKILLS}
+
+{\color{heading}\textbf{Skill Group One:}} {\color{body}Tool A; Tool B; Tool C; concept D.}\par
+{\color{heading}\textbf{Skill Group Two:}} {\color{body}Tool A; Tool B; Tool C.}\par
+{\color{heading}\textbf{Skill Group Three:}} {\color{body}Tool A; Tool B.}
+
+\vspace{2pt}
+\sectrule
+
+\section*{EDUCATION}
+
+{\color{heading}\textbf{Degree Title -- Field of Study}} \hfill
+{\color{lighttext}Start -- End (Status)}\par
+{\color{body}Institution, City, Country}\par
+{\color{body}\textit{Selected coursework:} Module A; Module B; Module C.}
+
+\vspace{2pt}
+
+{\color{heading}\textbf{Degree Title -- Field of Study}} \hfill
+{\color{lighttext}Start -- End}\par
+{\color{body}Institution, City, Country}
+
+\vspace{2pt}
+\sectrule
+
+\section*{PROJECTS (MOST RELEVANT)}
+
+{\color{heading}\textbf{Project Title}} \hfill
+{\color{lighttext}Date}\par
+{\color{body}\textit{Tech stack $|$ github.com/link}}\par
+\begin{itemize}
+  \item First bullet point describing what was built or achieved.
+  \item Second bullet point with a measurable outcome.
+  \item Third bullet point if needed.
+\end{itemize}
+
+\vspace{3pt}
+
+{\color{heading}\textbf{Project Title}} \hfill
+{\color{lighttext}Date range}\par
+{\color{body}\textit{Tech stack}}\par
+{\color{body}
+Prose description for shorter projects that do not need bullets.
+}
+
+\vspace{2pt}
+\sectrule
+
+\section*{WORK EXPERIENCE -- COMPANY (CITY, COUNTRY)}
+
+{\color{heading}\textbf{Job Title}} \hfill
+{\color{lighttext}Month Year -- Month Year}\par
+{\color{body}\textit{Company -- Department / Team, City}}\par
+{\color{body}
+Description sentence one. Description sentence two. Description sentence three.
+}
+
+\vspace{3pt}
+
+{\color{heading}\textbf{Job Title}} \hfill
+{\color{lighttext}Month Year -- Month Year}\par
+{\color{body}\textit{Company -- Department, City}}\par
+{\color{body}
+Description sentence one. Description sentence two.
+}
+
+\vspace{2pt}
+\sectrule
+
+\section*{CERTIFICATIONS / TRAINING}
+
+{\color{heading}\textbf{Certification Name}} \hfill
+{\color{lighttext}Month Year}\par
+{\color{body}
+One or two sentences describing scope and skills covered.
+}
+
+\vspace{3pt}
+
+{\color{heading}\textbf{Certification Name}} \hfill
+{\color{lighttext}Proof type}\par
+{\color{body}
+One sentence.
+}
+
+\vspace{2pt}
+\sectrule
+
+\end{document}

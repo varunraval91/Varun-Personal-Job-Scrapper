@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Environment & secrets
+.env
+Job-SCRAPER-main/.env
+Job-SCRAPER-main/firebase-config.local.js
+
+# Personal data (skill bank, style profile, vector store)
+Job-SCRAPER-main/data/
+
+# Foundation documents (PDFs)
+Job-SCRAPER-main/library/foundation/cvs/
+Job-SCRAPER-main/library/foundation/cover_letters/
+
+# Runtime generated files
+Job-SCRAPER-main/generated/
+Job-SCRAPER-main/library/ocr-cache.json
+Job-SCRAPER-main/library/approved/
+
+# Large binary (Tesseract OCR data)
+*.traineddata
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.claude/

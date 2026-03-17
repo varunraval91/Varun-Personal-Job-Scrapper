@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAP Job Automator</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/redesign.css" />
+  <link rel="stylesheet" href="css/auth-screen-styles.css" />
+  <link rel="stylesheet" href="css/automator.css" />
+  <link rel="stylesheet" href="css/skill-bank.css" />
+</head>
+<body>
+
+  <!-- LOGIN SCREEN                            -->
+  <!-- ═══════════════════════════════════════ -->
+  <section id="auth-screen" role="region" aria-label="Sign in">
+    <button type="button" class="auth-theme-toggle" id="auth-theme-toggle" aria-label="Toggle theme">
+      <span id="auth-theme-icon">☀</span>
+    </button>
+    <div class="auth-container">
+      <div class="auth-left-panel">
+        <div class="auth-blob auth-blob-1" aria-hidden="true"></div>
+        <div class="auth-blob auth-blob-2" aria-hidden="true"></div>
+        <div class="auth-blob auth-blob-3" aria-hidden="true"></div>
+        <div class="auth-orbit" aria-hidden="true">
+          <div class="orbit-ring orbit-ring-outer"><span class="orbit-dot orbit-dot-outer"></span></div>
+          <div class="orbit-ring orbit-ring-inner"><span class="orbit-dot orbit-dot-inner"></span></div>
+          <div class="orbit-pulse-ring"></div>
+          <div class="orbit-static-dots"><span class="s-dot s1"></span><span class="s-dot s2"></span><span class="s-dot s3"></span><span class="s-dot s4"></span><span class="s-dot s5"></span><span class="s-dot s6"></span></div>
+          <div class="orbit-center"><div class="rocket"><div class="rocket-tip"></div><div class="rocket-body"></div><div class="rocket-base"></div></div></div>
+        </div>
+        <div class="auth-brand-block">
+          <p class="auth-eyebrow">Scrape · Generate · Track</p>
+          <h1 class="auth-hero">SAP Job Automator</h1>
+          <p class="auth-pipeline-pill"><span class="pill-dot"></span>AI-Powered Pipeline</p>
+        </div>
+        <div class="auth-mini-pipeline" aria-label="Live pipeline">
+          <p class="pipeline-header">Live pipeline</p>
+          <div class="pipeline-row" style="--bar:var(--c-wishlist);--target:100%;--idx:0;"><span class="row-dot"></span><span class="row-name">Wishlist</span><span class="row-track"><span class="row-fill"></span></span><span class="row-count">0</span></div>
+          <div class="pipeline-row" style="--bar:var(--c-applied);--target:85%;--idx:1;"><span class="row-dot"></span><span class="row-name">Applied</span><span class="row-track"><span class="row-fill"></span></span><span class="row-count">0</span></div>
+          <div class="pipeline-row" style="--bar:var(--c-oa);--target:42%;--idx:2;"><span class="row-dot"></span><span class="row-name">OA/Test</span><span class="row-track"><span class="row-fill"></span></span><span class="row-count">0</span></div>
+          <div class="pipeline-row" style="--bar:var(--c-interview);--target:50%;--idx:3;"><span class="row-dot"></span><span class="row-name">Interview</span><span class="row-track"><span class="row-fill"></span></span><span class="row-count">0</span></div>
+          <div class="pipeline-row" style="--bar:var(--c-rejected);--target:42%;--idx:4;"><span class="row-dot"></span><span class="row-name">Rejected</span><span class="row-track"><span class="row-fill"></span></span><span class="row-count">0</span></div>
+          <div class="pipeline-row" style="--bar:var(--c-offer);--target:25%;--idx:5;"><span class="row-dot"></span><span class="row-name">Offer</span><span class="row-track"><span class="row-fill"></span></span><span class="row-count">0</span></div>
+        </div>
+        <p class="auth-left-quote" id="auth-quote">Small daily progress leads to extraordinary career outcomes.</p>
+      </div>
+      <div class="auth-right-panel">
+        <div class="auth-right-accent" aria-hidden="true"></div>
+        <div class="auth-card">
+          <form id="auth-login-form" class="auth-form" autocomplete="on">
+            <p class="auth-status-chip"><span class="chip-dot"></span>Sign in to continue</p>
+            <div class="auth-header">
+              <h2 class="auth-title">Welcome back,<br />Varun.</h2>
+              <p class="auth-subtitle">Your pipeline and AI generation awaits.</p>
+            </div>
+            <label for="auth-email-input">Email</label>
+            <div class="auth-input-wrap">
+              <span class="auth-input-icon" aria-hidden="true">✉</span>
+              <input id="auth-email-input" type="email" required placeholder="you@example.com" autocomplete="email" />
+            </div>
+            <label for="auth-password-input">Password</label>
+            <div class="auth-input-wrap">
+              <span class="auth-input-icon" aria-hidden="true">🔑</span>
+              <input id="auth-password-input" type="password" required minlength="6" placeholder="Enter password" autocomplete="current-password" />
+            </div>
+            <div id="auth-error" class="auth-error hidden" role="alert"></div>
+            <button id="auth-login-btn" type="submit" class="btn-auth">
+              <span>Sign in</span><span class="btn-auth-arrow" aria-hidden="true">→</span>
+            </button>
+            <p class="auth-divider">About</p>
+            <div class="auth-about-card" aria-label="Profile summary">
+              <div class="auth-about-top">
+                <div class="auth-avatar" aria-hidden="true">VR</div>
+                <div><p class="auth-name">Varun Raval</p><p class="auth-role">SAP Engineering & Analytics</p></div>
+              </div>
+              <div class="auth-about-rows">
+                <p><span class="k">University</span><span class="v">Hochschule Fresenius Heidelberg</span></p>
+                <p><span class="k">Focus</span><span class="v">SAP BTP, Analytics, AI Generation</span></p>
+                <div class="about-sep" aria-hidden="true"></div>
+                <p><span class="k">Purpose</span><span class="v">Scrape jobs, generate docs with AI, track applications.</span></p>
+              </div>
+            </div>
+          </form>
+          <p class="auth-footer"><span class="footer-icon" aria-hidden="true">🔐</span>Firebase auth required. Contact admin for access.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- TOAST + MODAL                           -->
+  <!-- ═══════════════════════════════════════ -->
+  <div id="toast-container" aria-live="polite"></div>
+  <div id="modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-box" id="modal-box"></div>
+  </div>
+  <button id="scroll-to-top-btn" class="scroll-to-top-btn hidden" aria-label="Scroll to top" title="Back to top">↑</button>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!-- MAIN APP LAYOUT                         -->
+  <!-- ═══════════════════════════════════════ -->
+  <div class="app-layout hidden" id="app-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <svg class="logo-icon" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#6C5CE7;stop-opacity:1"/><stop offset="100%" style="stop-color:#00B894;stop-opacity:1"/></linearGradient></defs>
+          <rect x="35" y="65" width="50" height="30" rx="4" fill="#6C5CE7"/>
+          <path d="M 48,65 L 48,58 Q 60,52 72,58 L 72,65" fill="none" stroke="#6C5CE7" stroke-width="3"/>
+          <rect x="55" y="72" width="10" height="5" rx="2" fill="#FFFFFF" opacity="0.6"/>
+          <path d="M 60,25 L 80,45 L 70,45 L 70,65 L 50,65 L 50,45 L 40,45 Z" fill="url(#logoGradient)"/>
+          <path d="M 60,28 L 63,35 L 63,45 L 57,45 L 57,35 Z" fill="#FFFFFF" opacity="0.8"/>
+        </svg>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" id="searchNavBtn" class="nav-item active" data-view="search" title="Search Jobs">
+          <span class="nav-icon">🔍</span> <span class="nav-label">Search</span>
+        </a>
+        <a href="#" id="generateNavBtn" class="nav-item" data-view="generate" title="Generate Docs">
+          <span class="nav-icon">✨</span> <span class="nav-label">Generate</span>
+        </a>
+        <a href="#" id="dashboardBtn" class="nav-item" data-view="dashboard" title="Tracker">
+          <span class="nav-icon">▦</span> <span class="nav-label">Tracker</span>
+        </a>
+        <a href="#" id="skillBankNavBtn" class="nav-item" data-view="skillbank" title="Skill Bank">
+          <span class="nav-icon">◆</span> <span class="nav-label">Skill Bank</span>
+        </a>
+        <button type="button" class="nav-item sb-icon" id="analyticsBtn" aria-label="Analytics" title="Analytics">
+          <span class="nav-icon">◍</span> <span class="nav-label">Analytics</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div id="account-status" class="account-status">Signed out</div>
+        <div class="sidebar-utility-group">
+          <button id="theme-toggle" class="utility-btn" aria-label="Toggle theme" title="Toggle theme">
+            <span class="utility-icon" id="theme-icon">☀</span>
+            <span class="utility-label">Theme</span>
+          </button>
+          <button id="import-data-btn" class="utility-btn" title="Import applications from CSV">
+            <span class="utility-icon" aria-hidden="true">↑</span><span class="utility-label">Import</span>
+          </button>
+          <input id="import-file-input" type="file" accept=".txt,.csv" class="hidden" />
+          <button id="download-template-btn" class="utility-btn" title="Download blank Excel template">
+            <span class="utility-icon" aria-hidden="true">📄</span><span class="utility-label">Template</span>
+          </button>
+          <button id="export-csv-btn" class="utility-btn" title="Export data as CSV">
+            <span class="utility-icon" aria-hidden="true">↓</span><span class="utility-label">Export</span>
+          </button>
+          <button id="account-logout-btn" class="utility-btn" title="Sign out">
+            <span class="utility-icon" aria-hidden="true">⇥</span><span class="utility-label">Logout</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content" id="main-content">
+
+      <!-- ═══════════════════════════════════ -->
+      <!-- SECTION 1: SEARCH VIEW              -->
+      <!-- ═══════════════════════════════════ -->
+      <div id="searchView">
+        <header class="topbar">
+          <div class="topbar-left">
+            <h1 class="app-title">Search SAP Jobs</h1>
+            <p class="app-subtitle">Find → Select → Generate CV & Cover Letter</p>
+          </div>
+        </header>
+
+        <div class="auto-card">
+          <div class="auto-filters">
+            <div class="auto-filter-group">
+              <label>Keyword <span class="search-info-tip" title="Searches SAP's job portal (jobs.sap.com) only. Results depend on SAP's search relevance.">&#9432;</span></label>
+              <input type="text" id="scrape-keyword" placeholder="e.g. BTP, Analytics Cloud" value="BTP" />
+            </div>
+            <div class="auto-filter-group">
+              <label>Location</label>
+              <input type="text" id="scrape-location" placeholder="e.g. Walldorf" value="" />
+            </div>
+            <div class="auto-filter-group">
+              <label>Posted Within</label>
+              <select id="scrape-period">
+                <option value="today">Today</option>
+                <option value="1week" selected>Last 1 Week</option>
+                <option value="2weeks">Last 2 Weeks</option>
+                <option value="3weeks">Last 3 Weeks</option>
+                <option value="1month">Last 1 Month</option>
+                <option value="any">Any Time</option>
+              </select>
+            </div>
+            <div class="auto-filter-group">
+              <label>Career Status</label>
+              <select id="scrape-careerStatus">
+                <option value="Student" selected>Student / Internship</option>
+                <option value="Graduate">Graduate</option>
+                <option value="Professional">Professional</option>
+              </select>
+            </div>
+            <div class="auto-filter-group">
+              <label>Country</label>
+              <select id="scrape-country">
+                <option value="DE" selected>Germany</option>
+                <option value="AT">Austria</option>
+                <option value="CH">Switzerland</option>
+              </select>
+            </div>
+          </div>
+          <div class="auto-actions">
+            <button class="btn btn-primary" id="scrape-search-btn" type="button">
+              <span class="scrape-spinner" id="scrape-spinner"></span>
+              <span id="scrape-btn-text">Search Jobs</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="auto-card">
+          <div class="auto-card-header">
+            <h2>Search Results</h2>
+            <span class="auto-badge" id="scrape-result-count">0 jobs</span>
+          </div>
+          <div class="auto-table-wrap">
+            <table class="auto-table" id="scrape-results-table">
+              <thead>
+                <tr>
+                  <th style="width:40px">☐</th>
+                  <th>Job Title</th>
+                  <th>Keyword</th>
+                  <th>Req ID</th>
+                  <th>Location</th>
+                  <th>Posted</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="scrape-results-body">
+                <tr><td colspan="7" class="auto-empty">Run a search to see jobs here</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="auto-card" id="selected-jobs-card" style="display:none">
+          <div class="auto-card-header">
+            <h2>Selected Jobs</h2>
+            <span class="auto-badge" id="selected-count">0 selected</span>
+          </div>
+          <div id="selected-jobs-list" class="search-kanban-board"></div>
+          <div class="auto-actions" style="margin-top:12px">
+            <button class="btn btn-primary" id="add-to-tracker-btn" type="button">Add to Tracker</button>
+            <button class="btn btn-success" id="go-generate-btn" type="button">Generate for Selected ✨</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════ -->
+      <!-- SECTION 2: GENERATE VIEW            -->
+      <!-- ═══════════════════════════════════ -->
+      <div id="generateView" style="display:none">
+        <header class="topbar">
+          <div class="topbar-left">
+            <h1 class="app-title">Generate CV & Cover Letter</h1>
+            <p class="app-subtitle">AI-powered document generation from your personal library</p>
+          </div>
+          <div class="topbar-right">
+            <button class="btn btn-primary gen-topbar-add-job" id="gen-add-job-btn" type="button" title="Add external job link">+ Add Job</button>
+          </div>
+        </header>
+
+        <!-- RAG Status Card + Document Library (collapsible) -->
+        <div class="auto-card" id="library-status-card">
+          <div class="auto-card-header">
+            <h2>AI Pipeline Status</h2>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="btn btn-sm" id="rag-refresh-btn" type="button" title="Refresh RAG status">&#8635; Refresh</button>
+              <button class="btn btn-sm lib-toggle-btn" id="lib-toggle-btn" type="button" title="Expand / Collapse library">&#9660;</button>
+            </div>
+          </div>
+          <!-- RAG status row (always visible) -->
+          <div id="rag-status-row" class="rag-status-row">
+            <div class="rag-status-tile" id="rag-tile-vector">
+              <span class="rag-tile-icon">◈</span>
+              <div><span class="rag-tile-val" id="rag-skill-count">—</span><span class="rag-tile-label">Skill Chunks</span></div>
+            </div>
+            <div class="rag-status-tile" id="rag-tile-style">
+              <span class="rag-tile-icon">✍</span>
+              <div><span class="rag-tile-val" id="rag-style-status">—</span><span class="rag-tile-label">Writing Style</span></div>
+            </div>
+            <div class="rag-status-tile" id="rag-tile-docs">
+              <span class="rag-tile-icon">◉</span>
+              <div><span class="rag-tile-val" id="rag-doc-count">—</span><span class="rag-tile-label">Vector Store</span></div>
+            </div>
+            <div class="rag-status-tile" id="rag-tile-ai">
+              <span class="rag-tile-icon">🤖</span>
+              <div><span class="rag-tile-val" id="rag-ai-provider">—</span><span class="rag-tile-label">AI Provider</span></div>
+            </div>
+          </div>
+          <!-- Document Library (collapsed by default) -->
+          <div id="library-status" class="lib-collapsed">
+            <p class="auto-empty">Expand to browse indexed foundation documents.</p>
+          </div>
+          <!-- Hidden button kept for backward-compat with generate.js logic -->
+          <button id="index-library-btn" type="button" style="display:none">Index Foundation PDFs</button>
+        </div>
+
+        <!-- Generation Queue -->
+        <div class="auto-card" id="gen-queue-card">
+          <div class="auto-card-header">
+            <h2>Generation Queue</h2>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span class="auto-badge" id="gen-queue-count">0 jobs</span>
+            </div>
+          </div>
+          <div id="gen-queue-list">
+            <p class="auto-empty">Select jobs from the Search tab to generate documents.</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ═══════════════════════════════════ -->
+      <!-- SECTION 3: TRACKER VIEW (Kanban)    -->
+      <!-- ═══════════════════════════════════ -->
+      <div id="kanbanView" style="display:none">
+        <header class="topbar">
+          <div class="topbar-left">
+            <h1 class="app-title">Application Tracker</h1>
+            <p class="app-subtitle">Track every move. Stay relentless.</p>
+          </div>
+          <div class="topbar-right">
+            <button type="button" class="btn btn-primary btn-add" id="open-modal-btn" aria-label="Add new application" onclick="if(window.JobHuntHQOpenModal){window.JobHuntHQOpenModal();}">
+              <span>+</span> New Application
+            </button>
+          </div>
+        </header>
+
+        <section class="goal-section" id="goal-section">
+          <div class="goal-widget">
+            <div class="goal-label">
+              <span>Weekly Goal</span>
+              <div class="goal-tools"><button class="goal-edit-btn" id="goal-edit-btn" aria-label="Edit weekly goal">✎</button></div>
+            </div>
+            <div class="goal-progress-container">
+              <div class="goal-bar-track"><div class="goal-bar-fill" id="goal-bar-fill"></div></div>
+              <div class="goal-text" id="goal-text">0 / 10 applications this week</div>
+            </div>
+          </div>
+          <section class="quote-banner"><div id="motivational-quote-container" class="quote-text"></div></section>
+        </section>
+
+        <section class="insights-container" aria-label="Summary and search">
+          <section class="stats-bar" id="stats-bar" aria-label="Application statistics">
+            <button type="button" class="stat-tile stage-wishlist" data-filter="Wishlist"><span class="stat-value" id="stat-total">0</span><span class="stat-label">Wishlist</span></button>
+            <button type="button" class="stat-tile stage-applied" data-filter="Applied"><span class="stat-value" id="stat-applied">0</span><span class="stat-label">Applied</span></button>
+            <button type="button" class="stat-tile stage-oa" data-filter="OA/Test"><span class="stat-value" id="stat-interview">0</span><span class="stat-label">OA/Test</span></button>
+            <button type="button" class="stat-tile stage-interview" data-filter="Interview"><span class="stat-value" id="stat-offers">0</span><span class="stat-label">Interview</span></button>
+            <button type="button" class="stat-tile stage-rejected" data-filter="Rejected"><span class="stat-value" id="stat-followup">0</span><span class="stat-label">Rejected</span></button>
+            <button type="button" class="stat-tile stage-offer" data-filter="Offer"><span class="stat-value" id="stat-response">0</span><span class="stat-label">Offer</span></button>
+            <div class="stat-tile stage-rate"><span class="stat-value" id="stat-rate">0%</span><span class="stat-label">Response Rate</span></div>
+          </section>
+
+          <div class="toolbar" role="search">
+            <div class="search-wrapper">
+              <span class="search-icon" aria-hidden="true">🔍</span>
+              <input type="text" id="search-input" class="search-input" placeholder="Search company, role, contact..." aria-label="Search applications" autocomplete="off" />
+            </div>
+            <div class="company-shortcuts" id="company-shortcuts" role="group" aria-label="Company shortcuts"></div>
+            <span class="filter-by-label">Filter by</span>
+            <div class="filter-chips" id="filter-chips" role="group" aria-label="Filter by stage">
+              <button class="chip chip-active" data-stage="all">All</button>
+              <button class="chip" data-stage="Wishlist">Wishlist</button>
+              <button class="chip" data-stage="Applied">Applied</button>
+              <button class="chip" data-stage="OA/Test">OA/Test</button>
+              <button class="chip" data-stage="Interview">Interview</button>
+              <button class="chip" data-stage="Rejected">Rejected</button>
+              <button class="chip" data-stage="Offer">Offer</button>
+            </div>
+            <div class="sort-wrapper">
+              <select id="sort-select" class="sort-select" aria-label="Sort applications">
+                <option value="deadline-asc">Deadline ↑ Nearest</option>
+                <option value="deadline-desc">Deadline ↓ Furthest</option>
+                <option value="date-desc">Added: Newest</option>
+                <option value="date-asc">Added: Oldest</option>
+                <option value="company-asc">Company A–Z</option>
+                <option value="fit-desc">Fit Rating ↓</option>
+              </select>
+            </div>
+          </div>
+          <div class="active-filter-bar" id="active-filter-bar" hidden>
+            <span id="active-filter-label"></span>
+          </div>
+        </section>
+
+        <div class="kanban-board" id="kanban-board" role="region" aria-label="Application pipeline"></div>
+      </div>
+
+      <!-- ═══════════════════════════════════ -->
+      <!-- SECTION 4: ANALYTICS VIEW           -->
+      <!-- ═══════════════════════════════════ -->
+      <div id="analyticsView" style="display:none">
+        <div class="an-topbar">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="an-title">Analytics</div>
+            <div class="an-count-badge" id="anTopCount">0</div>
+          </div>
+          <div class="an-date-group">
+            <div class="an-date-field"><label class="an-date-label" for="anFrom">From</label><input class="an-date-input" id="anFrom" type="date"/></div>
+            <div class="an-date-field"><label class="an-date-label" for="anTo">To</label><input class="an-date-input" id="anTo" type="date"/></div>
+          </div>
+          <div class="an-topbar-right">
+            <button class="an-btn" id="anExportBtn" type="button">↓ Export CSV</button>
+            <button class="an-btn an-btn-sm" id="anRefreshBtn" type="button">⟳</button>
+          </div>
+        </div>
+
+        <div class="an-body">
+          <aside class="an-filter-sb">
+            <div class="an-sb-head">
+              <div class="an-sb-title">Filters</div>
+              <button class="an-sb-clear" id="anClearFiltersBtn" type="button">✕ Clear all</button>
+            </div>
+            <div class="an-active-chips"><div class="an-chips-lbl">Active Filters</div><div id="anActiveChips"></div></div>
+            <div class="an-filter-section">
+              <div class="an-fs-label">Status <span id="anStatusCount">6</span></div>
+              <div class="an-status-checks" id="anStatusChecks">
+                <label class="an-s-check" data-status="W"><input type="checkbox" checked/><span class="an-s-dot" style="background:#7c6af7"></span><span class="an-s-name">Wishlist</span><span class="an-s-bar"><span class="an-s-fill" data-w="100" style="background:#7c6af7;width:0"></span></span><span class="an-s-count">0</span></label>
+                <label class="an-s-check" data-status="A"><input type="checkbox" checked/><span class="an-s-dot" style="background:#4da8f7"></span><span class="an-s-name">Applied</span><span class="an-s-bar"><span class="an-s-fill" data-w="85" style="background:#4da8f7;width:0"></span></span><span class="an-s-count">0</span></label>
+                <label class="an-s-check" data-status="O"><input type="checkbox" checked/><span class="an-s-dot" style="background:#f7c26a"></span><span class="an-s-name">OA/Test</span><span class="an-s-bar"><span class="an-s-fill" data-w="42" style="background:#f7c26a;width:0"></span></span><span class="an-s-count">0</span></label>
+                <label class="an-s-check" data-status="I"><input type="checkbox" checked/><span class="an-s-dot" style="background:#4df7b8"></span><span class="an-s-name">Interview</span><span class="an-s-bar"><span class="an-s-fill" data-w="50" style="background:#4df7b8;width:0"></span></span><span class="an-s-count">0</span></label>
+                <label class="an-s-check" data-status="R"><input type="checkbox" checked/><span class="an-s-dot" style="background:#f7705a"></span><span class="an-s-name">Rejected</span><span class="an-s-bar"><span class="an-s-fill" data-w="42" style="background:#f7705a;width:0"></span></span><span class="an-s-count">0</span></label>
+                <label class="an-s-check" data-status="F"><input type="checkbox" checked/><span class="an-s-dot" style="background:#a8f740"></span><span class="an-s-name">Offer</span><span class="an-s-bar"><span class="an-s-fill" data-w="42" style="background:#a8f740;width:0"></span></span><span class="an-s-count">0</span></label>
+              </div>
+            </div>
+            <div class="an-filter-section">
+              <div class="an-fs-label">Company</div>
+              <input id="anCompany" class="an-f-input" placeholder="e.g. SAP, Siemens..."/>
+              <div class="an-tag-cloud">
+                <button class="an-tag" type="button" onclick="an_quickFilter('company','SAP')">SAP</button>
+                <button class="an-tag" type="button" onclick="an_quickFilter('company','Siemens')">Siemens</button>
+                <button class="an-tag" type="button" onclick="an_quickFilter('company','DHL')">DHL</button>
+                <button class="an-tag" type="button" onclick="an_quickFilter('company','Bosch')">Bosch</button>
+              </div>
+            </div>
+            <div class="an-filter-section">
+              <div class="an-fs-label">Location</div>
+              <input id="anLocation" class="an-f-input" placeholder="e.g. Walldorf, Munich..."/>
+              <div class="an-tag-cloud">
+                <button class="an-tag" type="button" onclick="an_quickFilter('location','Walldorf')">Walldorf</button>
+                <button class="an-tag" type="button" onclick="an_quickFilter('location','Munich')">Munich</button>
+                <button class="an-tag" type="button" onclick="an_quickFilter('location','Berlin')">Berlin</button>
+              </div>
+            </div>
+            <div class="an-filter-section">
+              <div class="an-fs-label">Keyword</div>
+              <input id="anKeyword" class="an-f-input" placeholder="e.g. Phase 2, English..."/>
+            </div>
+            <div class="an-sb-apply"><button class="an-apply-btn" id="anApplyFiltersBtn" type="button">Apply filters</button></div>
+          </aside>
+          <section class="an-main">
+            <div class="an-topbar" style="height:auto;padding:12px 18px;border-bottom:0;background:transparent;">
+              <div class="an-date-field" style="width:100%;"><label class="an-date-label" for="anSearch">Search</label><input class="an-f-input" id="anSearch" placeholder="Search company, role, location..."/></div>
+            </div>
+            <div class="an-stats-row">
+              <article class="an-stat-card" style="border-left-color:var(--accent)"><div class="an-stat-ey">Total Applications</div><div class="an-stat-num" id="anStatTotal">0</div><div class="an-stat-delta">across all stages</div></article>
+              <article class="an-stat-card" style="border-left-color:#4df7b8"><div class="an-stat-ey">Response Rate</div><div class="an-stat-num" id="anStatRate">0%</div><div class="an-stat-delta">interview+offer / applied</div></article>
+              <article class="an-stat-card" style="border-left-color:#f7c26a"><div class="an-stat-ey">Active Pipeline</div><div class="an-stat-num" id="anStatActive">0</div><div class="an-stat-delta">in progress right now</div></article>
+              <article class="an-stat-card" style="border-left-color:#a8f740"><div class="an-stat-ey">Offers Received</div><div class="an-stat-num" id="anStatOffers" style="color:#a8f740">0</div><div class="an-stat-delta" id="anStatOfferRate">0% offer rate</div></article>
+            </div>
+            <div class="an-charts-row">
+              <article class="an-chart-card"><div class="an-chart-head"><div class="an-chart-title">Pipeline Breakdown</div><div class="an-chart-sub">Applications by stage</div></div><div class="an-chart-wrap"><canvas id="anBarChart"></canvas></div></article>
+              <article class="an-chart-card"><div class="an-chart-head"><div class="an-chart-title">Status Distribution</div><div class="an-chart-sub">by count</div></div><div class="an-chart-wrap"><canvas id="anDonutChart"></canvas></div></article>
+            </div>
+            <article class="an-table-card">
+              <div class="an-table-subhead">
+                <div style="display:flex;align-items:center;gap:8px;"><div class="an-table-title">Applications</div><div class="an-count-badge" id="anTableCount">0</div></div>
+                <div style="display:flex;gap:8px;"><select id="anSort" class="an-sel"><option value="company">Company A-Z</option><option value="status">Status</option><option value="deadline">Deadline</option></select></div>
+              </div>
+              <div class="an-tbl-wrap">
+                <table class="an-table"><thead><tr><th>☐</th><th>Company</th><th>Role</th><th>Location</th><th>Status</th><th>Keywords</th><th>Deadline</th><th>ID</th><th>Action</th></tr></thead>
+                <tbody id="anTableBody"></tbody></table>
+              </div>
+              <div class="an-empty" id="anEmpty"><div class="an-empty-title">No applications match</div><div class="an-empty-sub">Try adjusting your filters.</div></div>
+            </article>
+          </section>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════ -->
+      <!-- SECTION 5: SKILL BANK VIEW          -->
+      <!-- ═══════════════════════════════════ -->
+      <div id="skillBankView" style="display:none">
+        <div class="sb-header">
+          <h2 class="sb-title">Skill Data Bank</h2>
+          <div class="sb-header-stats">
+            <span class="sb-stat" id="sb-total-count">0 skills</span>
+            <span class="sb-stat" id="sb-categories-count">0 categories</span>
+            <span class="sb-stat" id="sb-vector-status">Vector: --</span>
+          </div>
+        </div>
+
+        <!-- Tab bar -->
+        <div class="sb-tabs">
+          <button class="sb-tab active" data-sb-tab="skills">Skills</button>
+          <button class="sb-tab" data-sb-tab="add">Add Skill</button>
+          <button class="sb-tab" data-sb-tab="match">Test Match</button>
+          <button class="sb-tab" data-sb-tab="stats">Stats</button>
+        </div>
+
+        <!-- Skills Table Tab -->
+        <div class="sb-panel" id="sb-panel-skills">
+          <div class="sb-filters">
+            <input type="text" id="sb-search" class="sb-input" placeholder="Search skills..." />
+            <select id="sb-category-filter" class="sb-select">
+              <option value="">All Categories</option>
+            </select>
+            <select id="sb-level-filter" class="sb-select">
+              <option value="">All Levels</option>
+              <option value="Beginner">Beginner</option>
+              <option value="Beginner-Intermediate">Beginner-Intermediate</option>
+              <option value="Intermediate">Intermediate</option>
+              <option value="Intermediate-Advanced">Intermediate-Advanced</option>
+              <option value="Advanced">Advanced</option>
+            </select>
+          </div>
+          <div class="sb-table-wrap">
+            <table class="sb-table">
+              <thead>
+                <tr><th>ID</th><th>Skill</th><th>Category</th><th>Level</th><th>Evidence</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="sb-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Add Skill Tab -->
+        <div class="sb-panel" id="sb-panel-add" style="display:none">
+          <form id="sb-add-form" class="sb-form">
+            <div class="sb-form-row">
+              <label>Category</label>
+              <select id="sb-add-category" class="sb-select" required>
+                <option value="">Select category...</option>
+                <option value="SAP_Technical">SAP Technical</option>
+                <option value="Programming">Programming</option>
+                <option value="Data_Analytics">Data Analytics</option>
+                <option value="UX_Design">UX Design</option>
+                <option value="Creative">Creative</option>
+                <option value="Professional">Professional</option>
+                <option value="Tools">Tools</option>
+                <option value="Domain">Domain</option>
+              </select>
+            </div>
+            <div class="sb-form-row">
+              <label>Skill Name</label>
+              <input type="text" id="sb-add-skill" class="sb-input" placeholder="e.g. SAP BTP" required />
+            </div>
+            <div class="sb-form-row">
+              <label>Level</label>
+              <select id="sb-add-level" class="sb-select" required>
+                <option value="">Select level...</option>
+                <option value="Beginner">Beginner</option>
+                <option value="Beginner-Intermediate">Beginner-Intermediate</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Intermediate-Advanced">Intermediate-Advanced</option>
+                <option value="Advanced">Advanced</option>
+              </select>
+            </div>
+            <div class="sb-form-row">
+              <label>Evidence</label>
+              <textarea id="sb-add-evidence" class="sb-textarea" rows="4" placeholder="Describe your experience with this skill..." required></textarea>
+            </div>
+            <button type="submit" class="sb-btn sb-btn-primary">Add Skill</button>
+            <div id="sb-add-status" class="sb-status"></div>
+          </form>
+        </div>
+
+        <!-- Test Match Tab -->
+        <div class="sb-panel" id="sb-panel-match" style="display:none">
+          <div class="sb-match-form">
+            <label>Paste a job description to see which skills match:</label>
+            <textarea id="sb-match-input" class="sb-textarea" rows="6" placeholder="Paste job description here..."></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <button type="button" id="sb-match-btn" class="sb-btn sb-btn-primary">Find Matching Skills</button>
+              <button type="button" id="sb-generate-btn" class="sb-btn">Generate Cover Letter</button>
+            </div>
+          </div>
+          <div id="sb-match-results" class="sb-match-results"></div>
+        </div>
+
+        <!-- Stats Tab -->
+        <div class="sb-panel" id="sb-panel-stats" style="display:none">
+          <div id="sb-stats-content" class="sb-stats-grid"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Fullview Modal for CV/CL editing -->
+  <div id="gen-fullview-modal" class="gen-fullview-modal hidden">
+    <div class="gen-fullview-content">
+      <div class="gen-fullview-header">
+        <h2 id="gen-fullview-title">Edit</h2>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button type="button" class="btn btn-sm" id="gen-fullview-font-minus" title="Decrease font">A-</button>
+          <button type="button" class="btn btn-sm" id="gen-fullview-font-plus" title="Increase font">A+</button>
+          <button type="button" class="btn btn-sm" id="gen-fullview-copy">&#x2398; Copy</button>
+          <button type="button" class="btn btn-sm" id="gen-fullview-close">&#10005; Close</button>
+        </div>
+      </div>
+      <textarea id="gen-fullview-textarea"></textarea>
+    </div>
+  </div>
+
+  <!-- Scratchpad Popup -->
+  <button type="button" id="scratchpad-fab" class="scratchpad-fab" title="Open scratchpad">&#x1F4DD;</button>
+  <div id="scratchpad-popup" class="scratchpad-popup hidden">
+    <div class="scratchpad-header">
+      <span class="scratchpad-title">&#x1F4DD; Scratchpad</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button type="button" class="btn btn-sm" id="scratchpad-new">+ New</button>
+        <button type="button" class="btn btn-sm" id="scratchpad-close">&#10005;</button>
+      </div>
+    </div>
+    <div class="scratchpad-tabs" id="scratchpad-tabs"></div>
+    <textarea id="scratchpad-textarea" class="scratchpad-textarea" placeholder="Type notes here… auto-saves."></textarea>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <!-- Local Firebase config override (gitignored) -->
+  <script src="firebase-config.local.js"></script>
+
+  <!-- App modules -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth.js"></script>
+
+  <!-- Vendor -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- App logic (cache-busted to ensure latest JS is loaded) -->
+  <script src="js/app.js?v=2"></script>
+  <script src="js/generate.js?v=3"></script>
+  <script src="js/skill-bank.js?v=2"></script>
+</body>
+</html>
