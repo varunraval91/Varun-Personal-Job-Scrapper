@@ -522,7 +522,7 @@
         <div class="gqi-result-actions gqi-result-actions-secondary">
           <button class="btn btn-sm gqi-dach-btn" data-gen-dach="${esc(key)}">&#x1F1E9;&#x1F1EA; DACH Check</button>
         </div>
-        ${gen.dachIssues ? buildDachResultsHtml(gen.dachIssues) : ""}
+        ${gen.dachIssues ? buildDachResultsHtml(gen.dachIssues, key) : ""}
       </div>`;
     } else if (gen.state === "error") {
       resultsHtml = `<div class="gqi-error-msg">
@@ -1183,7 +1183,7 @@
     showToast("Generation discarded");
   }
 
-  function buildDachResultsHtml(issues) {
+  function buildDachResultsHtml(issues, reqId) {
     if (!issues || !issues.length) return `<div class="gqi-dach-results gqi-dach-pass">&#x2705; DACH check passed — no issues found.</div>`;
     const sevIcon = { high: "\u{1F534}", medium: "\u{1F7E1}", low: "\u{1F7E2}" };
     const rows = issues.map(iss =>
@@ -1195,6 +1195,7 @@
     return `<div class="gqi-dach-results">
       <div class="gqi-dach-hdr">\u{1F1E9}\u{1F1EA} DACH Compliance</div>
       ${rows}
+      <button class="btn btn-sm gqi-dach-fix-btn" data-gen-dach-fix="${esc(reqId)}">&#x1F527; Fix Issues</button>
     </div>`;
   }
 
@@ -1289,6 +1290,56 @@
       showToast("DACH check failed: " + err.message, "error");
     } finally {
       if (btn) { btn.disabled = false; btn.innerHTML = "\u{1F1E9}\u{1F1EA} DACH Check"; }
+    }
+  }
+
+  async function dachFix(reqId) {
+    const gen = genState.generations[reqId];
+    if (!gen || !gen.dachIssues?.length) { showToast("No DACH issues to fix", "error"); return; }
+    const safe = safeId(reqId);
+    const fixBtn = document.querySelector(`[data-gen-dach-fix="${CSS.escape(reqId)}"]`);
+    if (fixBtn) { fixBtn.disabled = true; fixBtn.innerHTML = "&#x231B; Fixing\u2026"; }
+
+    const cvText = document.getElementById("gqi-cv-" + safe)?.value || gen.cvContent || "";
+    const clText = document.getElementById("gqi-cl-" + safe)?.value || gen.clContent || "";
+    const issues = gen.dachIssues;
+
+    // Fix both documents in parallel
+    const fixDoc = async (docText, docType) => {
+      if (!docText) return null;
+      const res = await fetch("/dach-fix", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentText: docText, documentType: docType, issues })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || `${docType} fix failed`);
+      return data.content;
+    };
+
+    try {
+      const [fixedCv, fixedCl] = await Promise.all([
+        cvText ? fixDoc(cvText, "cv") : Promise.resolve(null),
+        clText ? fixDoc(clText, "cl") : Promise.resolve(null)
+      ]);
+
+      if (fixedCv) {
+        gen.cvContent = fixedCv;
+        const ta = document.getElementById("gqi-cv-" + safe);
+        if (ta) ta.value = fixedCv;
+      }
+      if (fixedCl) {
+        gen.clContent = fixedCl;
+        const ta = document.getElementById("gqi-cl-" + safe);
+        if (ta) ta.value = fixedCl;
+      }
+      gen.dachIssues = null;
+      updateJobUI(reqId);
+      showToast("DACH issues fixed — re-run check to verify");
+    } catch (err) {
+      showToast("DACH fix failed: " + err.message, "error");
+    } finally {
+      if (fixBtn) { fixBtn.disabled = false; fixBtn.innerHTML = "&#x1F527; Fix Issues"; }
     }
   }
 
@@ -1479,6 +1530,8 @@
       if (regenBtn) { regenDoc(regenBtn.dataset.genRegen, regenBtn.dataset.regenType); return; }
       const dachBtn = e.target.closest("[data-gen-dach]");
       if (dachBtn) { dachCheck(dachBtn.dataset.genDach); return; }
+      const dachFixBtn = e.target.closest("[data-gen-dach-fix]");
+      if (dachFixBtn) { dachFix(dachFixBtn.dataset.genDachFix); return; }
     });
 
     // JD panel tabs (legacy workspace still in DOM, kept for potential use)

@@ -54,7 +54,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 0.3rem 0 0.6rem;
+  padding: 0.15rem 0 0.35rem;
 }
 
 .logo-icon {
@@ -94,8 +94,8 @@ body {
 }
 
 .sidebar-footer button {
-  padding: 0.62rem;
-  font-size: 12px;
+  padding: 0;
+  font-size: 10px;
   background: rgba(255, 255, 255, 0.76);
   border-color: #9fb0ff;
   color: #243160;
@@ -777,13 +777,14 @@ body {
 }
 
 .app-layout {
-  grid-template-columns: 76px 1fr;
+  grid-template-columns: 72px 1fr;
 }
 
 .sidebar {
   background: #ece8f7;
   border-right: 1px solid #ddd5f2;
-  padding: 0.8rem 0.45rem;
+  padding: 0.6rem 0.35rem;
+  overflow: hidden;
 }
 
 .logo-icon {
@@ -793,39 +794,38 @@ body {
 }
 
 .nav-item {
-  padding: 0.55rem;
+  padding: 0.3rem;
 }
 
 .sidebar-nav .nav-item {
-  width: 64px;
-  min-height: 64px;
-  padding: 0.35rem 0.3rem;
-  border-radius: 12px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0.2rem 0.25rem;
+  border-radius: 10px;
   font-size: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 2px;
   text-align: center;
   text-decoration: none;
   cursor: pointer;
   box-sizing: border-box;
-  /* Reset button defaults */
   border: 1px solid transparent;
   background: none;
   font-family: inherit;
 }
 
 .sidebar-nav .nav-icon {
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1;
 }
 
 .sidebar-nav .nav-label {
   display: block;
-  font-size: 11px;
-  line-height: 1.15;
+  font-size: 9px;
+  line-height: 1.1;
   font-weight: 600;
 }
 
@@ -855,27 +855,24 @@ body {
 }
 
 .sidebar-utility-group {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: center;
-  gap: 4px;
-  padding-top: 0.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  padding-top: 0.15rem;
   width: 100%;
 }
 
 .sidebar-utility-group button,
 .sidebar-utility-group .utility-btn {
-  width: 100%;
-  min-height: 36px;
-  padding: 0.25rem 0.2rem;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
   font-size: 10px;
   display: inline-flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  text-align: center;
   cursor: pointer;
   border: 1px solid transparent;
   background: none;
@@ -890,22 +887,20 @@ body {
 }
 
 .utility-icon {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
 }
 
 .utility-label {
-  font-size: 9px;
-  line-height: 1.15;
-  font-weight: 600;
+  display: none;
 }
 
 .sidebar-footer {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding-top: 4px;
+  gap: 2px;
+  padding-top: 2px;
   width: 100%;
 }
 .sidebar-footer button {

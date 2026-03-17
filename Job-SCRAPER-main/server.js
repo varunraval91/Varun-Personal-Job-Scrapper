@@ -1882,6 +1882,38 @@ app.post("/dach-check", async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// POST /dach-fix  — auto-fix DACH compliance issues in CV / CL
+// ═══════════════════════════════════════════════════════════════
+
+const DACH_FIX_SYSTEM = `You are an expert editor for the DACH (Germany/Austria/Switzerland) job market.
+You will receive a document (CV or Cover Letter) together with a list of compliance issues found by a recruiter review.
+Your task: rewrite the document so that every listed issue is resolved, while keeping the rest of the content intact.
+Rules:
+- Maintain the same overall structure and LaTeX formatting if present.
+- Preserve all factual information (dates, titles, company names, skills).
+- Fix tone, length, phrasing, and structure issues as described in the issue list.
+- If an issue mentions the cover letter is too long, trim it to ~350-400 words.
+- If an issue mentions exaggerated language, replace with measured, professional German-market-appropriate phrasing.
+- Return ONLY the corrected document text. No commentary, no markdown fences.`;
+
+app.post("/dach-fix", async (req, res) => {
+  if (!aiProvider) return res.status(503).json({ success: false, error: "No AI provider configured" });
+  const { documentText, documentType, issues } = req.body;
+  if (!documentText || !issues?.length) return res.status(400).json({ success: false, error: "Missing documentText or issues" });
+  try {
+    const waitH = AI_MIN_GAP_MS - (Date.now() - lastAICall);
+    if (waitH > 0) await new Promise(r => setTimeout(r, waitH));
+    lastAICall = Date.now();
+    const issueList = issues.map((iss, idx) => `${idx + 1}. [${iss.severity}] ${iss.issue}${iss.suggestion ? " — Fix: " + iss.suggestion : ""}`).join("\n");
+    const prompt = `Document type: ${documentType === "cv" ? "CV" : "Cover Letter"}\n\nIssues to fix:\n${issueList}\n\nDocument:\n${documentText}`;
+    const fixed = await callAI(DACH_FIX_SYSTEM, prompt);
+    res.json({ success: true, content: fixed.trim() });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
 // POST /humanize
 // ═══════════════════════════════════════════════════════════════
 
