@@ -337,13 +337,14 @@
     card.querySelector('[data-action="delete"]')?.addEventListener("click", () => {
       if (confirm(`Delete "${app.company} — ${app.role}"?`)) deleteApplicationById(app.id);
     });
-    card.addEventListener("dblclick", () => openModal(app.id));
+    card.addEventListener("dblclick", () => openAppDetailModal(app.id));
     card.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/plain", app.id); e.dataTransfer.effectAllowed = "move"; card.classList.add("dragging"); });
     card.addEventListener("dragend", () => card.classList.remove("dragging"));
     return card;
   }
 
   function esc(s) { return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function cleanLoc(s) { return String(s || "").replace(/#[^{]*\{[^}]*\}/g, "").replace(/\s+/g, " ").trim(); }
 
   function bindKanbanDnD() {
     document.querySelectorAll(".column-list").forEach((col) => {
@@ -425,6 +426,23 @@
     const pct = Math.min(100, (count / state.currentWeeklyGoal) * 100);
     if (DOM.goalBarFill) DOM.goalBarFill.style.width = `${pct}%`;
     if (DOM.goalText) DOM.goalText.textContent = `${count} / ${state.currentWeeklyGoal} applications this week`;
+    // Self-deadline widget
+    const remaining = Math.max(0, state.currentWeeklyGoal - count);
+    const daysLeft = 7 - new Date().getDay(); // Sun=7, Mon=6 … Sat=1
+    const appsLeftEl = document.getElementById("dw-apps-left");
+    const daysLeftEl = document.getElementById("dw-days-left");
+    const hintEl = document.getElementById("dw-hint");
+    if (appsLeftEl) appsLeftEl.textContent = remaining;
+    if (daysLeftEl) daysLeftEl.textContent = daysLeft;
+    if (hintEl) {
+      if (remaining === 0) {
+        hintEl.textContent = "🎉 Weekly goal achieved!";
+        hintEl.className = "dw-hint dw-hint-done";
+      } else {
+        hintEl.textContent = `Apply ${remaining} more within ${daysLeft} day${daysLeft === 1 ? "" : "s"} to hit your goal`;
+        hintEl.className = "dw-hint";
+      }
+    }
   }
 
   function editWeeklyGoal() {
@@ -490,62 +508,86 @@
     state.editingId = editId || null;
     const existing = editId ? state.applications.find((a) => a.id === editId) : null;
     const isEdit = !!existing;
+    // compute early so template literals can use it
+    const defaultDeadline = (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); })();
 
     let html = `<div class="modal-inner">`;
     html += `<div class="modal-head"><h2 id="modal-title">${isEdit ? "Edit Application" : "New Application"}</h2><button type="button" class="modal-close-btn" id="close-modal-btn">✕</button></div>`;
 
-    // Source step (new only)
+    // New app: single-step form with URL autofill bar at the top
     if (!isEdit) {
-      html += `<section id="source-step" class="modal-section">
-        <p class="modal-step-label">Step 1 · Choose input source</p>
-        <div class="source-btns">
-          <button type="button" class="btn btn-primary" id="source-link-btn">Use Job Link</button>
-          <button type="button" class="btn btn-primary" id="source-file-btn" style="background:var(--accent-secondary)">Use File</button>
-          <button type="button" class="btn btn-primary" id="source-skip-btn" style="background:var(--text-secondary)">Skip → Manual</button>
+      html += `<form id="app-form" class="modal-section">
+        <div class="autofill-bar">
+          <input type="url" id="source-link-input" placeholder="Paste job URL to auto-fill…" class="modal-input autofill-url-input" autocomplete="off"/>
+          <button type="button" class="btn btn-primary" id="extract-continue-btn">Fetch &amp; Fill →</button>
         </div>
-        <div id="source-link-panel" style="display:none;margin-top:12px;">
-          <label for="source-link-input">Job Link</label>
-          <input type="url" id="source-link-input" placeholder="https://jobs.sap.com/job/..." class="modal-input"/>
-          <button type="button" class="btn btn-primary" id="extract-continue-btn" style="margin-top:8px">Extract & Continue</button>
-          <div id="extract-loader" style="display:none;margin-top:8px;color:var(--text-secondary)">Extracting…</div>
+        <div id="extract-loader" style="display:none;margin:4px 0 2px;color:var(--text-secondary);font-size:.82rem">Extracting job data…</div>
+        <div class="autofill-alt-row">
+          <button type="button" id="source-file-btn" class="source-alt-link">📎 Upload file instead</button>
         </div>
-        <div id="source-file-panel" style="display:none;margin-top:12px;">
-          <label for="source-file-input">Attachment (.txt, .csv, .xlsx — single job)</label>
+        <div id="source-file-panel" style="display:none;margin-top:8px">
+          <label for="source-file-input">Attachment (.txt, .csv, .xlsx)</label>
           <input type="file" id="source-file-input" accept=".txt,.csv,.xlsx,.xls" class="modal-input"/>
-          <button type="button" class="btn btn-primary" id="file-continue-btn" style="margin-top:8px">Parse & Continue</button>
+          <button type="button" class="btn btn-primary" id="file-continue-btn" style="margin-top:6px">Parse &amp; Fill</button>
         </div>
-      </section>`;
+        <div class="autofill-divider"></div>
+        <input type="hidden" id="form-id" value=""/>
+        <input type="hidden" id="form-link" value=""/>
+        <div class="modal-grid">
+          <div><label for="form-company">Company</label><input type="text" id="form-company" maxlength="120" value="" class="modal-input" placeholder="SAP SE"/></div>
+          <div><label for="form-role">Role</label><input type="text" id="form-role" maxlength="200" value="" class="modal-input" placeholder="BTP Developer"/></div>
+        </div>
+        <div class="modal-grid">
+          <div><label for="form-location">Location</label><input type="text" id="form-location" maxlength="120" value="" class="modal-input" placeholder="Walldorf, Germany"/></div>
+          <div><label for="form-req-id">Req ID</label><input type="text" id="form-req-id" maxlength="120" value="" class="modal-input" placeholder="123456"/></div>
+        </div>
+        <div class="modal-grid">
+          <div><label for="form-stage">Stage</label><select id="form-stage" class="modal-input">${STAGES.map((s) => `<option value="${s}" ${s === "Wishlist" ? "selected" : ""}>${s}</option>`).join("")}</select></div>
+          <div><label for="form-deadline">Self Deadline</label><input type="date" id="form-deadline" value="${defaultDeadline}" class="modal-input"/></div>
+        </div>
+        <div class="modal-grid">
+          <div><label for="form-posting-date">Posting Date</label><input type="date" id="form-posting-date" value="" class="modal-input"/></div>
+          <div><label for="form-link-edit">Job Link</label><input type="url" id="form-link-edit" maxlength="500" value="" class="modal-input" oninput="document.getElementById('form-link').value=this.value" placeholder="https://jobs.sap.com/job/..."/></div>
+        </div>
+        <div><label for="form-notes">Notes</label><textarea id="form-notes" maxlength="500" class="modal-input" rows="2"></textarea></div>
+        <div class="modal-actions">
+          <button type="button" class="btn" id="cancel-modal-btn">Cancel</button>
+        </div>
+      </form>`;
     }
 
-    // Form step
-    const a = existing || { id: "", company: "", role: "", link: "", location: "", reqId: "", postingDate: "", stage: "Wishlist", deadline: "", contactType: "", contactName: "", notes: "" };
-    html += `<form id="app-form" class="modal-section" ${isEdit ? "" : 'style="display:none"'}>
-      <p class="modal-step-label">${isEdit ? "" : "Step 2 · "}Application Details</p>
-      <input type="hidden" id="form-id" value="${esc(a.id)}"/>
-      <input type="hidden" id="form-link" value="${esc(a.link)}"/>
-      <div class="modal-grid">
-        <div><label for="form-company">Company</label><input type="text" id="form-company" maxlength="120" value="${esc(a.company)}" class="modal-input"/></div>
-        <div><label for="form-role">Role</label><input type="text" id="form-role" maxlength="200" value="${esc(a.role)}" class="modal-input"/></div>
-      </div>
-      <div class="modal-grid">
-        <div><label for="form-location">Location</label><input type="text" id="form-location" maxlength="120" value="${esc(a.location)}" class="modal-input"/></div>
-        <div><label for="form-req-id">Req ID</label><input type="text" id="form-req-id" maxlength="120" value="${esc(a.reqId)}" class="modal-input"/></div>
-      </div>
-      <div class="modal-grid">
-        <div><label for="form-posting-date">Posting Date</label><input type="date" id="form-posting-date" value="${a.postingDate || ""}" class="modal-input"/></div>
-        <div><label for="form-stage">Stage</label><select id="form-stage" class="modal-input">${STAGES.map((s) => `<option value="${s}" ${s === a.stage ? "selected" : ""}>${s}</option>`).join("")}</select></div>
-      </div>
-      <div class="modal-grid">
-        <div><label for="form-deadline">Self Deadline</label><input type="date" id="form-deadline" value="${a.deadline || ""}" class="modal-input"/></div>
-        <div><label for="form-contact-type">Contact Type</label><select id="form-contact-type" class="modal-input"><option value="">None</option><option value="HR" ${a.contactType === "HR" ? "selected" : ""}>HR</option><option value="Friend" ${a.contactType === "Friend" ? "selected" : ""}>Friend</option><option value="Company Employee" ${a.contactType === "Company Employee" ? "selected" : ""}>Employee</option></select></div>
-      </div>
-      <div><label for="form-contact-name">Contact Name</label><input type="text" id="form-contact-name" maxlength="120" value="${esc(a.contactName)}" class="modal-input"/></div>
-      <div><label for="form-notes">Notes</label><textarea id="form-notes" maxlength="500" class="modal-input" rows="3">${esc(a.notes)}</textarea></div>
-      <div class="modal-actions">
-        <button type="button" class="btn" id="cancel-modal-btn">Cancel</button>
-        <button type="submit" class="btn btn-primary">Save Application</button>
-      </div>
-    </form>`;
+    // Form step (edit only — new-app form is already built above)
+    const a = existing || { id: "", company: "", role: "", link: "", location: "", reqId: "", postingDate: "", stage: "Wishlist", deadline: defaultDeadline, contactType: "", contactName: "", notes: "" };
+    if (isEdit) {
+      html += `<form id="app-form" class="modal-section">
+        <p class="modal-step-label">Edit Application</p>
+        <input type="hidden" id="form-id" value="${esc(a.id)}"/>
+        <input type="hidden" id="form-link" value="${esc(a.link)}"/>
+        <div class="modal-grid">
+          <div><label for="form-company">Company</label><input type="text" id="form-company" maxlength="120" value="${esc(a.company)}" class="modal-input"/></div>
+          <div><label for="form-role">Role</label><input type="text" id="form-role" maxlength="200" value="${esc(a.role)}" class="modal-input"/></div>
+        </div>
+        <div class="modal-grid">
+          <div><label for="form-location">Location</label><input type="text" id="form-location" maxlength="120" value="${esc(a.location)}" class="modal-input"/></div>
+          <div><label for="form-req-id">Req ID</label><input type="text" id="form-req-id" maxlength="120" value="${esc(a.reqId)}" class="modal-input"/></div>
+        </div>
+        <div class="modal-grid">
+          <div><label for="form-stage">Stage</label><select id="form-stage" class="modal-input">${STAGES.map((s) => `<option value="${s}" ${s === a.stage ? "selected" : ""}>${s}</option>`).join("")}</select></div>
+          <div><label for="form-deadline">Self Deadline</label><input type="date" id="form-deadline" value="${a.deadline || ""}" class="modal-input"/></div>
+        </div>
+        <div class="modal-grid">
+          <div><label for="form-posting-date">Posting Date</label><input type="date" id="form-posting-date" value="${a.postingDate || ""}" class="modal-input"/></div>
+          <div><label for="form-link-edit">Job Link</label><input type="url" id="form-link-edit" maxlength="500" value="${esc(a.link)}" class="modal-input" oninput="document.getElementById('form-link').value=this.value"/></div>
+        </div>
+        <div><label for="form-notes">Notes</label><textarea id="form-notes" maxlength="500" class="modal-input" rows="3">${esc(a.notes)}</textarea></div>
+        <div class="modal-actions">
+          <button type="button" class="btn" id="cancel-modal-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>`;
+    } else {
+      // (new-app form already generated above)
+    }
     html += `</div>`;
 
     DOM.modalBox.innerHTML = html;
@@ -557,16 +599,162 @@
     $("app-form")?.addEventListener("submit", saveApplicationFromForm);
 
     if (!isEdit) {
-      $("source-link-btn")?.addEventListener("click", () => { $("source-link-panel").style.display = ""; $("source-file-panel").style.display = "none"; });
-      $("source-file-btn")?.addEventListener("click", () => { $("source-file-panel").style.display = ""; $("source-link-panel").style.display = "none"; });
-      $("source-skip-btn")?.addEventListener("click", () => { $("source-step").style.display = "none"; $("app-form").style.display = ""; });
-      $("extract-continue-btn")?.addEventListener("click", handleLinkExtraction);
-      $("file-continue-btn")?.addEventListener("click", handleFileExtraction);
+      $('source-file-btn')?.addEventListener('click', () => {
+        const fp = $('source-file-panel');
+        fp.style.display = fp.style.display === 'none' ? '' : 'none';
+      });
+      $('extract-continue-btn')?.addEventListener('click', handleLinkExtraction);
+      $('file-continue-btn')?.addEventListener('click', handleFileExtraction);
+      $('source-link-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); handleLinkExtraction(); } });
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // APP DETAIL POPUP (double-click kanban card)
+  // ═══════════════════════════════════════════════════════════════
+  function openAppDetailModal(id) {
+    // search both live state and filtered cache
+    let app = state.applications.find((a) => a.id === id);
+    if (!app) app = (anState.filtered || []).find((a) => a.id === id);
+    if (!app) { showToast("Application not found — try refreshing", "error"); return; }
+    if (!DOM.modalBox) DOM.modalBox = document.getElementById("modal-box");
+    if (!DOM.modalBackdrop) DOM.modalBackdrop = document.getElementById("modal-backdrop");
+    if (!DOM.modalBox || !DOM.modalBackdrop) { showToast("Modal unavailable", "error"); return; }
+
+    const slug = (app.stage || "").toLowerCase().replace(/[^a-z]/g, "");
+    const added = app.createdAt
+      ? new Date(app.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : "";
+
+    const analysisKey = "analysis_" + (app.reqId || encodeURIComponent(app.link || ""));
+    let analysis = null;
+    try {
+      const raw = localStorage.getItem(analysisKey);
+      if (raw) analysis = JSON.parse(raw);
+    } catch {}
+
+    let analysisHtml = "";
+    if (analysis && (analysis.jdSummary || analysis.matchedChunks)) {
+      const summary = analysis.jdSummary || null;
+      const chunks = analysis.matchedChunks || [];
+      const topChunks = chunks.slice(0, 6);
+      const coverage = topChunks.length;
+      const avgRel = coverage
+        ? Math.round(topChunks.reduce((sum, c) => sum + Math.round((1 - (c.distance || 0)) * 100), 0) / coverage)
+        : 0;
+      const fit = (coverage >= 6 || avgRel >= 55)
+        ? { label: "STRONG FIT", cls: "strong" }
+        : (coverage >= 4 || avgRel >= 42)
+        ? { label: "GOOD FIT", cls: "good" }
+        : (coverage >= 2)
+        ? { label: "PARTIAL FIT", cls: "partial" }
+        : { label: "LOW MATCH", cls: "low" };
+
+      const oneLiner = summary?.snapshot?.one_liner || "";
+      const mustHave = (summary?.must_have || []).slice(0, 4);
+      const niceToHave = (summary?.nice_to_have || []).slice(0, 3);
+      const aiSkills = (summary?.skills || []).slice(0, 6);
+      const aiTools = (summary?.tools || []).slice(0, 6);
+
+      const barsHtml = topChunks.slice(0, 5).map((c) => {
+        const rel = Math.round((1 - (c.distance || 0)) * 100);
+        const color = rel >= 65 ? "#059669" : rel >= 45 ? "#d97706" : "#9ca3af";
+        return `<div class="adm-bar-row">
+          <span class="adm-bar-name">${esc(c.metadata?.skill_name || c.id || "")}</span>
+          <div class="adm-bar-track"><div class="adm-bar-fill" style="width:${rel}%;background:${color}"></div></div>
+          <span class="adm-bar-pct" style="color:${color}">${rel}%</span>
+        </div>`;
+      }).join("");
+
+      analysisHtml = `<section class="adm-analysis">
+        <div class="adm-fit-badge adm-fit-${fit.cls}">${fit.label} · ${coverage} matches · avg ${avgRel}%</div>
+        ${oneLiner ? `<p class="adm-oneliner">${esc(oneLiner)}</p>` : ""}
+        <div class="adm-grid">
+          <div class="adm-panel">
+            <div class="adm-panel-hdr">Requirements</div>
+            ${mustHave.length ? `<div class="adm-chip-wrap">${mustHave.map((x) => `<span class="adm-chip adm-chip-must">${esc(x)}</span>`).join("")}</div>` : `<div class="adm-empty">No must-have list extracted</div>`}
+            ${niceToHave.length ? `<div class="adm-chip-wrap" style="margin-top:8px">${niceToHave.map((x) => `<span class="adm-chip adm-chip-nice">${esc(x)}</span>`).join("")}</div>` : ""}
+          </div>
+          <div class="adm-panel">
+            <div class="adm-panel-hdr">Skills / Tools</div>
+            ${(aiSkills.length || aiTools.length)
+              ? `<div class="adm-chip-wrap">${aiSkills.map((x) => `<span class="adm-chip adm-chip-skill">${esc(x)}</span>`).join("")}${aiTools.map((t) => {
+                  const clean = t.endsWith("+") ? t.slice(0, -1) : t;
+                  return `<span class="adm-chip adm-chip-tool">${esc(clean)}</span>`;
+                }).join("")}</div>`
+              : `<div class="adm-empty">No skills/tools extracted</div>`}
+          </div>
+        </div>
+        ${barsHtml ? `<div class="adm-panel" style="margin-top:10px"><div class="adm-panel-hdr">Skill Bank Coverage</div>${barsHtml}</div>` : ""}
+        <div class="adm-analysis-actions">
+          <button type="button" class="btn btn-primary" id="app-det-analyze">↺ Re-analyze in Generate</button>
+        </div>
+      </section>`;
+    } else if (app.link) {
+      analysisHtml = `<section class="adm-no-analysis">
+        <div class="adm-no-icon">⚡</div>
+        <div class="adm-no-text">
+          <strong>Analysis not generated yet</strong>
+          <span>Open Generate tab, run analysis once, then this tracker popup will always show saved fit details.</span>
+        </div>
+        <button type="button" class="btn btn-primary" id="app-det-analyze">Analyze Now →</button>
+      </section>`;
+    }
+
+    let html = `<div class="modal-inner adm-modal">`;
+    html += `<div class="modal-head"><span class="stage-pill stage-pill-${slug}">${esc(app.stage)}</span><h2 id="modal-title" class="app-detail-h2">${esc(app.company)}</h2><button type="button" class="modal-close-btn" id="close-modal-btn">✕</button></div>`;
+    html += `<p class="app-detail-role">${esc(app.role)}</p>`;
+    html += `<div class="app-detail-meta">`;
+    if (app.location) html += `<span>📍 ${esc(app.location)}</span>`;
+    if (app.reqId) html += `<span>🔎 Req ${esc(app.reqId)}</span>`;
+    if (app.postingDate) html += `<span>📅 Posted ${esc(app.postingDate)}</span>`;
+    if (app.deadline) html += `<span class="app-detail-deadline">⏰ Deadline ${esc(app.deadline)}</span>`;
+    if (added) html += `<span>➕ Added ${added}</span>`;
+    html += `</div>`;
+    if (app.notes) html += `<div class="app-detail-notes">${esc(app.notes)}</div>`;
+    if (app.link) html += `<div class="app-detail-link"><a href="${esc(app.link)}" target="_blank" rel="noopener noreferrer">🔗 Open Job Posting ↗</a></div>`;
+    if (app.topMatchedSkills && app.topMatchedSkills.length && !analysisHtml) {
+      html += `<div class="app-detail-skills"><span class="app-detail-skills-lbl">Matched Skills</span>${app.topMatchedSkills.slice(0, 6).map((s) => `<span class="scrape-skill-tag">${esc(s)}</span>`).join("")}</div>`;
+    }
+    html += analysisHtml;
+    html += `<div class="modal-actions app-detail-actions adm-footer-actions">`;
+    html += `<button type="button" class="btn" id="app-det-edit">✎ Edit</button>`;
+    html += `<select class="modal-input app-detail-stage-sel" id="app-det-stage" title="Move to stage">${STAGES.map((s) => `<option value="${s}" ${s === app.stage ? "selected" : ""}>${s}</option>`).join("")}</select>`;
+    html += `<button type="button" class="btn" style="color:var(--accent-secondary);border-color:rgba(220,38,38,.3)" id="app-det-delete">🗑 Delete</button>`;
+    html += `</div></div>`;
+
+    DOM.modalBox.innerHTML = html;
+    DOM.modalBox.classList.add("adm-wide");
+    DOM.modalBackdrop.classList.remove("hidden");
+
+    $("close-modal-btn")?.addEventListener("click", closeModal);
+    DOM.modalBackdrop.addEventListener("click", (e) => { if (e.target === DOM.modalBackdrop) closeModal(); }, { once: true });
+    $("app-det-edit")?.addEventListener("click", () => { closeModal(); openModal(id); });
+    $("app-det-stage")?.addEventListener("change", (e) => { moveApplicationToStage(id, e.target.value); closeModal(); });
+    $("app-det-delete")?.addEventListener("click", () => { if (confirm(`Delete "${app.company} — ${app.role}"?`)) { deleteApplicationById(id); closeModal(); } });
+    $("app-det-analyze")?.addEventListener("click", () => {
+      closeModal();
+      const job = {
+        title: app.role,
+        url: app.link,
+        requisitionId: app.reqId,
+        location: app.location,
+        matchScore: app.matchScore || null,
+        topMatchedSkills: app.topMatchedSkills || []
+      };
+      if (window.GenerateModule?.addToQueue) {
+        window.GenerateModule.addToQueue(job);
+        document.querySelector('[data-view="generate"]')?.click();
+        showToast("Added to Generation Queue — analysis starting…");
+      } else {
+        showToast("Open the Generate tab to analyze", "error");
+      }
+    });
   }
 
   function closeModal() {
     state.editingId = null;
+    DOM.modalBox?.classList.remove("adm-wide");
     if (DOM.modalBackdrop) DOM.modalBackdrop.classList.add("hidden");
   }
 
@@ -580,19 +768,24 @@
       const data = await res.json();
       if (data.success && data.jd) {
         const jd = data.jd;
-        $("form-company").value = "SAP";
-        $("form-role").value = jd.title || "";
-        $("form-location").value = jd.location || "";
-        $("form-req-id").value = jd.requisitionId || "";
-        $("form-link").value = url;
-        if (jd.postedDate) $("form-posting-date").value = toIsoDate(jd.postedDate);
+        if ($("form-company")) $("form-company").value = "SAP";
+        if ($("form-role")) $("form-role").value = jd.title || "";
+        if ($("form-location")) $("form-location").value = jd.location || "";
+        if ($("form-req-id")) $("form-req-id").value = jd.requisitionId || "";
+        // sync to both hidden and visible link fields
+        if ($("form-link")) $("form-link").value = url;
+        if ($("form-link-edit")) $("form-link-edit").value = url;
+        if (jd.postedDate && $("form-posting-date")) $("form-posting-date").value = toIsoDate(jd.postedDate);
+        showToast("Fields filled — saving application…", "success");
+        // auto-save: submit the form programmatically
+        setTimeout(() => $('app-form')?.requestSubmit(), 150);
+      } else {
+        showToast("Could not extract job data", "error");
       }
     } catch (err) {
       showToast("Extraction failed: " + err.message, "error");
     }
     if (loader) loader.style.display = "none";
-    $("source-step").style.display = "none";
-    $("app-form").style.display = "";
   }
 
   async function handleFileExtraction() {
@@ -615,8 +808,9 @@
     } catch (err) {
       showToast("Parse error: " + err.message, "error");
     }
-    $("source-step").style.display = "none";
-    $("app-form").style.display = "";
+    // collapse the file panel after parsing
+    const fp = $("source-file-panel");
+    if (fp) fp.style.display = "none";
   }
 
   async function saveApplicationFromForm(e) {
@@ -632,15 +826,15 @@
       id,
       company: company || "Unknown",
       role: role || "Unknown",
-      link: $("form-link")?.value?.trim() || "",
-      location: $("form-location")?.value?.trim() || "",
-      reqId: $("form-req-id")?.value?.trim() || "",
-      postingDate: $("form-posting-date")?.value || "",
-      stage: $("form-stage")?.value || "Wishlist",
-      deadline: $("form-deadline")?.value || "",
-      contactType: $("form-contact-type")?.value || "",
-      contactName: $("form-contact-name")?.value?.trim() || "",
-      notes: $("form-notes")?.value?.trim() || "",
+      link: $('form-link')?.value?.trim() || "",
+      location: $('form-location')?.value?.trim() || "",
+      reqId: $('form-req-id')?.value?.trim() || "",
+      postingDate: $('form-posting-date')?.value || "",
+      stage: $('form-stage')?.value || "Wishlist",
+      deadline: $('form-deadline')?.value || "",
+      contactType: $('form-contact-type')?.value || "",
+      contactName: $('form-contact-name')?.value?.trim() || "",
+      notes: typeof $('form-notes')?.value === 'string' ? $('form-notes').value.trim() : ($('form-notes')?.getAttribute?.('value') || ""),
       updatedAt: new Date().toISOString()
     };
 
@@ -651,6 +845,12 @@
     } else {
       payload.createdAt = new Date().toISOString();
       state.applications.unshift(payload);
+      // Auto-add to generation queue for fit analysis if app has a link
+      if (payload.link && window.GenerateModule?.addToQueue) {
+        window.GenerateModule.addToQueue({ title: payload.role, url: payload.link,
+          requisitionId: payload.reqId, location: payload.location,
+          matchScore: null, topMatchedSkills: [] });
+      }
     }
 
     await persistApplication(payload);
@@ -816,11 +1016,22 @@
     DOM.anExportBtn?.addEventListener("click", an_exportFilteredCSV);
     DOM.anSort?.addEventListener("change", (e) => { anState.sort = e.target.value; an_applyFilters(); });
     DOM.anSearch?.addEventListener("input", (e) => { anState.search = e.target.value.trim().toLowerCase(); an_applyFilters(); });
-    // table edit click
-    DOM.anTableBody?.addEventListener("click", (e) => {
-      const btn = e.target.closest("[data-edit-id]");
-      if (btn) openModal(btn.dataset.editId);
-    });
+    // table action clicks — re-query tbody each time in case DOM was null at init
+    const attachTableClicks = () => {
+      const tbody = DOM.anTableBody || document.getElementById("anTableBody");
+      if (!tbody) return;
+      if (tbody._clickBound) return; // prevent duplicates
+      tbody._clickBound = true;
+      tbody.addEventListener("click", (e) => {
+        const editBtn = e.target.closest("[data-edit-id]");
+        if (editBtn) { openModal(editBtn.dataset.editId); return; }
+        const viewBtn = e.target.closest("[data-view-id]");
+        if (viewBtn) { openAppDetailModal(viewBtn.dataset.viewId); return; }
+      });
+    };
+    attachTableClicks();
+    // expose so an_applyFilters can call it after first render
+    anState._attachTableClicks = attachTableClicks;
     anState.initialized = true;
   }
 
@@ -849,7 +1060,7 @@
     an_renderStatusMeta(rows);
     an_renderActiveChips();
     an_updateStats(rows);
-    an_renderTable(rows);
+    an_renderTable(rows); // _attachTableClicks called inside
     an_buildCharts(rows);
   }
 
@@ -906,24 +1117,31 @@
   }
 
   function an_renderTable(rows) {
+    if (!DOM.anTableBody) DOM.anTableBody = document.getElementById("anTableBody");
     if (!DOM.anTableBody) return;
     if (!rows.length) { DOM.anTableBody.innerHTML = ""; DOM.anEmpty && (DOM.anEmpty.style.display = ""); return; }
     DOM.anEmpty && (DOM.anEmpty.style.display = "none");
     DOM.anTableBody.innerHTML = rows.map((a) => {
       const code = an_stageCode(a.stage);
-      const kws = an_extractKeywords(a);
-      return `<tr>
-        <td><input type="checkbox"/></td>
+      const postDate = a.postingDate ? new Date(a.postingDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "—";
+      const dueDate  = a.deadline    ? new Date(a.deadline).toLocaleDateString("en-GB",    { day: "2-digit", month: "short" }) : "—";
+      return `<tr data-app-id="${a.id}" style="cursor:pointer">
         <td class="an-td-bold">${esc(a.company)}</td>
-        <td>${esc(a.role)}</td>
-        <td>${esc(a.location)}</td>
+        <td class="an-td-role"><span>${esc(a.role)}</span></td>
+        <td>${esc(cleanLoc(a.location))}</td>
         <td><span class="an-badge an-badge-${code}"><span class="an-badge-dot"></span>${a.stage}</span></td>
-        <td><div class="an-kw-tags">${kws.map((k) => `<span class="an-kw-tag">${esc(k)}</span>`).join("")}</div></td>
-        <td>${a.deadline || "—"}</td>
+        <td class="an-td-dates"><span class="an-date-post">${postDate}</span><span class="an-date-arrow">→</span><span class="an-date-due">${dueDate}</span></td>
         <td>${esc(a.reqId || "—")}</td>
-        <td><button type="button" class="an-btn" data-edit-id="${a.id}">Edit</button></td>
+        <td class="an-td-actions"><button type="button" class="an-btn" data-edit-id="${a.id}">Edit</button></td>
       </tr>`;
     }).join("");
+    // double-click row to open detail
+    DOM.anTableBody.querySelectorAll("tr[data-app-id]").forEach((row) => {
+      row.addEventListener("dblclick", () => openAppDetailModal(row.dataset.appId));
+    });
+    DOM.anTableBody.querySelectorAll("[data-edit-id]").forEach((btn) => {
+      btn.addEventListener("click", () => openModal(btn.dataset.editId));
+    });
   }
 
   function an_extractKeywords(app) {
@@ -980,9 +1198,9 @@
   // SEARCH VIEW (SCRAPING)
   // ═══════════════════════════════════════════════════════════════
   async function handleScrapeSearch() {
-    const keyword = DOM.scrapeKeyword?.value?.trim();
-    if (!keyword) { showToast("Enter a keyword", "error"); return; }
+    const keyword = DOM.scrapeKeyword?.value?.trim() || "";
     const location = DOM.scrapeLocation?.value?.trim() || "";
+    if (!keyword && !location) { showToast("Enter a keyword or location", "error"); return; }
     const period = DOM.scrapePeriod?.value || "1week";
     const careerStatus = DOM.scrapeCareerStatus?.value || "Student";
     const country = DOM.scrapeCountry?.value || "DE";
@@ -1072,8 +1290,18 @@
       DOM.scrapeResultsBody.innerHTML = `<tr><td colspan="7" class="auto-empty">No jobs found. Adjust filters and try again.</td></tr>`;
       return;
     }
-    DOM.scrapeResultsBody.innerHTML = scrapeState.jobs.map((job, i) => {
+    const scrapeSortSel = document.getElementById("scrape-sort-select");
+    const scrapeSortVal = scrapeSortSel ? scrapeSortSel.value : "match";
+    const parseRawDate = (r) => { if (!r || r === "N/A") return 0; const d = new Date(r); return isNaN(d) ? 0 : d.getTime(); };
+    const displayJobs = [...scrapeState.jobs].map((job, i) => ({ job, i }));
+    if (scrapeSortVal === "date-desc") displayJobs.sort((a, b) => parseRawDate(b.job.rawDate) - parseRawDate(a.job.rawDate));
+    else if (scrapeSortVal === "date-asc") displayJobs.sort((a, b) => parseRawDate(a.job.rawDate) - parseRawDate(b.job.rawDate));
+    DOM.scrapeResultsBody.innerHTML = displayJobs.map(({ job, i }) => {
       const sel = scrapeState.selected.has(i);
+      const alreadyTracked = state.applications.some(a => a.reqId && a.reqId === job.requisitionId);
+      const trackBtnHtml = alreadyTracked
+        ? `<button type="button" class="btn btn-sm scrape-quick-add" data-idx="${i}" disabled style="background:rgba(62,207,142,.15);color:#3ECF8E;border-color:rgba(62,207,142,.4);cursor:default">&#10003; Tracked</button>`
+        : `<button type="button" class="btn btn-sm btn-primary scrape-quick-add" data-idx="${i}">+ Track</button>`;
       return `<tr class="${sel ? "selected-row" : ""}">
         <td><input type="checkbox" class="scrape-select-cb" data-idx="${i}" ${sel ? "checked" : ""}/></td>
         <td>
@@ -1087,7 +1315,7 @@
         <td>${esc(job.requisitionId || "N/A")}</td>
         <td>${esc(job.location || "N/A")}</td>
         <td>${esc(job.date || "N/A")}</td>
-        <td><button type="button" class="btn btn-sm btn-primary scrape-quick-add" data-idx="${i}">+ Track</button></td>
+        <td>${trackBtnHtml}</td>
       </tr>`;
     }).join("");
 
@@ -1106,7 +1334,20 @@
     DOM.scrapeResultsBody.querySelectorAll(".scrape-quick-add").forEach((btn) => {
       btn.addEventListener("click", () => {
         const idx = parseInt(btn.dataset.idx, 10);
-        addJobToTracker(scrapeState.jobs[idx]);
+        const job = scrapeState.jobs[idx];
+        const alreadyTracked = state.applications.some((a) => a.reqId && a.reqId === job.requisitionId);
+        if (alreadyTracked) {
+          showToast("Already tracking this job", "error");
+          return;
+        }
+        addJobToTracker(job);
+        btn.textContent = "✓ Tracked";
+        btn.disabled = true;
+        btn.classList.remove("btn-primary");
+        btn.style.background = "rgba(62,207,142,.15)";
+        btn.style.color = "#3ECF8E";
+        btn.style.borderColor = "rgba(62,207,142,.4)";
+        btn.style.cursor = "default";
       });
     });
   }
@@ -1221,11 +1462,56 @@
     renderFilterUI();
     renderKanban();
     renderGoal();
-    if (anState.isOpen) an_applyFilters();
+    if (anState.initialized) an_applyFilters();
   }
 
   // ═══════════════════════════════════════════════════════════════
   // BIND EVENTS
+  // ═══════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
+  // FULL-VIEW APPLICATIONS OVERLAY
+  // ═══════════════════════════════════════════════════════════════
+  function openAnFullView() {
+    const rows = anState.filtered && anState.filtered.length ? anState.filtered : state.applications;
+    const overlay = document.getElementById("anFullViewOverlay");
+    const tbody   = document.getElementById("anfvTableBody");
+    const count   = document.getElementById("anfvCount");
+    if (!overlay || !tbody) return;
+    if (count) count.textContent = rows.length;
+    tbody.innerHTML = rows.map((a) => {
+      const code = an_stageCode(a.stage);
+      const postDate = a.postingDate ? new Date(a.postingDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "—";
+      const dueDate  = a.deadline    ? new Date(a.deadline).toLocaleDateString("en-GB",    { day: "2-digit", month: "short" }) : "—";
+      return `<tr data-app-id="${a.id}" style="cursor:pointer">
+        <td class="an-td-bold">${esc(a.company)}</td>
+        <td class="an-td-role"><span>${esc(a.role)}</span></td>
+        <td>${esc(cleanLoc(a.location))}</td>
+        <td><span class="an-badge an-badge-${code}"><span class="an-badge-dot"></span>${a.stage}</span></td>
+        <td class="an-td-dates"><span class="an-date-post">${postDate}</span><span class="an-date-arrow">→</span><span class="an-date-due">${dueDate}</span></td>
+        <td>${esc(a.reqId || "—")}</td>
+        <td class="an-td-actions">
+          <button type="button" class="an-btn" data-edit="${a.id}">Edit</button>
+        </td>
+      </tr>`;
+    }).join("");
+    // bind row buttons
+    tbody.querySelectorAll("tr[data-app-id]").forEach((row) => {
+      row.addEventListener("dblclick", () => { closeAnFullView(); openAppDetailModal(row.dataset.appId); });
+    });
+    tbody.querySelectorAll("[data-edit]").forEach((btn) => {
+      btn.addEventListener("click", () => { closeAnFullView(); openModal(btn.dataset.edit); });
+    });
+    overlay.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeAnFullView() {
+    document.getElementById("anFullViewOverlay")?.classList.add("hidden");
+    document.body.style.overflow = "";
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // EVENT BINDING
   // ═══════════════════════════════════════════════════════════════
   function bindEvents() {
     // Navigation
@@ -1250,8 +1536,14 @@
     DOM.openModalBtn?.addEventListener("click", () => openModal());
     DOM.modalBackdrop?.addEventListener("click", (e) => { if (e.target === DOM.modalBackdrop) closeModal(); });
 
+    // Full-view applications overlay
+    document.getElementById("anFullViewBtn")?.addEventListener("click", openAnFullView);
+    document.getElementById("anfvCloseBtn")?.addEventListener("click", closeAnFullView);
+    document.getElementById("anFullViewOverlay")?.addEventListener("click", (e) => { if (e.target.id === "anFullViewOverlay") closeAnFullView(); });
+
     // Goal
     DOM.goalEditBtn?.addEventListener("click", editWeeklyGoal);
+    document.getElementById("scrape-sort-select")?.addEventListener("change", renderScrapeResults);
 
     // Filter chips
     document.querySelectorAll("#filter-chips .chip").forEach((chip) => {
@@ -1279,6 +1571,14 @@
     });
 
     // Search view — Enter key triggers search
+    function updateSearchBtnState() {
+      const kw = DOM.scrapeKeyword?.value?.trim() || "";
+      const loc = DOM.scrapeLocation?.value?.trim() || "";
+      if (DOM.scrapeSearchBtn) DOM.scrapeSearchBtn.disabled = !kw && !loc;
+    }
+    DOM.scrapeKeyword?.addEventListener("input", updateSearchBtnState);
+    DOM.scrapeLocation?.addEventListener("input", updateSearchBtnState);
+    updateSearchBtnState();
     DOM.scrapeKeyword?.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); handleScrapeSearch(); }
     });
@@ -1358,6 +1658,20 @@
     an_applyFilters();
   };
   window.an_clearAll = an_clearAll;
+
+  // Factory reset — wipe all tracker data
+  window.factoryResetTracker = async function () {
+    if (!confirm("⚠ Factory Reset: This will permanently delete ALL tracker applications. Continue?")) return;
+    state.applications = [];
+    safeStorageRemove(STORAGE_KEY);
+    safeStorageRemove(GOAL_KEY);
+    if (useFirebase && currentUserId && window.FirebaseAPI?.db?.clearAllApplications) {
+      try { await FirebaseAPI.db.clearAllApplications(currentUserId); } catch (e) { console.warn("Firebase clear failed:", e.message); }
+    }
+    state.currentWeeklyGoal = 10;
+    renderUI();
+    showToast("Factory reset complete — all tracker data cleared");
+  };
 
   // Auto-init when DOM ready
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

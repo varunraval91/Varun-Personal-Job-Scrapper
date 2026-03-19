@@ -10,10 +10,10 @@
   const THEME_EVENT = 'jobhunt-theme-changed';
 
   const authPhrases = [
-    '"Consistency turns effort into offers."',
-    '"Each application is a step closer to your role."',
-    '"Discipline today creates opportunities tomorrow."',
-    '"One focused hour beats a day of uncertainty."'
+    'Scrape SAP jobs, generate tailored CVs & cover letters with AI, and track your pipeline — all in one tool.',
+    'RAG-powered document generation meets DACH-market compliance checking.',
+    'From job search to AI-generated applications in minutes, not hours.',
+    'Your personal AI recruitment assistant — built for the German job market.'
   ];
 
   function getEl(id) { return document.getElementById(id); }
@@ -39,7 +39,7 @@
     if (btn) {
       btn.disabled = isBusy;
       btn.innerHTML = isBusy
-        ? '<span>Signing in...</span>'
+        ? '<span class="auth-btn-spinner"></span><span>Signing in\u2026</span>'
         : '<span>Sign in</span><span class="btn-auth-arrow" aria-hidden="true">\u2192</span>';
     }
     if (email) email.disabled = isBusy;

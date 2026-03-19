@@ -142,4 +142,17 @@ function getStats() {
   };
 }
 
-module.exports = { addSkill, updateSkill, logApplication, getStats, loadBank, saveBank };
+/**
+ * Delete a skill by ID — removes from JSON and vector store.
+ */
+function deleteSkill(skillId) {
+  const bank = loadBank();
+  const idx = bank.skill_chunks.findIndex(c => c.id === skillId);
+  if (idx === -1) throw new Error(`Skill ${skillId} not found`);
+  const removed = bank.skill_chunks.splice(idx, 1)[0];
+  saveBank(bank);
+  console.log(`Deleted ${skillId}: "${removed.skill}"`);
+  return removed;
+}
+
+module.exports = { addSkill, updateSkill, deleteSkill, logApplication, getStats, loadBank, saveBank };

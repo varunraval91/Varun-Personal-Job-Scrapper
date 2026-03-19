@@ -9,9 +9,75 @@ const { execFile } = require("child_process");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
-app.use(cors());
+
+// ═══════════════════════════════════════════════════════════════
+// CORS — restrict in production, open in dev
+// ═══════════════════════════════════════════════════════════════
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || null;
+app.use(cors(ALLOWED_ORIGIN ? { origin: ALLOWED_ORIGIN } : undefined));
+
 app.use(express.json({ limit: "5mb" }));
 app.use(express.static(__dirname));
+
+// ═══════════════════════════════════════════════════════════════
+// REQUEST LOGGING MIDDLEWARE
+// ═══════════════════════════════════════════════════════════════
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const ms = Date.now() - start;
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} → ${res.statusCode} (${ms}ms)`);
+  });
+  next();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// IN-MEMORY RATE LIMITER (lightweight abuse guard)
+// ═══════════════════════════════════════════════════════════════
+const rateLimitStore = new Map();
+const RATE_LIMITS = {
+  "/generate":   { windowMs: 60000, max: 10 },
+  "/export-pdf": { windowMs: 60000, max: 15 },
+  "/dach-fix":   { windowMs: 60000, max: 10 },
+  "/dach-check": { windowMs: 60000, max: 15 },
+  "/humanize":   { windowMs: 60000, max: 10 },
+};
+
+function rateLimiter(req, res, next) {
+  const rule = RATE_LIMITS[req.path];
+  if (!rule) return next();
+  const ip = req.ip || req.connection?.remoteAddress || "unknown";
+  const key = `${ip}::${req.path}`;
+  const now = Date.now();
+  let entry = rateLimitStore.get(key);
+  if (!entry || now - entry.windowStart > rule.windowMs) {
+    entry = { windowStart: now, count: 0 };
+    rateLimitStore.set(key, entry);
+  }
+  entry.count++;
+  if (entry.count > rule.max) {
+    return res.status(429).json({ success: false, error: "Too many requests. Please wait before retrying." });
+  }
+  next();
+}
+app.use(rateLimiter);
+
+// Clean up stale rate limit entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of rateLimitStore) {
+    if (now - entry.windowStart > 120000) rateLimitStore.delete(key);
+  }
+}, 300000);
+
+// ═══════════════════════════════════════════════════════════════
+// SAFE ERROR RESPONSES — hide internals in production
+// ═══════════════════════════════════════════════════════════════
+const IS_PROD = process.env.NODE_ENV === "production";
+function safeError(err) {
+  if (IS_PROD) return "An internal error occurred. Please try again.";
+  return err?.message || String(err);
+}
 
 const PORT = process.env.PORT || 3000;
 const BASE_ACTION_TIMEOUT_MS = 60000;
@@ -22,6 +88,34 @@ const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-4-20250514";
 const CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
+
+// ═══════════════════════════════════════════════════════════════
+// DYNAMIC AVAILABILITY (start = next month, duration = 18 months)
+// ═══════════════════════════════════════════════════════════════
+
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_FULL  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+// Graduation / programme end — change this when your end date changes
+const AVAIL_END_MONTH = 9;  // 0-indexed: 9 = October
+const AVAIL_END_YEAR  = 2027;
+
+function getAvailability() {
+  const now = new Date();
+  let sM = now.getMonth() + 1; // next month (0-indexed + 1)
+  let sY = now.getFullYear();
+  if (sM > 11) { sM = 0; sY++; }
+  const startShort = `${MONTH_NAMES[sM]} ${sY}`;
+  const endShort   = `${MONTH_NAMES[AVAIL_END_MONTH]} ${AVAIL_END_YEAR}`;
+  const startLong  = `${MONTH_FULL[sM]} ${sY}`;
+  const endLong    = `${MONTH_FULL[AVAIL_END_MONTH]} ${AVAIL_END_YEAR}`;
+  return {
+    cv:    `${startShort} -- ${endShort} as working student, internship and thesis`,
+    cl:    `${startLong} – ${endLong}`,
+    range: `${startShort}-${endShort}`,
+    prose: `${startLong} through ${endLong} (20 hrs/week semester, full-time breaks)`
+  };
+}
 
 // ═══════════════════════════════════════════════════════════════
 // AI CLIENT (Claude > Groq > Gemini)
@@ -229,102 +323,132 @@ function smartSelectServer(jdText, docType, allDocs) {
 // SCRAPING
 // ═══════════════════════════════════════════════════════════════
 
+async function fetchJobDetail(browser, absoluteUrl) {
+  const page = await browser.newPage();
+  page.setDefaultTimeout(BASE_ACTION_TIMEOUT_MS);
+  page.setDefaultNavigationTimeout(BASE_NAV_TIMEOUT_MS);
+  try {
+    await page.goto(absoluteUrl, { waitUntil: "domcontentloaded", timeout: BASE_NAV_TIMEOUT_MS });
+    const extracted = await page.evaluate(() => {
+      const direct = document.querySelector('[data-careersite-propertyid="date"]');
+      const dateValue = direct?.textContent?.trim() || "N/A";
+      const locDirect = document.querySelector('[data-careersite-propertyid="location"]');
+      const locFallback = document.querySelector(".jobLocation");
+      const locEl = locDirect || locFallback;
+      if (locEl) locEl.querySelectorAll("style, script").forEach(s => s.remove());
+      const locationValue = locEl?.textContent?.replace(/\s+/g, " ").trim() || "N/A";
+      const facilityEl = document.querySelector('[data-careersite-propertyid="facility"]');
+      const reqValue = facilityEl?.textContent?.trim() || "N/A";
+      const dateLike = Array.from(document.querySelectorAll("span,div,li,p,dd,dt,strong"))
+        .map(el => (el.textContent || "").replace(/\s+/g, " ").trim())
+        .find(text => /[A-Za-z]{3,9}\s+\d{1,2},\s+\d{4}|\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}-\d{2}-\d{2}/.test(text));
+      return { date: dateValue !== "N/A" ? dateValue : (dateLike || "N/A"), location: locationValue, requisitionId: reqValue };
+    });
+    return extracted;
+  } catch (error) {
+    console.warn(`Date lookup failed for ${absoluteUrl}: ${error.message}`);
+    return { date: "N/A", location: "N/A", requisitionId: "N/A" };
+  } finally {
+    await page.close();
+  }
+}
+
 async function enrichJobsWithPostedDates(browser, jobs) {
   if (!jobs.length) return jobs;
-  const detailPage = await browser.newPage();
-  detailPage.setDefaultTimeout(BASE_ACTION_TIMEOUT_MS);
-  detailPage.setDefaultNavigationTimeout(BASE_NAV_TIMEOUT_MS);
+  const CONCURRENCY = 4;
   const dateByUrl = new Map();
-  const enriched = [];
 
+  // Deduplicate URLs that need visiting
+  const uniqueUrls = [];
   for (const job of jobs) {
     const absoluteUrl = normalizeSapJobUrl(job.url);
-    let location = String(job.location || "").replace(/\s+/g, " ").trim() || "N/A";
+    const urlBasedReqId = extractRequisitionIdFromUrl(absoluteUrl) || "N/A";
+    const needsVisit = !looksLikeDate(job.date) || !job.location || job.location === "N/A" || job.requisitionId === urlBasedReqId;
+    if (needsVisit && !dateByUrl.has(absoluteUrl)) {
+      dateByUrl.set(absoluteUrl, null); // placeholder
+      uniqueUrls.push(absoluteUrl);
+    }
+  }
+
+  // Fetch all detail pages with limited concurrency
+  for (let i = 0; i < uniqueUrls.length; i += CONCURRENCY) {
+    const batch = uniqueUrls.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(batch.map(url => fetchJobDetail(browser, url)));
+    batch.forEach((url, idx) => dateByUrl.set(url, results[idx]));
+  }
+
+  // Build enriched list
+  return jobs.map(job => {
+    const absoluteUrl = normalizeSapJobUrl(job.url);
+    let location = String(job.location || "").replace(/\s+/g, " ").replace(/#[^{]*\{[^}]*\}/g, "").trim() || "N/A";
     let requisitionId = String(job.requisitionId || "").trim() || extractRequisitionIdFromUrl(absoluteUrl) || "N/A";
     let postedDate = looksLikeDate(job.date) ? job.date : "N/A";
 
-    // Visit detail page when missing date/location OR when Req ID is only URL-extracted
-    const urlBasedReqId = extractRequisitionIdFromUrl(absoluteUrl) || "N/A";
-    const needsDetailVisit = !looksLikeDate(postedDate) || location === "N/A" || requisitionId === urlBasedReqId;
-    if (needsDetailVisit) {
-      if (dateByUrl.has(absoluteUrl)) {
-        const cached = dateByUrl.get(absoluteUrl);
-        postedDate = looksLikeDate(cached.date) ? cached.date : postedDate;
-        if (location === "N/A" && cached.location !== "N/A") location = cached.location;
-        if (cached.requisitionId !== "N/A") requisitionId = cached.requisitionId;
-      } else {
-        try {
-          await detailPage.goto(absoluteUrl, { waitUntil: "domcontentloaded", timeout: BASE_NAV_TIMEOUT_MS });
-          const extracted = await detailPage.evaluate(() => {
-            const direct = document.querySelector('[data-careersite-propertyid="date"]');
-            const dateValue = direct?.textContent?.trim() || "N/A";
-            const locDirect = document.querySelector('[data-careersite-propertyid="location"]');
-            const locFallback = document.querySelector(".jobLocation");
-            const locationValue = locDirect?.textContent?.replace(/\s+/g, " ").trim() || locFallback?.textContent?.replace(/\s+/g, " ").trim() || "N/A";
-            const facilityEl = document.querySelector('[data-careersite-propertyid="facility"]');
-            const reqValue = facilityEl?.textContent?.trim() || "N/A";
-            const dateLike = Array.from(document.querySelectorAll("span,div,li,p,dd,dt,strong"))
-              .map(el => (el.textContent || "").replace(/\s+/g, " ").trim())
-              .find(text => /[A-Za-z]{3,9}\s+\d{1,2},\s+\d{4}|\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}-\d{2}-\d{2}/.test(text));
-            return { date: dateValue !== "N/A" ? dateValue : (dateLike || "N/A"), location: locationValue, requisitionId: reqValue };
-          });
-          postedDate = looksLikeDate(extracted.date) ? extracted.date : postedDate;
-          if (location === "N/A" && extracted.location !== "N/A") location = extracted.location;
-          // Always prefer facility-based Req ID over URL-extracted
-          if (extracted.requisitionId !== "N/A") requisitionId = extracted.requisitionId;
-          dateByUrl.set(absoluteUrl, { date: postedDate, location, requisitionId });
-        } catch (error) {
-          console.warn(`Date lookup failed for ${absoluteUrl}: ${error.message}`);
-          dateByUrl.set(absoluteUrl, { date: "N/A", location, requisitionId });
-        }
-      }
+    const cached = dateByUrl.get(absoluteUrl);
+    if (cached) {
+      if (looksLikeDate(cached.date)) postedDate = cached.date;
+      if (location === "N/A" && cached.location !== "N/A") location = cached.location;
+      if (cached.requisitionId !== "N/A") requisitionId = cached.requisitionId;
     }
 
     const cleanLocation = location !== "N/A" ? location.split(",")[0].trim() : "N/A";
     let displayDate = postedDate;
     if (postedDate !== "N/A") {
-      try { const d = new Date(postedDate); if (!Number.isNaN(d.getTime())) displayDate = d.toLocaleDateString("en-US", { month: "long", day: "numeric" }); } catch {}
+      const d = parseJobDate(postedDate);
+      if (d) displayDate = d.toLocaleDateString("en-US", { month: "long", day: "numeric" });
     }
-    enriched.push({ ...job, url: absoluteUrl, date: displayDate, rawDate: postedDate, location: cleanLocation, requisitionId });
+    return { ...job, url: absoluteUrl, date: displayDate, rawDate: postedDate, location: cleanLocation, requisitionId };
+  });
+}
+
+function parseJobDate(raw) {
+  if (!raw || raw === "N/A") return null;
+  const d = new Date(raw);
+  if (!Number.isNaN(d.getTime())) return d;
+  // Handle abbreviated month with or without comma: "Mar 18 2026" or "Mar 18, 2026"
+  const m = raw.match(/^([A-Za-z]{3})\s+(\d{1,2}),?\s+(\d{4})$/);
+  if (m) {
+    const months = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+    const mo = months[m[1]];
+    if (mo !== undefined) return new Date(+m[3], mo, +m[2]);
   }
-  await detailPage.close();
-  return enriched;
+  return null;
 }
 
 function filterByPeriod(jobs, period) {
+  if (period === "any") return jobs;
   const now = new Date();
   return jobs.filter(job => {
-    if (period === "any") return true;
     const raw = job.rawDate || job.date;
-    if (!raw || raw === "N/A") return true;
-    const posted = new Date(raw);
-    if (Number.isNaN(posted.getTime())) return true;
+    const posted = parseJobDate(raw);
+    // Exclude jobs with no parseable date when a specific period is selected
+    if (!posted) return false;
     const days = (now - posted) / 86400000;
-    if (period === "today") return days < 1;
-    if (period === "1week") return days <= 7;
-    if (period === "2weeks") return days <= 14;
-    if (period === "3weeks") return days <= 21;
-    if (period === "1month") return days <= 30;
+    if (period === "today") return days >= 0 && days < 1;
+    if (period === "1week") return days >= 0 && days <= 7;
+    if (period === "2weeks") return days >= 0 && days <= 14;
+    if (period === "3weeks") return days >= 0 && days <= 21;
+    if (period === "1month") return days >= 0 && days <= 30;
     return true;
   });
 }
 
 async function scrapeOnePage(page, keyword, location, country, statusValue) {
   await page.goto("https://jobs.sap.com/search/", { waitUntil: "domcontentloaded", timeout: BASE_NAV_TIMEOUT_MS });
-  // SAP changed input name from "q" to "title" — try both for resilience
+  // Use 'q' (keyword search) instead of 'title' (full-text) for curated, relevant results
   await dismissCookieBanner(page);
-  let keywordInputName = "title";
+  let keywordInputName = "q";
   try {
-    await page.waitForSelector('input[name="title"]', { timeout: 8000 });
+    await page.waitForSelector('input[name="q"][type="text"]', { timeout: 8000 });
   } catch {
     try {
-      await page.waitForSelector('input[name="q"]', { timeout: 8000 });
-      keywordInputName = "q";
+      await page.waitForSelector('input[name="title"]', { timeout: 8000 });
+      keywordInputName = "title";
     } catch {
       throw new Error("Could not find keyword search input on SAP careers page");
     }
   }
-  await page.fill(`input[name="${keywordInputName}"]`, keyword);
+  await page.fill(`input[name="${keywordInputName}"]`, keyword || "");
   if (location) await page.fill('input[name="locationsearch"]', location);
   await page.waitForSelector("#optionsFacetsDD_customfield3", { timeout: 25000 });
   await page.selectOption("#optionsFacetsDD_customfield3", statusValue);
@@ -348,7 +472,7 @@ async function scrapeOnePage(page, keyword, location, country, statusValue) {
       results.push({
         title: link.textContent.trim(), url,
         date: row.querySelector('span[data-careersite-propertyid="date"], .job-date, .date, td.date')?.textContent?.trim() || "N/A",
-        location: row.querySelector(".colLocation .jobLocation, .jobLocation, td.location")?.textContent?.replace(/\s+/g, " ").trim() || "N/A",
+        location: (() => { const el = row.querySelector(".colLocation .jobLocation, .jobLocation, td.location"); if (el) el.querySelectorAll("style, script").forEach(s => s.remove()); return el?.textContent?.replace(/\s+/g, " ").trim() || "N/A"; })(),
         requisitionId: (url.match(/\/(\d+)\/?$/) || [])[1] || "N/A",
         status: "Not Started"
       });
@@ -364,7 +488,7 @@ async function scrapeOnePage(page, keyword, location, country, statusValue) {
           title: link.textContent.trim(),
           url,
           date: row?.querySelector('span[data-careersite-propertyid="date"], .job-date, .date, td.date')?.textContent?.trim() || "N/A",
-          location: row?.querySelector(".colLocation .jobLocation, .jobLocation, td.location")?.textContent?.replace(/\s+/g, " ").trim() || "N/A",
+          location: (() => { const el = row?.querySelector(".colLocation .jobLocation, .jobLocation, td.location"); if (el) el.querySelectorAll("style, script").forEach(s => s.remove()); return el?.textContent?.replace(/\s+/g, " ").trim() || "N/A"; })(),
           requisitionId: (url.match(/\/(\d+)\/?$/) || [])[1] || "N/A",
           status: "Not Started"
         });
@@ -380,7 +504,8 @@ async function scrapeOnePage(page, keyword, location, country, statusValue) {
 
 app.post("/scrape", async (req, res) => {
   const { keyword, location, country, careerStatus, period } = req.body;
-  if (!keyword || !country || !careerStatus || !period) return res.status(400).json({ success: false, error: "Missing required fields." });
+  if (!country || !careerStatus || !period) return res.status(400).json({ success: false, error: "Missing required fields." });
+  if (!keyword && !location) return res.status(400).json({ success: false, error: "Enter a keyword or location." });
   console.log(`Scraping: "${keyword}" in ${location || "all"}, ${country} (${careerStatus})`);
   try {
     const browser = await getSharedBrowser();
@@ -394,13 +519,14 @@ app.post("/scrape", async (req, res) => {
     } catch (err) {
       console.error(`Search failed: ${err.message}`);
       await page.close();
-      return res.status(500).json({ success: false, error: `Search failed: ${err.message}` });
+      return res.status(500).json({ success: false, error: `Search failed: ${safeError(err)}` });
     }
     await page.close();
     const jobsWithDates = await enrichJobsWithPostedDates(browser, allJobs);
     const filtered = filterByPeriod(jobsWithDates, period);
 
     // Add vector match scores if available
+    const kw = keyword.toLowerCase();
     if (vectorReady && retrieveContext) {
       for (const job of filtered) {
         try {
@@ -408,22 +534,50 @@ app.post("/scrape", async (req, res) => {
           const avgRelevance = result.skills.length > 0
             ? result.skills.reduce((sum, s) => sum + (1 - s.distance) * 100, 0) / result.skills.length
             : 0;
-          job.matchScore = Math.round(Math.min(100, avgRelevance * 2));
+          const vectorScore = Math.min(100, avgRelevance * 2);
+
+          // Keyword-in-title boost: whole-word match = +30, substring = +15
+          const titleLower = job.title.toLowerCase();
+          const titleWordMatch = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(titleLower);
+          const titleMatch = titleWordMatch || titleLower.includes(kw);
+          const titleBonus = titleWordMatch ? 30 : titleLower.includes(kw) ? 15 : 0;
+
+          // Recency bonus: up to +10 pts, fades linearly over 20 days
+          let recencyBonus = 0;
+          const postedD = parseJobDate(job.rawDate);
+          if (postedD) {
+            const daysSince = (Date.now() - postedD) / 86400000;
+            recencyBonus = Math.max(0, 10 - daysSince * 0.5);
+          }
+
+          job.matchScore = Math.round(Math.min(100, vectorScore * 0.75 + titleBonus + recencyBonus));
+          job.titleMatch = titleMatch;
           job.topMatchedSkills = result.skills.slice(0, 3).map(s => s.metadata.skill_name);
         } catch {
           job.matchScore = 0;
+          job.titleMatch = false;
           job.topMatchedSkills = [];
         }
       }
-      // Sort by match score descending
-      filtered.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+      // Sort: title matches first, then by composite score descending
+      filtered.sort((a, b) => {
+        if (a.titleMatch !== b.titleMatch) return a.titleMatch ? -1 : 1;
+        return (b.matchScore || 0) - (a.matchScore || 0);
+      });
+    } else {
+      // No vector store: still sort title matches first
+      filtered.forEach(job => {
+        const titleLower = job.title.toLowerCase();
+        job.titleMatch = titleLower.includes(kw);
+      });
+      filtered.sort((a, b) => (a.titleMatch === b.titleMatch ? 0 : a.titleMatch ? -1 : 1));
     }
 
     console.log(`Found ${filtered.length} jobs`);
     return res.json({ success: true, jobs: filtered });
   } catch (err) {
     console.error("Scrape error:", err.message);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: safeError(err) });
   }
 });
 
@@ -444,7 +598,9 @@ app.post("/fetch-jd", async (req, res) => {
     await dismissCookieBanner(page);
     const jd = await page.evaluate(() => {
       const title = document.querySelector('[data-careersite-propertyid="title"]')?.textContent?.trim() || document.querySelector("h1")?.textContent?.trim() || "Unknown";
-      const location = document.querySelector('[data-careersite-propertyid="location"]')?.textContent?.replace(/\s+/g, " ").trim() || document.querySelector(".jobLocation")?.textContent?.replace(/\s+/g, " ").trim() || "";
+      const locEl2 = document.querySelector('[data-careersite-propertyid="location"]') || document.querySelector(".jobLocation");
+      if (locEl2) locEl2.querySelectorAll("style, script").forEach(s => s.remove());
+      const location = locEl2?.textContent?.replace(/\s+/g, " ").trim() || "";
       const postedDate = document.querySelector('[data-careersite-propertyid="date"]')?.textContent?.trim() || "";
       const reqId = document.querySelector('[data-careersite-propertyid="facility"]')?.textContent?.trim() || "";
       const textSections = [];
@@ -478,7 +634,7 @@ app.post("/fetch-jd", async (req, res) => {
     return res.json({ success: true, jd });
   } catch (err) {
     console.error("Fetch JD error:", err.message);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: safeError(err) });
   }
 });
 
@@ -503,7 +659,12 @@ Your job:
 - Produce a compact, honest overview sentence.
 - Extract MUST HAVE vs NICE TO HAVE requirements in clear bullets.
 - Summarise what the person will actually do in the role.
+- Separately identify candidate SKILLS and TOOLS required.
 - Keep all wording concise and concrete (no fluff).
+
+IMPORTANT DISTINCTION:
+- "skills" = professional competencies, soft skills, domain knowledge, methodologies (e.g. "Stakeholder management", "Business administration", "Data analysis")
+- "tools" = specific named software, platforms, or technical instruments (e.g. "MS Excel", "SAP BTP", "Python", "Camtasia", "Jira")
 
 Output schema (do not change keys):
 {
@@ -528,16 +689,26 @@ Output schema (do not change keys):
   "nice_to_have": [
     "<bullet 1>",
     "<bullet 2>"
+  ],
+  "skills": [
+    "<competency or domain knowledge phrase>",
+    "<competency or domain knowledge phrase>"
+  ],
+  "tools": [
+    "<tool name only, no descriptions>",
+    "<tool name only, no descriptions>"
   ]
 }
 
 Rules:
 - Max 5 items in must_have, max 4 items in nice_to_have.
+- Max 7 items in skills, max 8 items in tools.
+- For tools: use the shortest recognisable name (e.g. "Excel" not "proficiency in Excel"). Mark optional tools with a trailing "+" suffix (e.g. "Camtasia+").
 - Use the exact competence wording from the JD when possible.
 - Prefer content under headings like “What you’ll do / build / your tasks / your responsibilities” and “What you bring / your profile / requirements”.
 - Ignore employer branding text and company slogans (for example: "We help the world run better", "At SAP, we keep it simple", "We win with inclusion").
 - Only include bullets that describe the candidate’s skills, experience, education, tools, or languages.
-- If something is clearly optional ("nice to have", "preferred", "bonus", "advantage"), put it under nice_to_have.
+- If something is clearly optional ("nice to have", "preferred", "bonus", "advantage"), put it under nice_to_have, and mark any tools as optional with "+" suffix.
 - If you are unsure about work_area or employment_type, leave them as "" or "Unknown".`;
 
     const userPrompt = `JOB CONTEXT
@@ -571,7 +742,7 @@ Return ONLY valid JSON conforming to the schema above.`;
     return res.json({ success: true, summary });
   } catch (err) {
     console.error("JD summary error:", err.message);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: safeError(err) });
   }
 });
 
@@ -598,7 +769,7 @@ JSON SCHEMA (fill every field, use empty string "" if not applicable):
   "email": "raval.varun@stud.hs-fresenius.de",
   "linkedin": "linkedin.com/in/varunraval",
   "github": "github.com/ravalvarun-SAP",
-  "availability": "April 2026 -- Oct 2027 as working student, internship and thesis",
+  "availability": "${getAvailability().cv}",
   "work_authorization": "Eligible to work as student in Germany",
   "languages": "English (fluent), German (B1 -- actively improving)",
   "profile": "<2-3 sentences: programme + what he brings for THIS job>",
@@ -665,7 +836,7 @@ JSON SCHEMA:
     "<Paragraph 2 — Academic & Research: coursework, research papers connecting to job requirements>",
     "<Paragraph 3 — Technical & Hands-on: projects, tools, SAP modules used — show direct JD relevance>",
     "<Paragraph 4 — Soft skills & Fit: collaboration, communication, specific situations>",
-    "<Paragraph 5 — Closing availability: April 2026 -- Oct 2027 working student/internship/thesis>"
+    "<Paragraph 5 — Closing availability: ${getAvailability().range} working student/internship/thesis>"
   ]
 }`;
 }
@@ -723,8 +894,8 @@ Name: Varun Raval
 Email: raval.varun@stud.hs-fresenius.de | Phone: (+49) 01727546835
 Location: Walldorf / Heidelberg / Mannheim (open to hybrid)
 Languages: English (fluent), German (B1)
-Availability: March 2026 – Sep 2027 (20 hrs/week semester, full-time breaks)
-Education: B.Eng Computer Engineering (2010-2013) → M.Des Communication Design (2015-2018) → M.Sc SAP Engineering & Analytics (Oct 2025-present)
+Availability: ${getAvailability().prose}
+Education: M.Sc. SAP Engineering & Analytics, Hochschule Fresenius (Oct 2025–present) → M.Des Communication Design, MIT Institute of Design (2015-2018) → B.Eng Computer Engineering (2010-2013)
 SAP Experience: 1.5+ years at SAP Walldorf across 3 departments
 
 === MATCHED SKILLS (retrieved by semantic similarity to THIS job) ===
@@ -768,12 +939,12 @@ Return ONLY valid JSON. No markdown fences, no explanation, no extra text.
     "<Academic & Research: coursework, papers connecting to JD requirements>",
     "<Technical & Hands-on: projects, tools, SAP modules — direct JD relevance>",
     "<Soft skills & Fit: collaboration, communication, specific situations>",
-    "<Closing: availability April 2026-Oct 2027, working student/internship/thesis>"
+    "<Closing: availability ${getAvailability().range}, working student/internship/thesis>"
   ]
 }`;
 }
 
-function buildCvSystemPromptRAG(matchedSkills, matchedProjects, matchedWork) {
+function buildCvSystemPromptRAG(matchedSkills, matchedProjects, matchedWork, pinnedWeIds, pinnedProjectIds) {
   const skillText = matchedSkills.map(s =>
     `[${s.id}] ${s.metadata.skill_name} (${s.metadata.level}): ${s.document}`
   ).join("\n");
@@ -799,11 +970,24 @@ ${workText}
 
 RULES (non-negotiable):
 - Every fact MUST come from the matched data above. NEVER invent anything.
-- Select 2-3 most relevant projects and experiences for THIS specific job.
 - Reorder competencies and skills to match what the JD prioritizes.
 - Write bullets that lead with action/tool/outcome.
 - NEVER use generic filler ("Results-driven", "Proven track record", etc.)
 - Return ONLY valid JSON. No markdown fences, no explanation, no extra text.
+
+${pinnedWeIds?.length ? `WORK EXPERIENCE — USER-SELECTED (hard constraint):
+The user has manually selected exactly these work experience entries. Include ALL of them in the experience section, in this order. Do not add or remove any entries:
+${pinnedWeIds.map((id, i) => `${i + 1}. ${id}`).join("\n")}
+These IDs match the entries in the RELEVANT WORK EXPERIENCE data above.` : `WORK EXPERIENCE RULES (important):
+- DEFAULT (SAP / tech / student roles): include ONLY the 3 SAP roles (IX Studio, Non-Commercial Licensing, Services Sales DemGen) in the experience section.
+  After those 3, add ONE compressed line as a single entry: { "title": "Earlier Experience", "company": "Media & EdTech (Byju's, Orange Sellers, Filmalaya, others)", "date": "2014 – 2024", "bullets": ["Creative production, UX research, video direction and EdTech content roles across India, Netherlands and Germany — full detail available on request."] }
+- EXCEPTION (only if the JD explicitly targets media/film/video/EdTech/creative roles): include the relevant earlier media/EdTech roles in full.`}
+
+${pinnedProjectIds?.length ? `PROJECTS — USER-SELECTED (hard constraint):
+Include ONLY these projects (all of them, nothing else):
+${pinnedProjectIds.map((id, i) => `${i + 1}. ${id}`).join("\n")}` : `PROJECTS: Select 2-3 most relevant from the matched data above.`}
+
+EDUCATION: Include ONLY M.Sc. SAP Engineering & Analytics (Hochschule Fresenius) and M.Des Communication Design (MIT Institute of Design). Do NOT include University of Bremen or any unfinished course.
 
 JSON SCHEMA (fill every field, use empty string "" if not applicable):
 {
@@ -813,7 +997,7 @@ JSON SCHEMA (fill every field, use empty string "" if not applicable):
   "email": "raval.varun@stud.hs-fresenius.de",
   "linkedin": "linkedin.com/in/varunraval",
   "github": "github.com/ravalvarun-SAP",
-  "availability": "April 2026 -- Oct 2027 as working student, internship and thesis",
+  "availability": "${getAvailability().cv}",
   "work_authorization": "Eligible to work as student in Germany",
   "languages": "English (fluent), German (B1 -- actively improving)",
   "profile": "<2-3 sentences: programme + what he brings for THIS job>",
@@ -850,13 +1034,76 @@ function buildGenerationPrompt(jobDescription, selectedSamples, domainInsights, 
 }
 
 // ═══════════════════════════════════════════════════════════════
+// GET /cv-selector-data  — Returns WE + Projects with match scores
+// ═══════════════════════════════════════════════════════════════
+
+app.post("/cv-selector-data", async (req, res) => {
+  const { jdText } = req.body || {};
+  if (!jdText) return res.status(400).json({ success: false, error: "Missing jdText" });
+
+  try {
+    const bank = skillBank || {};
+    const allWE = bank.work_experience || [];
+    const allProjects = bank.projects || [];
+
+    // Score each WE + project against JD using TF-IDF (reuse existing STOPWORDS + scoreDoc)
+    const jdLower = jdText.toLowerCase();
+    const jdTokens = jdLower.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(t => t.length > 2 && !STOPWORDS.has(t));
+    const jdFreq = {};
+    for (const t of jdTokens) jdFreq[t] = (jdFreq[t] || 0) + 1;
+
+    function scoreItem(textParts) {
+      const combined = textParts.join(" ").toLowerCase();
+      let hits = 0;
+      for (const t in jdFreq) {
+        if (combined.includes(t)) hits += jdFreq[t];
+      }
+      const maxPossible = Object.values(jdFreq).reduce((s, v) => s + v, 0) || 1;
+      return Math.min(100, Math.round((hits / maxPossible) * 300));
+    }
+
+    const scoredWE = allWE.map(we => ({
+      id: we.id,
+      title: we.title,
+      company: we.company,
+      period: we.period,
+      location: we.location || "",
+      skills_used: we.skills_used || [],
+      score: scoreItem([we.title, we.company, (we.bullets || []).join(" "), (we.skills_used || []).join(" ")])
+    })).sort((a, b) => b.score - a.score);
+
+    const scoredProjects = allProjects.map(p => ({
+      id: p.id,
+      name: p.name,
+      tech: p.tech,
+      date: p.date,
+      score: scoreItem([p.name, p.tech, p.description || ""])
+    })).sort((a, b) => b.score - a.score);
+
+    // Auto-tick top 3 WE + top 3 Projects
+    const topWeIds = scoredWE.slice(0, 3).map(w => w.id);
+    const topProjectIds = scoredProjects.slice(0, 3).map(p => p.id);
+
+    return res.json({
+      success: true,
+      work_experience: scoredWE,
+      projects: scoredProjects,
+      aiPickWE: topWeIds,
+      aiPickProjects: topProjectIds
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: safeError(err) });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
 // POST /generate
 // ═══════════════════════════════════════════════════════════════
 
 app.post("/generate", async (req, res) => {
   if (!aiProvider) return res.status(503).json({ success: false, error: "No AI provider configured. Set ANTHROPIC_API_KEY, GROQ_API_KEY, or GEMINI_API_KEY in .env" });
 
-  const { jobDescription, documentType, humanizeText } = req.body;
+  const { jobDescription, documentType, humanizeText, pinnedWeIds, pinnedProjectIds } = req.body;
   if (!jobDescription || !documentType) return res.status(400).json({ success: false, error: "Missing jobDescription or documentType." });
 
   const now = Date.now();
@@ -876,8 +1123,30 @@ app.post("/generate", async (req, res) => {
       ragContext = await retrieveContext(jobDescription, { topSkills: 12, topProjects: 3, topWork: 2 });
       console.log(`  RAG: ${ragContext.skills.length} skills, ${ragContext.projects.length} projects, ${ragContext.work.length} work`);
 
+      // If user pinned specific WE/Project IDs, inject them from skill_data_bank
+      if (pinnedWeIds?.length || pinnedProjectIds?.length) {
+        const bank = skillBank || {};
+        if (pinnedWeIds?.length) {
+          const pinned = (bank.work_experience || []).filter(w => pinnedWeIds.includes(w.id));
+          ragContext.work = pinned.map(w => ({
+            id: w.id,
+            document: `${w.title} at ${w.company} (${w.period}): ${(w.bullets||[]).join(' ')}`,
+            metadata: { title: w.title, company: w.company, period: w.period }
+          }));
+        }
+        if (pinnedProjectIds?.length) {
+          const pinned = (bank.projects || []).filter(p => pinnedProjectIds.includes(p.id));
+          ragContext.projects = pinned.map(p => ({
+            id: p.id,
+            document: p.description || p.name,
+            metadata: { name: p.name, tech: p.tech }
+          }));
+        }
+        console.log(`  Pinned overrides: ${ragContext.work.length} WE, ${ragContext.projects.length} projects`);
+      }
+
       systemPrompt = documentType === "cv"
-        ? buildCvSystemPromptRAG(ragContext.skills, ragContext.projects, ragContext.work)
+        ? buildCvSystemPromptRAG(ragContext.skills, ragContext.projects, ragContext.work, pinnedWeIds, pinnedProjectIds)
         : buildClSystemPromptRAG(ragContext.skills, ragContext.projects, ragContext.work);
 
       userPrompt = `=== TARGET JOB DESCRIPTION ===\n${jobDescription}\n\n=== TASK ===\nGenerate a complete ${docLabel} tailored to the job above.\nUse ONLY facts from the matched skill data. Output ONLY the final JSON.\n`;
@@ -959,7 +1228,7 @@ app.post("/generate", async (req, res) => {
       let sec = 60; const m = err.message?.match(/retry in ([\d.]+)s/i); if (m) sec = Math.ceil(parseFloat(m[1]));
       return res.status(429).json({ success: false, error: `Rate limit. Wait ~${sec}s.`, retryAfter: sec });
     }
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: safeError(err) });
   }
 });
 
@@ -1003,7 +1272,7 @@ app.post("/export-pdf", async (req, res) => {
     const logFile = path.join(tmpDir, `${safeName}.log`);
     let logSnippet = "";
     try { logSnippet = fs.readFileSync(logFile, "utf-8").slice(-1500); } catch {}
-    return res.status(500).json({ success: false, error: err.message, log: logSnippet });
+    return res.status(500).json({ success: false, error: safeError(err), log: IS_PROD ? undefined : logSnippet });
   } finally {
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
   }
@@ -1753,7 +2022,7 @@ app.post("/index-library", async (req, res) => {
     return res.json({ success: true, indexed: results.map(d => ({ id: d.id, filename: d.filename, type: d.type, charCount: d.charCount, preview: d.text.substring(0, 300) })), errors });
   } catch (err) {
     console.error("Index error:", err.message);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: safeError(err) });
   }
 });
 
@@ -1802,7 +2071,7 @@ app.post("/skill-bank/add", async (req, res) => {
     skillBank = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "skill_data_bank.json"), "utf-8"));
     res.json({ success: true, chunk });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: safeError(err) });
   }
 });
 
@@ -1818,7 +2087,70 @@ app.post("/skill-bank/update", async (req, res) => {
     skillBank = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "skill_data_bank.json"), "utf-8"));
     res.json({ success: true, chunk });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: safeError(err) });
+  }
+});
+
+app.post("/skill-bank/delete", (req, res) => {
+  if (!skillBankManager) return res.status(503).json({ success: false, error: "Skill bank not available" });
+  const { id } = req.body;
+  if (!id) return res.status(400).json({ success: false, error: "Missing skill id" });
+  try {
+    const removed = skillBankManager.deleteSkill(id);
+    skillBank = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "skill_data_bank.json"), "utf-8"));
+    res.json({ success: true, removed });
+  } catch (err) {
+    res.status(500).json({ success: false, error: safeError(err) });
+  }
+});
+
+app.post("/skill-bank/rephrase", async (req, res) => {
+  const { text, skill } = req.body;
+  if (!text) return res.status(400).json({ success: false, error: "Missing text" });
+  try {
+    const style = styleProfile?.style_analysis || {};
+    const sigPhrases   = (style.signature_phrases || []).join(", ");
+    const connectors   = (style.connector_words   || []).join(", ");
+    const avoids       = (style.things_to_never_write_as_me || style.vocabulary_preferences?.avoids || []).join(", ");
+    const toneDesc     = style.tone_description || "confident, specific, professional";
+    const evidStyle    = style.evidence_style   || "direct and concise, no fluff";
+    const rephrased = await callAI(
+      `You rephrase CV skill-bank evidence sentences to match a specific person's writing style. Rules:\n- Keep the SAME meaning and facts — only improve clarity and style\n- Max 20 words, single sentence, no trailing punctuation\n- Tone: ${toneDesc}\n- Evidence style: ${evidStyle}\n${sigPhrases ? `- Favour these natural phrases: ${sigPhrases}` : ""}\n${connectors ? `- Use these connector words when natural: ${connectors}` : ""}\n${avoids ? `- NEVER use: ${avoids}` : ""}\n- No quotes, no bold, no bullet points in output — just the plain sentence`,
+      `Skill: ${skill || "(unknown)"}\nOriginal sentence: ${text}\n\nRephrase it in the same style described above.`
+    );
+    res.json({ success: true, rephrased: rephrased.trim().replace(/^"|"$/g, "").replace(/\.$/, "") });
+  } catch (err) {
+    res.status(500).json({ success: false, error: safeError(err) });
+  }
+});
+
+app.post("/skill-bank/suggest", async (req, res) => {
+  const { skill, level } = req.body;
+  if (!skill) return res.status(400).json({ success: false, error: "Missing skill" });
+  try {
+    const profile = skillBank?.profile || {};
+    const context = [
+      profile.name ? `Name: ${profile.name}` : "",
+      profile.current_role ? `Current role: ${profile.current_role}` : "",
+      profile.target_roles ? `Target roles: ${profile.target_roles.join(", ")}` : ""
+    ].filter(Boolean).join(". ");
+    const validCategories = ["Tools","Software","Design","Digital_Marketing","Programming","SAP_Technical","SAP_Functional","Analytics","Other"];
+    const text = await callAI(
+      "You are a CV evidence writer. Reply with ONLY valid JSON, no markdown, no explanation. Keys: \"category\" (one of: Tools, Software, Design, Digital_Marketing, Programming, SAP_Technical, SAP_Functional, Analytics, Other) and \"evidence\" (a single practical sentence, max 20 words, no quotes, no trailing period).",
+      `Skill/Tool: ${skill}\nLevel: ${level || "Intermediate"}\n${context ? "Candidate context: " + context : ""}\n\nReturn JSON with category and evidence.`
+    );
+    let suggestion = "", category = "Tools";
+    try {
+      const parsed = JSON.parse(text.trim());
+      suggestion = (parsed.evidence || "").replace(/^"|"$/g, "").replace(/\.$/, "");
+      category   = validCategories.includes(parsed.category) ? parsed.category : "Tools";
+    } catch {
+      // fallback: treat whole response as evidence
+      suggestion = text.trim().replace(/^"|"$/g, "").replace(/^'|'$/g, "");
+    }
+    res.json({ success: true, suggestion, category });
+  } catch (err) {
+    res.status(500).json({ success: false, error: safeError(err) });
   }
 });
 
@@ -1830,7 +2162,7 @@ app.post("/skill-bank/query", async (req, res) => {
     const result = await retrieveContext(jobText, { topSkills: topN || 10 });
     res.json({ success: true, ...result });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: safeError(err) });
   }
 });
 
@@ -1839,7 +2171,7 @@ app.get("/skill-bank/stats", (req, res) => {
   try {
     res.json({ success: true, ...skillBankManager.getStats() });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: safeError(err) });
   }
 });
 
@@ -1877,7 +2209,7 @@ app.post("/dach-check", async (req, res) => {
     } catch { issues = [{ issue: raw.trim(), severity: "medium", suggestion: "" }]; }
     res.json({ success: true, issues });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: safeError(err) });
   }
 });
 
@@ -1909,7 +2241,7 @@ app.post("/dach-fix", async (req, res) => {
     const fixed = await callAI(DACH_FIX_SYSTEM, prompt);
     res.json({ success: true, content: fixed.trim() });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: safeError(err) });
   }
 });
 
@@ -1929,7 +2261,7 @@ app.post("/humanize", async (req, res) => {
     const result = await humanize(text, callAI);
     res.json({ success: true, ...result });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: safeError(err) });
   }
 });
 

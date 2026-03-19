@@ -18,7 +18,8 @@
     approvedDocs: [],
     domainInsights: [],
     userId: null,
-    libExpanded: false
+    libExpanded: false,
+    selectors: {}      // reqId → { we, projects, aiPickWE, aiPickProjects, pinnedWE, pinnedProjects, loading }
   };
 
   const $ = (id) => document.getElementById(id);
@@ -424,20 +425,32 @@
     const scoreBadge = job.matchScore != null
       ? `<span class="match-badge ${job.matchScore >= 40 ? "match-badge-high" : job.matchScore >= 20 ? "match-badge-med" : "match-badge-low"}">${job.matchScore}% match</span>`
       : "";
+    const titleMatchBadge = job.titleMatch ? `<span class="match-badge-title-hit" title="Keyword found in job title">🎯 title match</span>` : "";
     const skillTags  = (job.topMatchedSkills || []).slice(0, 4).map(s => `<span class="queue-skill-tag">${esc(s)}</span>`).join("");
     const analysisHtml = buildJDIntelPanel(job, i);
 
     // Top-right action area
     let topAction = "";
+    const sel = genState.selectors[key];
+    const hasPins = sel && (sel.pinnedWE?.length || sel.pinnedProjects?.length);
+    const customBtnCls = hasPins ? "btn btn-sm gqi-custom-btn gqi-custom-active" : "btn btn-sm gqi-custom-btn";
+    const customBtnTip = hasPins ? `${(sel.pinnedWE||[]).length} WE + ${(sel.pinnedProjects||[]).length} projects selected` : "Customize CV selection";
+    const customBtn = `<button type="button" class="${customBtnCls}" data-gen-selector="${esc(key)}" title="${customBtnTip}">⚙ CV</button>`;
     if (gen.state === "idle") {
-      topAction = `<button type="button" class="btn btn-primary btn-sm gen-start-btn" data-idx="${i}">Generate</button>`;
+      topAction = `${customBtn}<button type="button" class="btn btn-primary btn-sm gen-start-btn" data-idx="${i}">Generate</button>`;
     } else if (gen.state === "generating") {
       topAction = `<span class="gqi-status-chip gqi-status-generating"><span class="gqi-inline-spin"></span>Generating…</span>`;
     } else if (gen.state === "done") {
-      topAction = `<span class="gqi-status-chip gqi-status-done">✓ Ready</span>
+      topAction = `${customBtn}<span class="gqi-status-chip gqi-status-done">✓ Ready</span>
+        <button type="button" class="btn btn-sm gen-start-btn" data-idx="${i}" title="Re-generate">↺</button>`;
+    } else if (gen.state === "applied") {
+      topAction = `<span class="gqi-status-chip gqi-status-done" style="background:rgba(5,150,105,.12);color:#059669;border-color:rgba(5,150,105,.3)">✓ Applied</span>
+        <button type="button" class="btn btn-sm gen-start-btn" data-idx="${i}" title="Re-generate">↺</button>`;
+    } else if (gen.state === "wishlisted") {
+      topAction = `<span class="gqi-status-chip gqi-status-done" style="background:rgba(217,119,6,.1);color:#d97706;border-color:rgba(217,119,6,.25)">★ Wishlisted</span>
         <button type="button" class="btn btn-sm gen-start-btn" data-idx="${i}" title="Re-generate">↺</button>`;
     } else if (gen.state === "error") {
-      topAction = `<button type="button" class="btn btn-sm gen-start-btn" data-idx="${i}" style="color:var(--accent-secondary)">↺ Retry</button>`;
+      topAction = `${customBtn}<button type="button" class="btn btn-sm gen-start-btn" data-idx="${i}" style="color:var(--accent-secondary)">↺ Retry</button>`;
     }
 
     // ── Inline progress section (only when generating) ──
@@ -473,13 +486,13 @@
           </div>
           <div class="gen-progressbar-steps">${stepsHtml}</div>
         </div>
-        ${thoughtsHtml ? `<details class="gqi-log-details"><summary>AI log</summary><div class="gen-thinking-body gqi-log-body">${thoughtsHtml}</div></details>` : ""}
+        ${thoughtsHtml ? `<details class="gqi-log-details" open><summary>AI log</summary><div class="gen-thinking-body gqi-log-body">${thoughtsHtml}</div></details>` : ""}
       </div>`;
     }
 
-    // ── Inline results section (when done or error) ──
+    // ── Inline results section (when done, applied, wishlisted or error) ──
     let resultsHtml = "";
-    if (gen.state === "done") {
+    if (gen.state === "done" || gen.state === "applied" || gen.state === "wishlisted") {
       resultsHtml = `<div class="gqi-results">
         <div class="gqi-results-header">
           <span class="gqi-results-title">Generated for: <strong>${job.url ? `<a href="${esc(job.url)}" target="_blank" rel="noopener" class="gqi-title-link">${esc(job.title)}</a>` : esc(job.title)}</strong></span>
@@ -487,39 +500,42 @@
         <div class="gqi-results-panels">
           <div class="gqi-result-panel">
             <div class="gqi-panel-toolbar">
-              <span>CV</span>
+              <span class="gqi-panel-doc-label">CV</span>
               <div class="gen-panel-controls">
                 <button type="button" class="btn btn-sm gqi-regen-btn" data-gen-regen="${esc(key)}" data-regen-type="cv" title="Regenerate CV">&#8635;</button>
                 <button type="button" class="btn btn-sm gen-font-minus" data-target="gqi-cv-${safe}" title="A-">A-</button>
                 <button type="button" class="btn btn-sm gen-font-plus"  data-target="gqi-cv-${safe}" title="A+">A+</button>
                 <button type="button" class="btn btn-sm gen-copy-btn"   data-target="gqi-cv-${safe}" title="Copy to clipboard">&#x2398;</button>
                 <button type="button" class="btn btn-sm gen-fullview"   data-target="gqi-cv-${safe}" data-label="CV">&#x26F6;</button>
+                <button type="button" class="btn btn-sm gen-clear-write" data-target="gqi-cv-${safe}" title="Clear &amp; write your own">&#x270E;</button>
               </div>
             </div>
             <textarea class="gqi-result-textarea" id="gqi-cv-${safe}" rows="20">${esc(gen.cvContent || "")}</textarea>
           </div>
           <div class="gqi-result-panel">
             <div class="gqi-panel-toolbar">
-              <span>Cover Letter</span>
+              <span class="gqi-panel-doc-label">Cover Letter</span>
               <div class="gen-panel-controls">
                 <button type="button" class="btn btn-sm gqi-regen-btn" data-gen-regen="${esc(key)}" data-regen-type="cl" title="Regenerate CL">&#8635;</button>
                 <button type="button" class="btn btn-sm gen-font-minus" data-target="gqi-cl-${safe}" title="A-">A-</button>
                 <button type="button" class="btn btn-sm gen-font-plus"  data-target="gqi-cl-${safe}" title="A+">A+</button>
                 <button type="button" class="btn btn-sm gen-copy-btn"   data-target="gqi-cl-${safe}" title="Copy to clipboard">&#x2398;</button>
                 <button type="button" class="btn btn-sm gen-fullview"   data-target="gqi-cl-${safe}" data-label="Cover Letter">&#x26F6;</button>
+                <button type="button" class="btn btn-sm gen-clear-write" data-target="gqi-cl-${safe}" title="Clear &amp; write your own">&#x270E;</button>
               </div>
             </div>
             <textarea class="gqi-result-textarea" id="gqi-cl-${safe}" rows="20">${esc(gen.clContent || "")}</textarea>
           </div>
         </div>
         <div class="gqi-result-actions">
-          <button class="btn btn-success btn-sm" data-gen-approve="${esc(key)}">&#10003; Applied</button>
-          <button class="btn btn-warning btn-sm" data-gen-save-draft="${esc(key)}">Save to Wishlist</button>
-          <button class="btn btn-danger btn-sm"  data-gen-discard="${esc(key)}">Discard</button>
-          <button class="btn btn-primary btn-sm" data-gen-export-cv="${esc(key)}">Export CV PDF</button>
-          <button class="btn btn-primary btn-sm" data-gen-export-cl="${esc(key)}">Export CL PDF</button>
-        </div>
-        <div class="gqi-result-actions gqi-result-actions-secondary">
+          ${gen.state === "applied"
+            ? `<span class="gqi-status-chip" style="background:rgba(5,150,105,.1);color:#059669;border:1px solid rgba(5,150,105,.3)">&#10003; Applied</span>`
+            : `<button class="btn btn-outline-success btn-sm" data-gen-approve="${esc(key)}">&#10003; Mark Applied</button>`}
+          ${gen.state === "wishlisted"
+            ? `<span class="gqi-status-chip" style="background:rgba(245,158,11,.1);color:#d97706;border:1px solid rgba(245,158,11,.3)">&#9733; Wishlisted</span>`
+            : `<button class="btn btn-outline btn-sm" data-gen-save-draft="${esc(key)}">&#9733; Wishlist</button>`}
+          <button class="btn btn-primary btn-sm" data-gen-export-cv="${esc(key)}">&#x2B73; Export CV</button>
+          <button class="btn btn-primary btn-sm" data-gen-export-cl="${esc(key)}">&#x2B73; Export CL</button>
           <button class="btn btn-sm gqi-dach-btn" data-gen-dach="${esc(key)}">&#x1F1E9;&#x1F1EA; DACH Check</button>
         </div>
         ${gen.dachIssues ? buildDachResultsHtml(gen.dachIssues, key) : ""}
@@ -534,16 +550,16 @@
     return `<div class="gen-queue-item" data-gqi="${esc(key)}" data-qi="${i}">
       <div class="gqi-top">
         <div class="gen-queue-info">
-          <span class="gen-queue-title">${job.url ? `<a href="${esc(job.url)}" target="_blank" rel="noopener" class="gqi-title-link">${esc(job.title)}</a>` : esc(job.title)} ${scoreBadge}</span>
+          <span class="gen-queue-title">${job.url ? `<a href="${esc(job.url)}" target="_blank" rel="noopener" class="gqi-title-link">${esc(job.title)}</a>` : esc(job.title)} ${scoreBadge}${titleMatchBadge}</span>
           <span class="gen-queue-meta">${esc(job.location)} &middot; ${esc(job.reqId)}</span>
           ${skillTags ? `<div class="gen-queue-skills">${skillTags}</div>` : ""}
-          ${analysisHtml}
         </div>
         <div class="gen-queue-actions">
           ${topAction}
           <button type="button" class="btn btn-sm gqi-remove-btn" data-remove="${i}" style="color:var(--accent-secondary)">&#10005;</button>
         </div>
       </div>
+      ${analysisHtml}
       ${genProgressHtml}
       ${resultsHtml}
     </div>`;
@@ -557,13 +573,31 @@
       btn.addEventListener("click", () => {
         const idx = parseInt(btn.dataset.remove, 10);
         const job = genState.queue[idx];
-        if (job) delete genState.generations[getGenKey(job)];
+        if (job) {
+          const k = getGenKey(job);
+          // Prevent removing while generating — user must wait or refresh
+          if (genState.generations[k]?.state === "generating") {
+            showToast("Cannot remove while generating — wait for completion", "error");
+            return;
+          }
+          delete genState.generations[k];
+          delete genState.selectors[k];
+        }
         genState.queue.splice(idx, 1);
         renderQueue();
       });
     });
     el.querySelectorAll(".qa-analyze-btn").forEach(btn => {
       btn.addEventListener("click", () => analyzeQueueItem(parseInt(btn.dataset.idx, 10)));
+    });
+    el.querySelectorAll("[data-gen-selector]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.genSelector;
+        const job = genState.queue.find(j => getGenKey(j) === key);
+        if (!job) return;
+        const jdText = (job.jdData && job.jdData.jdText) || job.jobDescription || job.fullText || "";
+        openCvSelector(key, jdText, el);
+      });
     });
   }
 
@@ -700,6 +734,7 @@
       location: job.location || "",
       keyword: job.keyword || "",
       matchScore: job.matchScore != null ? job.matchScore : null,
+      titleMatch: job.titleMatch || false,
       topMatchedSkills: job.topMatchedSkills || [],
       jdData: null,
       analyzing: false
@@ -780,6 +815,11 @@
       const matchedChunks = queryData.success ? (queryData.skills || []) : [];
 
       genState.queue[idx].jdData = { jdText, jdSections, jdSummary, matchedChunks };
+      // Persist analysis so kanban detail popup can show it without re-running
+      try {
+        const ck = 'analysis_' + (job.reqId ? job.reqId : encodeURIComponent(job.url));
+        localStorage.setItem(ck, JSON.stringify({ jdSummary, matchedChunks }));
+      } catch (_) {}
     } catch (err) {
       genState.queue[idx].jdData = { error: err.message };
     }
@@ -839,17 +879,17 @@
     const niceToHave = (summary?.nice_to_have || []).slice(0, 3);
     const oneLiner   = summary?.snapshot?.one_liner || "";
 
-    // Visual match bars
+    // Visual match bars — gradient fills, SK badge
     const matchBarsHtml = topChunks.slice(0, 5).map(c => {
       const rel    = Math.round((1 - (c.distance || 0)) * 100);
-      const color  = rel >= 65 ? "#059669" : rel >= 45 ? "#d97706" : "#9ca3af";
+      const barCls = rel >= 65 ? "gqi-bar-high" : rel >= 45 ? "gqi-bar-mid" : "gqi-bar-low";
+      const pctCls = rel >= 65 ? "gqi-pct-high" : rel >= 45 ? "gqi-pct-mid"  : "gqi-pct-low";
       const name   = c.metadata?.skill_name || c.id || "";
-      const display = name.length > 36 ? name.slice(0, 34) + "\u2026" : name;
       return `<div class="gqi-match-row">
-        <span class="gqi-match-id">${esc(c.id || "")}</span>
-        <span class="gqi-match-name">${esc(display)}</span>
-        <div class="gqi-bar-track"><div class="gqi-bar-fill" style="width:${rel}%;background:${color}"></div></div>
-        <span class="gqi-match-pct" style="color:${color}">${rel}%</span>
+        <div class="gqi-match-id"><span class="gqi-sk-id">${esc(c.id || "")}</span></div>
+        <div class="gqi-match-name">${esc(name)}</div>
+        <div class="gqi-match-bar-wrap"><div class="gqi-bar-track"><div class="gqi-bar-fill ${barCls}" style="width:${rel}%"></div></div></div>
+        <div class="gqi-match-pct ${pctCls}">${rel}%</div>
       </div>`;
     }).join("");
 
@@ -865,40 +905,77 @@
       ? niceToHave.map(b => `<span class="gqi-req-chip gqi-req-nice">${esc(b)}</span>`).join("")
       : "";
 
+    // AI-extracted skills & tools (from jd-summary response)
+    const aiSkills = (summary?.skills || []).slice(0, 7);
+    const aiTools  = (summary?.tools  || []).slice(0, 8);
+    const matchedSkillNames = chunks.map(c => (c.metadata?.skill_name || "").toLowerCase());
+
+    const skillsHtml = aiSkills.map(s =>
+      `<span class="gqi-chip gqi-chip-skill">${esc(s)}</span>`
+    ).join("");
+
+    const toolsHtml = aiTools.map(t => {
+      const isOptional = t.endsWith("+");
+      const name = isOptional ? t.slice(0, -1) : t;
+      const tl = name.toLowerCase();
+      const inBank = matchedSkillNames.some(n => n.includes(tl) || tl.includes(n));
+      const cls = inBank ? "gqi-chip gqi-chip-tool-match" : "gqi-chip gqi-chip-tool-gap";
+      const tip = inBank ? "✓ In your skill bank" : "⚠ Not in skill bank";
+      return `<span class="${cls}${isOptional ? " gqi-chip-optional" : ""}" title="${tip}">${esc(name)}${isOptional ? `<sup class="gqi-opt-mark">opt</sup>` : ""}</span>`;
+    }).join("");
+
+    // Req rows wrapped in table layout
+    const reqRowNice   = niceToHave.length  ? `<div class="gqi-req-group"><div class="gqi-req-cell-label"><span class="gqi-req-label gqi-req-label-nice">Nice</span></div><div class="gqi-req-chips"><div class="gqi-req-chips-wrap">${niceHtml}</div></div></div>` : "";
+    const reqRowSkills = aiSkills.length    ? `<div class="gqi-req-group"><div class="gqi-req-cell-label"><span class="gqi-req-label gqi-req-label-skills">Skills</span></div><div class="gqi-req-chips"><div class="gqi-req-chips-wrap">${skillsHtml}</div></div></div>` : "";
+    const reqRowTools  = aiTools.length     ? `<div class="gqi-req-group"><div class="gqi-req-cell-label"><span class="gqi-req-label gqi-req-label-tools">Tools</span></div><div class="gqi-req-chips"><div class="gqi-req-chips-wrap">${toolsHtml}</div></div></div>` : "";
+
     // Auto-open when idle (user is deciding), collapse when generating/done
     const openAttr = (gen.state === "idle" || gen.state === "error") ? " open" : "";
+    // Modifier for tinted fit-banner summary background
+    const stratMod = strat.cls.replace("gqi-strat-", "");  // strong/good/partial/low
 
-    return `<details class="gqi-jd-details"${openAttr}>
+    return `<details class="gqi-jd-details gqi-strat-${stratMod}"${openAttr}>
       <summary class="gqi-jd-summary">
-        <span class="gqi-strat-badge ${strat.cls}">${strat.label}</span>
-        <span class="gqi-jd-sum-meta">${coverage} matches &middot; avg ${avgRel}%</span>
+        <span class="gqi-strat-badge ${strat.cls}">\u2713 ${strat.label}</span>
+        <span class="gqi-jd-sum-meta"><span style="color:#4f46e5;font-weight:700">${coverage} matches</span> &middot; avg ${avgRel >= 65 ? `<span style="color:#059669;font-weight:700">${avgRel}%</span>` : avgRel >= 45 ? `<span style="color:#d97706;font-weight:700">${avgRel}%</span>` : `<span style="color:#e11d48;font-weight:700">${avgRel}%</span>`}</span>
       </summary>
       <div class="gqi-jd-body">
         ${oneLiner ? `<p class="gqi-jd-oneliner">${esc(oneLiner)}</p>` : ""}
         <div class="gqi-jd-cols">
           <div class="gqi-jd-col">
-            <div class="gqi-jd-col-hdr">&#x1F6E0; What you'll do</div>
+            <div class="gqi-jd-col-hdr gqi-jd-col-hdr-do"><span class="gqi-jd-col-hdr-icon">&#x1F527;</span>What you'll do</div>
             ${doHtml}
           </div>
           <div class="gqi-jd-col">
-            <div class="gqi-jd-col-hdr">&#x2B50; Requirements</div>
-            <div class="gqi-req-group">
-              <span class="gqi-req-label gqi-req-label-must">Must</span>
-              <div class="gqi-req-chips">${mustHtml}</div>
+            <div class="gqi-jd-col-hdr gqi-jd-col-hdr-req"><span class="gqi-jd-col-hdr-icon">&#x2B50;</span>Requirements</div>
+            <div class="gqi-req-table">
+              <div class="gqi-req-group"><div class="gqi-req-cell-label"><span class="gqi-req-label gqi-req-label-must">Must</span></div><div class="gqi-req-chips"><div class="gqi-req-chips-wrap">${mustHtml}</div></div></div>
+              ${reqRowNice}
+              ${reqRowSkills}
+              ${reqRowTools}
             </div>
-            ${niceToHave.length ? `<div class="gqi-req-group" style="margin-top:6px">
-              <span class="gqi-req-label gqi-req-label-nice">Nice</span>
-              <div class="gqi-req-chips">${niceHtml}</div>
-            </div>` : ""}
           </div>
         </div>
         ${matchBarsHtml ? `<div class="gqi-jd-matches">
           <div class="gqi-matches-hdr">
-            <span class="gqi-matches-title">Skill bank coverage</span>
+            <span class="gqi-matches-title"><span style="width:20px;height:20px;border-radius:6px;background:rgba(124,58,237,.1);display:inline-flex;align-items:center;justify-content:center;font-size:12px">&#x1F9E0;</span> Skill Bank Coverage</span>
             <span class="gqi-matches-count">${coverage} of ${chunks.length} relevant</span>
           </div>
           <div class="gqi-match-rows">${matchBarsHtml}</div>
         </div>` : ""}
+        <div class="gqi-jd-legend">
+          <strong>Key:</strong>
+          <span class="gqi-jd-leg-chip" style="background:rgba(220,38,38,.08);color:#dc2626;border-color:rgba(220,38,38,.22);">Must</span>
+          <span class="gqi-jd-leg-chip" style="background:rgba(245,158,11,.08);color:#b45309;border-color:rgba(245,158,11,.25);">Nice</span>
+          <span class="gqi-jd-leg-chip" style="background:rgba(79,70,229,.08);color:#4f46e5;border-color:rgba(79,70,229,.2);">Skill</span>
+          <span class="gqi-jd-leg-chip" style="background:rgba(13,148,136,.08);color:#0d9488;border-color:rgba(13,148,136,.22);">Tool &#x2713;</span>
+          <span class="gqi-jd-leg-chip" style="background:rgba(156,163,175,.07);color:#9ca3af;border-color:rgba(156,163,175,.18);text-decoration:line-through;">Tool gap</span>
+          <span style="margin-left:6px;color:#ccc">&verbar;</span>
+          <span>Bars:</span>
+          <span style="color:#e11d48;font-weight:800">&bull;</span>&lt;40%
+          <span style="color:#d97706;font-weight:800">&bull;</span>40&ndash;60%
+          <span style="color:#059669;font-weight:800">&bull;</span>&gt;60%
+        </div>
       </div>
     </details>`;
   }
@@ -922,6 +999,168 @@
     listEl.querySelectorAll("[data-gqi]").forEach((el) => {
       const i = parseInt(el.dataset.qi, 10);
       if (!isNaN(i)) bindQueueItemEvents(el, i);
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // CV SELECTOR DRAWER
+  // ═══════════════════════════════════════════════════════════════
+  async function openCvSelector(key, jdText, itemEl) {
+    let sel = genState.selectors[key];
+
+    // If we already have data, just (re)render the drawer
+    if (sel && !sel.loading && sel.we) {
+      renderSelectorDrawer(key, sel, itemEl);
+      return;
+    }
+
+    // Show loading state
+    genState.selectors[key] = { loading: true };
+    updateJobUI(key);
+
+    try {
+      const res = await fetch("/cv-selector-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jdText })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Selector load failed");
+
+      genState.selectors[key] = {
+        loading: false,
+        we: data.work_experience || [],
+        projects: data.projects || [],
+        aiPickWE: data.aiPickWE || [],
+        aiPickProjects: data.aiPickProjects || [],
+        pinnedWE: [...(data.aiPickWE || [])],
+        pinnedProjects: [...(data.aiPickProjects || [])]
+      };
+    } catch (err) {
+      genState.selectors[key] = null;
+      updateJobUI(key);
+      showToast("CV selector: " + err.message, "error");
+      return;
+    }
+
+    updateJobUI(key);
+    // After updateJobUI the old itemEl reference may be stale — find fresh one
+    const freshEl = document.querySelector(`[data-gqi="${CSS.escape(key)}"]`);
+    renderSelectorDrawer(key, genState.selectors[key], freshEl || itemEl);
+  }
+
+  function renderSelectorDrawer(key, sel, itemEl) {
+    // Remove any existing selector modal
+    document.querySelectorAll(".gqi-selector-modal").forEach(m => m.remove());
+
+    function makeItem(entry, type) {
+      const isPinned = type === "we"
+        ? sel.pinnedWE.includes(entry.id)
+        : sel.pinnedProjects.includes(entry.id);
+      const isAi = type === "we"
+        ? sel.aiPickWE.includes(entry.id)
+        : sel.aiPickProjects.includes(entry.id);
+      const pct = entry.score || 0;
+      const scoreColor = pct >= 60 ? "#10b981" : pct >= 35 ? "#f59e0b" : "#94a3b8";
+      const label = type === "we"
+        ? `<span class="gqi-sel-title">${esc(entry.title)}</span><span class="gqi-sel-meta">${esc(entry.company || "")}${entry.period ? " · " + esc(entry.period) : ""}</span>`
+        : `<span class="gqi-sel-title">${esc(entry.name)}</span><span class="gqi-sel-meta">${esc(entry.tech || "")}</span>`;
+      return `<label class="gqi-sel-item${isPinned ? " gqi-sel-checked" : ""}">
+        <input type="checkbox" class="gqi-sel-cb" data-sel-type="${type}" data-sel-id="${esc(entry.id)}" ${isPinned ? "checked" : ""}>
+        <span class="gqi-sel-score" style="color:${scoreColor}">${pct}%</span>
+        ${isAi ? `<span class="gqi-sel-ai-badge" title="AI recommended">✦</span>` : `<span class="gqi-sel-ai-badge gqi-sel-ai-empty"></span>`}
+        <span class="gqi-sel-label">${label}</span>
+      </label>`;
+    }
+
+    const weHtml = sel.we.map(e => makeItem(e, "we")).join("");
+    const prHtml = sel.projects.map(e => makeItem(e, "projects")).join("");
+
+    const modal = document.createElement("div");
+    modal.className = "gqi-selector-modal";
+    modal.setAttribute("data-sel-key", key);
+    modal.innerHTML = `
+      <div class="gqi-sel-modal-backdrop"></div>
+      <div class="gqi-selector-drawer">
+        <div class="gqi-sel-hdr">
+          <span class="gqi-sel-hdr-title">⚙ CV Selector</span>
+          <span class="gqi-sel-hdr-hint">✦ = AI recommended</span>
+          <div class="gqi-sel-hdr-actions">
+            <button type="button" class="btn btn-sm gqi-sel-reset-btn">Reset to AI picks</button>
+            <button type="button" class="btn btn-sm gqi-sel-close-btn">✕</button>
+          </div>
+        </div>
+        <div class="gqi-sel-body">
+          <div class="gqi-sel-section">
+            <div class="gqi-sel-section-hdr">💼 Work Experience <span class="gqi-sel-count" data-count-we></span></div>
+            <div class="gqi-sel-list we-list">${weHtml}</div>
+          </div>
+          <div class="gqi-sel-section">
+            <div class="gqi-sel-section-hdr">📁 Projects <span class="gqi-sel-count" data-count-pr></span></div>
+            <div class="gqi-sel-list pr-list">${prHtml}</div>
+          </div>
+        </div>
+        <div class="gqi-sel-footer">
+          <span class="gqi-sel-summary" data-sel-summary></span>
+          <button type="button" class="btn btn-primary btn-sm gqi-sel-confirm-btn">Confirm Selection</button>
+        </div>
+      </div>`;
+
+    document.body.appendChild(modal);
+    const drawer = modal.querySelector(".gqi-selector-drawer");
+    const backdrop = modal.querySelector(".gqi-sel-modal-backdrop");
+
+    function refreshCounts() {
+      const s = genState.selectors[key];
+      drawer.querySelector("[data-count-we]").textContent = `(${s.pinnedWE.length} selected)`;
+      drawer.querySelector("[data-count-pr]").textContent = `(${s.pinnedProjects.length} selected)`;
+      drawer.querySelector("[data-sel-summary]").textContent =
+        `${s.pinnedWE.length} work exp + ${s.pinnedProjects.length} projects selected`;
+    }
+    refreshCounts();
+
+    // Checkbox toggle
+    drawer.querySelectorAll(".gqi-sel-cb").forEach(cb => {
+      cb.addEventListener("change", () => {
+        const s = genState.selectors[key];
+        const id = cb.dataset.selId;
+        const type = cb.dataset.selType;
+        const arr = type === "we" ? s.pinnedWE : s.pinnedProjects;
+        if (cb.checked) { if (!arr.includes(id)) arr.push(id); }
+        else { const idx = arr.indexOf(id); if (idx !== -1) arr.splice(idx, 1); }
+        cb.closest(".gqi-sel-item").classList.toggle("gqi-sel-checked", cb.checked);
+        refreshCounts();
+      });
+    });
+
+    // Reset
+    drawer.querySelector(".gqi-sel-reset-btn").addEventListener("click", () => {
+      const s = genState.selectors[key];
+      s.pinnedWE = [...s.aiPickWE];
+      s.pinnedProjects = [...s.aiPickProjects];
+      drawer.querySelectorAll(".gqi-sel-cb").forEach(cb => {
+        const arr = cb.dataset.selType === "we" ? s.pinnedWE : s.pinnedProjects;
+        cb.checked = arr.includes(cb.dataset.selId);
+        cb.closest(".gqi-sel-item").classList.toggle("gqi-sel-checked", cb.checked);
+      });
+      refreshCounts();
+    });
+
+    // Close
+    drawer.querySelector(".gqi-sel-close-btn").addEventListener("click", () => {
+      modal.remove();
+      updateJobUI(key);
+    });
+    backdrop.addEventListener("click", () => {
+      modal.remove();
+      updateJobUI(key);
+    });
+
+    // Confirm
+    drawer.querySelector(".gqi-sel-confirm-btn").addEventListener("click", () => {
+      modal.remove();
+      updateJobUI(key);
+      showToast("CV selection saved — click Generate to use it", "success");
     });
   }
 
@@ -1053,10 +1292,15 @@
       // ── Step 3a: Generate CV ──
       setStep("cv", "Generating CV via RAG pipeline…", 40);
       addThought("CV generation:", "Sending JD → vector retrieval + style profile → AI…");
+      const selState = genState.selectors[key] || {};
       const cvRes = await fetch("/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobDescription: jdText, documentType: "cv" })
+        body: JSON.stringify({
+          jobDescription: jdText, documentType: "cv",
+          pinnedWeIds: selState.pinnedWE?.length ? selState.pinnedWE : null,
+          pinnedProjectIds: selState.pinnedProjects?.length ? selState.pinnedProjects : null
+        })
       });
       const cvData = await cvRes.json();
       if (!cvData.success) throw new Error(cvData.error || "CV generation failed");
@@ -1120,14 +1364,15 @@
       const cvText = document.getElementById("gqi-cv-" + safe)?.value || gen.cvContent || "";
       const clText = document.getElementById("gqi-cl-" + safe)?.value || gen.clContent || "";
       if (userId && window.FirebaseAPI?.library) {
-        await FirebaseAPI.library.saveApprovedGeneration(userId, {
-          id: `gen_${job.reqId || Date.now()}`,
-          jobTitle: job.title, reqId: job.reqId,
-          cvText, clText, status: "applied", weight: 1.0
-        });
+        try {
+          await FirebaseAPI.library.saveApprovedGeneration(userId, {
+            id: `gen_${job.reqId || Date.now()}`,
+            jobTitle: job.title, reqId: job.reqId,
+            cvText, clText, status: "applied", weight: 1.0
+          });
+        } catch (e) { /* no-auth or offline — skip */ }
       }
-      delete genState.generations[reqId];
-      genState.queue.splice(i, 1);
+      gen.state = "applied";
       if (window.JobHuntApp?.addTrackerApplication) {
         await window.JobHuntApp.addTrackerApplication({
           id: `gen_${job.reqId || Date.now()}`,
@@ -1137,7 +1382,7 @@
         });
       }
       renderQueue();
-      showToast("Marked as Applied and saved to library");
+      showToast("✓ Applied — saved to tracker. Use ✕ to remove from queue.");
     } catch (err) {
       showToast("Save failed: " + err.message, "error");
     }
@@ -1154,11 +1399,13 @@
       const cvText = document.getElementById("gqi-cv-" + safe)?.value || gen.cvContent || "";
       const clText = document.getElementById("gqi-cl-" + safe)?.value || gen.clContent || "";
       if (userId && window.FirebaseAPI?.library) {
-        await FirebaseAPI.library.saveApprovedGeneration(userId, {
-          id: `wishlist_${job.reqId || Date.now()}`,
-          jobTitle: job.title, reqId: job.reqId,
-          cvText, clText, status: "wishlist", weight: 0.5
-        });
+        try {
+          await FirebaseAPI.library.saveApprovedGeneration(userId, {
+            id: `wishlist_${job.reqId || Date.now()}`,
+            jobTitle: job.title, reqId: job.reqId,
+            cvText, clText, status: "wishlist", weight: 0.5
+          });
+        } catch (e) { /* no-auth or offline — skip */ }
       }
       if (window.JobHuntApp?.addTrackerApplication) {
         await window.JobHuntApp.addTrackerApplication({
@@ -1168,7 +1415,9 @@
           reqId: job.reqId || "", stage: "Wishlist", notes: "Saved to wishlist from generation"
         });
       }
-      showToast("Saved to Wishlist");
+      gen.state = "wishlisted";
+      renderQueue();
+      showToast("★ Saved to Wishlist — use ✕ to remove from queue.");
     } catch (err) {
       showToast("Wishlist save failed: " + err.message, "error");
     }
@@ -1183,11 +1432,29 @@
     showToast("Generation discarded");
   }
 
+  function toggleClearWrite(btn) {
+    const ta = $(btn.dataset.target);
+    if (!ta) return;
+    if (btn.classList.contains("cw-active")) {
+      ta.value = btn.dataset.cwOriginal || "";
+      delete btn.dataset.cwOriginal;
+      btn.classList.remove("cw-active");
+      btn.title = "Clear & write your own";
+    } else {
+      btn.dataset.cwOriginal = ta.value;
+      ta.value = "";
+      ta.focus();
+      btn.classList.add("cw-active");
+      btn.title = "Restore AI content";
+    }
+  }
+
   function buildDachResultsHtml(issues, reqId) {
-    if (!issues || !issues.length) return `<div class="gqi-dach-results gqi-dach-pass">&#x2705; DACH check passed — no issues found.</div>`;
+    if (!issues || !issues.length) return `<div class="gqi-dach-results gqi-dach-pass">&#x2705; DACH check passed \u2014 no issues found.</div>`;
     const sevIcon = { high: "\u{1F534}", medium: "\u{1F7E1}", low: "\u{1F7E2}" };
-    const rows = issues.map(iss =>
+    const rows = issues.map((iss, idx) =>
       `<div class="gqi-dach-row">
+        <label class="gqi-dach-cb-wrap" title="Include in fix"><input type="checkbox" checked class="gqi-dach-cb" data-idx="${idx}"></label>
         <span class="gqi-dach-sev">${sevIcon[iss.severity] || "\u{26AA}"}</span>
         <div><strong>${esc(iss.issue)}</strong>${iss.suggestion ? `<br><span class="gqi-dach-fix">${esc(iss.suggestion)}</span>` : ""}</div>
       </div>`
@@ -1302,7 +1569,10 @@
 
     const cvText = document.getElementById("gqi-cv-" + safe)?.value || gen.cvContent || "";
     const clText = document.getElementById("gqi-cl-" + safe)?.value || gen.clContent || "";
-    const issues = gen.dachIssues;
+    const resultsContainer = fixBtn?.closest(".gqi-dach-results");
+    const checkedIdxs = [...(resultsContainer?.querySelectorAll(".gqi-dach-cb:checked") || [])].map(cb => +cb.dataset.idx);
+    const issues = gen.dachIssues.filter((_, i) => !checkedIdxs.length || checkedIdxs.includes(i));
+    if (!issues.length) { showToast("Select at least one issue to fix", "error"); if (fixBtn) { fixBtn.disabled = false; fixBtn.innerHTML = "&#x1F527; Fix Issues"; } return; }
 
     // Fix both documents in parallel
     const fixDoc = async (docText, docType) => {
@@ -1335,7 +1605,8 @@
       }
       gen.dachIssues = null;
       updateJobUI(reqId);
-      showToast("DACH issues fixed — re-run check to verify");
+      await dachCheck(reqId);
+      showToast("DACH issues fixed — verification finished");
     } catch (err) {
       showToast("DACH fix failed: " + err.message, "error");
     } finally {
@@ -1421,7 +1692,33 @@
     const ta = $("scratchpad-textarea");
     const newBtn = $("scratchpad-new");
     const closeBtn = $("scratchpad-close");
+    const bgPicker = $("scratchpad-bg-picker");
+    const resetSizeBtn = $("scratchpad-reset-size");
     if (!fab || !popup || !ta) return;
+
+    // ── Restore saved background color ──
+    const savedBg = localStorage.getItem("scratchpad_bg");
+    if (savedBg) { ta.style.background = savedBg; if (bgPicker) bgPicker.value = savedBg; }
+
+    // ── Background color picker ──
+    if (bgPicker) {
+      bgPicker.addEventListener("input", (e) => {
+        ta.style.background = e.target.value;
+        localStorage.setItem("scratchpad_bg", e.target.value);
+      });
+    }
+
+    // ── Reset window size & position ──
+    if (resetSizeBtn) {
+      resetSizeBtn.addEventListener("click", () => {
+        popup.style.width = "";
+        popup.style.height = "";
+        popup.style.top = "";
+        popup.style.left = "";
+        popup.style.bottom = "";
+        popup.style.right = "";
+      });
+    }
 
     function renderTabs() {
       tabsEl.innerHTML = notes.map((n, i) =>
@@ -1455,7 +1752,61 @@
       const tab = e.target.closest("[data-scratch-idx]");
       if (tab) { save(); activeIdx = parseInt(tab.dataset.scratchIdx, 10); renderTabs(); }
     });
+    // ── Double-click tab to rename ──
+    tabsEl?.addEventListener("dblclick", (e) => {
+      const tab = e.target.closest("[data-scratch-idx]");
+      if (!tab) return;
+      const idx = parseInt(tab.dataset.scratchIdx, 10);
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = notes[idx].name;
+      input.className = "scratchpad-rename-input";
+      tab.textContent = "";
+      tab.appendChild(input);
+      input.focus();
+      input.select();
+      const commit = () => {
+        const v = input.value.trim();
+        if (v) notes[idx].name = v;
+        saveScratchNotes(notes);
+        renderTabs();
+      };
+      input.addEventListener("blur", commit);
+      input.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") input.blur();
+        if (ev.key === "Escape") { input.value = notes[idx].name; input.blur(); }
+      });
+    });
     ta.addEventListener("input", save);
+
+    // ── Drag-to-move via header ──
+    const header = popup.querySelector(".scratchpad-header");
+    if (header) {
+      let dragging = false, startX = 0, startY = 0, origLeft = 0, origTop = 0;
+      header.addEventListener("mousedown", (e) => {
+        if (e.target.closest("button")) return; // don't drag when clicking buttons
+        dragging = true;
+        const rect = popup.getBoundingClientRect();
+        // Switch from bottom/right positioning to top/left for free movement
+        popup.style.top = rect.top + "px";
+        popup.style.left = rect.left + "px";
+        popup.style.bottom = "auto";
+        popup.style.right = "auto";
+        startX = e.clientX;
+        startY = e.clientY;
+        origLeft = rect.left;
+        origTop = rect.top;
+        e.preventDefault();
+      });
+      document.addEventListener("mousemove", (e) => {
+        if (!dragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        popup.style.left = Math.max(0, origLeft + dx) + "px";
+        popup.style.top = Math.max(0, origTop + dy) + "px";
+      });
+      document.addEventListener("mouseup", () => { dragging = false; });
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -1532,6 +1883,8 @@
       if (dachBtn) { dachCheck(dachBtn.dataset.genDach); return; }
       const dachFixBtn = e.target.closest("[data-gen-dach-fix]");
       if (dachFixBtn) { dachFix(dachFixBtn.dataset.genDachFix); return; }
+      const clearWriteBtn = e.target.closest(".gen-clear-write");
+      if (clearWriteBtn) { toggleClearWrite(clearWriteBtn); return; }
     });
 
     // JD panel tabs (legacy workspace still in DOM, kept for potential use)
@@ -1624,8 +1977,11 @@
       ta.style.fontSize = Math.max(10, cur - 2) + "px";
     });
 
-    // Add external job
-    $("gen-add-job-btn")?.addEventListener("click", addJobManual);
+    // Add external job — unified modal (same as Tracker/Search tabs)
+    $("gen-add-job-btn")?.addEventListener("click", () => {
+      if (window.JobHuntHQOpenModal) { window.JobHuntHQOpenModal(); }
+      else { addJobManual(); } // fallback
+    });
 
     // Scratchpad
     initScratchpad();
@@ -1649,13 +2005,234 @@
   }
 
   // ═══════════════════════════════════════════════════════════════
+  // QUICK-ADD / DELETE TOOL CHIP INTERACTIONS
+  // ═══════════════════════════════════════════════════════════════
+  let _qaTargetChip = null;
+  let _qaToolName   = null;
+
+  function positionQuickAdd(chipEl) {
+    const dlg  = document.getElementById("gqi-quick-add");
+    if (!dlg) return;
+    const rect = chipEl.getBoundingClientRect();
+    const dlgW = 300, dlgH = 280;
+    let top  = rect.bottom + 8;
+    let left = rect.left;
+    if (left + dlgW > window.innerWidth - 8)  left  = window.innerWidth  - dlgW - 8;
+    if (top  + dlgH > window.innerHeight - 8) top   = rect.top - dlgH - 8;
+    dlg.style.top  = Math.max(8, top)  + "px";
+    dlg.style.left = Math.max(8, left) + "px";
+  }
+
+  function showQuickAdd(toolName, chipEl) {
+    _qaTargetChip = chipEl;
+    _qaToolName   = toolName;
+    const dlg = document.getElementById("gqi-quick-add");
+    if (!dlg) return;
+    document.getElementById("gqi-qa-tool-name").textContent = toolName;
+    const evidenceEl = document.getElementById("gqi-qa-evidence");
+    evidenceEl.value = "";
+    evidenceEl.placeholder = "Generating suggestion…";
+    document.getElementById("gqi-qa-level").value = "Intermediate";
+    dlg.classList.remove("hidden");
+    positionQuickAdd(chipEl);
+    // Auto-fetch AI suggestion immediately on open
+    fetchEvidenceSuggestion();
+  }
+
+  async function fetchEvidenceSuggestion() {
+    const evidenceEl  = document.getElementById("gqi-qa-evidence");
+    const catEl       = document.getElementById("gqi-qa-category");
+    const suggestBtn  = document.getElementById("gqi-qa-suggest-btn");
+    const level       = document.getElementById("gqi-qa-level")?.value   || "Intermediate";
+    if (!evidenceEl || !_qaToolName) return;
+    if (suggestBtn) suggestBtn.classList.add("loading");
+    evidenceEl.placeholder = "Generating suggestion…";
+    evidenceEl.value = "";
+    try {
+      const res  = await fetch("/skill-bank/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skill: _qaToolName, level })
+      });
+      const data = await res.json();
+      if (data.success && data.suggestion) {
+        evidenceEl.value = data.suggestion;
+        evidenceEl.placeholder = "";
+        // Apply AI-suggested category (only if user hasn't manually changed it)
+        if (catEl && data.category) catEl.value = data.category;
+      } else {
+        evidenceEl.placeholder = "e.g. Used for 2 years in marketing role";
+      }
+    } catch {
+      evidenceEl.placeholder = "e.g. Used for 2 years in marketing role";
+    } finally {
+      if (suggestBtn) suggestBtn.classList.remove("loading");
+    }
+  }
+
+  async function rephraseEvidence() {
+    const evidenceEl = document.getElementById("gqi-qa-evidence");
+    const btn        = document.getElementById("gqi-qa-rephrase");
+    const current    = evidenceEl?.value.trim();
+    if (!current) { evidenceEl?.focus(); return; }
+    if (btn) { btn.textContent = "✨ Rephrasing…"; btn.disabled = true; }
+    try {
+      const res  = await fetch("/skill-bank/rephrase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: current, skill: _qaToolName })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      evidenceEl.value = data.rephrased;
+      // Flash the textarea briefly to signal change
+      evidenceEl.style.borderColor = "var(--gqi-pct-high)";
+      setTimeout(() => { evidenceEl.style.borderColor = ""; }, 800);
+    } catch (err) {
+      showToast("Rephrase failed: " + err.message, "error");
+    } finally {
+      if (btn) { btn.textContent = "✨ Rephrase"; btn.disabled = false; }
+    }
+  }
+
+  function hideQuickAdd() {
+    document.getElementById("gqi-quick-add")?.classList.add("hidden");
+    _qaTargetChip = null;
+    _qaToolName   = null;
+  }
+
+  async function submitQuickAdd() {
+    const addBtn = document.getElementById("gqi-qa-add");
+    const cat      = document.getElementById("gqi-qa-category").value;
+    const level    = document.getElementById("gqi-qa-level").value;
+    const evidence = document.getElementById("gqi-qa-evidence").value.trim();
+    if (!evidence) { document.getElementById("gqi-qa-evidence").focus(); return; }
+    if (addBtn) { addBtn.textContent = "Adding…"; addBtn.disabled = true; }
+    try {
+      const res  = await fetch("/skill-bank/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: cat, skill: _qaToolName, level, evidence })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      // Flip chip to green "match" style immediately
+      if (_qaTargetChip) {
+        _qaTargetChip.classList.replace("gqi-chip-tool-gap", "gqi-chip-tool-match");
+        _qaTargetChip.style.textDecoration = "";
+        _qaTargetChip.style.opacity = "";
+        _qaTargetChip.title = "✓ In your skill bank";
+        _qaTargetChip.dataset.skillId = data.chunk.id;
+      }
+      showToast(`✓ "${_qaToolName}" added to skill bank (${data.chunk.id})`);
+      hideQuickAdd();
+    } catch (err) {
+      showToast("Add failed: " + err.message, "error");
+      if (addBtn) { addBtn.textContent = "Add to Bank ✓"; addBtn.disabled = false; }
+    }
+  }
+
+  async function deleteFromBank(toolName, chipEl) {
+    if (!confirm(`Remove "${toolName}" from your skill bank?`)) return;
+    try {
+      // Find the skill ID — prefer data attribute set on add, else fetch bank
+      let skillId = chipEl.dataset.skillId || null;
+      if (!skillId) {
+        const r = await fetch("/skill-bank");
+        const d = await r.json();
+        const tl = toolName.toLowerCase();
+        const match = (d.skill_chunks || []).find(s => s.skill.toLowerCase() === tl ||
+          s.skill.toLowerCase().includes(tl) || tl.includes(s.skill.toLowerCase()));
+        if (!match) { showToast(`"${toolName}" not found in skill bank`, "error"); return; }
+        skillId = match.id;
+      }
+      const res  = await fetch("/skill-bank/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: skillId })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      // Flip chip back to grey gap style
+      chipEl.classList.replace("gqi-chip-tool-match", "gqi-chip-tool-gap");
+      chipEl.title = "⚠ Not in skill bank";
+      delete chipEl.dataset.skillId;
+      showToast(`"${toolName}" removed from skill bank`);
+    } catch (err) {
+      showToast("Delete failed: " + err.message, "error");
+    }
+  }
+
+  function initChipInteractions() {
+    const listEl = document.getElementById("gen-queue-list");
+    if (!listEl) return;
+    listEl.addEventListener("dblclick", (e) => {
+      const chip = e.target.closest(".gqi-chip");
+      if (!chip) return;
+      // Extract tool name (strip the "opt" superscript text)
+      const name = chip.childNodes[0]?.textContent?.trim() || chip.textContent.replace("opt", "").trim();
+      if (chip.classList.contains("gqi-chip-tool-gap")) {
+        showQuickAdd(name, chip);
+      } else if (chip.classList.contains("gqi-chip-tool-match")) {
+        deleteFromBank(name, chip);
+      }
+    });
+
+    // ── Drag-to-move the dialog via its header ──
+    const dlg = document.getElementById("gqi-quick-add");
+    const header = document.getElementById("gqi-qa-header");
+    if (dlg && header) {
+      let dragging = false, startX = 0, startY = 0, origLeft = 0, origTop = 0;
+      header.addEventListener("mousedown", (e) => {
+        if (e.target.closest("button")) return;
+        dragging = true;
+        const rect = dlg.getBoundingClientRect();
+        origLeft = rect.left;
+        origTop  = rect.top;
+        startX   = e.clientX;
+        startY   = e.clientY;
+        e.preventDefault();
+      });
+      document.addEventListener("mousemove", (e) => {
+        if (!dragging) return;
+        const nx = Math.max(0, origLeft + (e.clientX - startX));
+        const ny = Math.max(0, origTop  + (e.clientY - startY));
+        dlg.style.left   = nx + "px";
+        dlg.style.top    = ny + "px";
+        dlg.style.bottom = "auto";
+        dlg.style.right  = "auto";
+      });
+      document.addEventListener("mouseup", () => { dragging = false; });
+    }
+
+    // Dialog button wiring (runs once)
+    document.getElementById("gqi-qa-add")?.addEventListener("click", submitQuickAdd);
+    document.getElementById("gqi-qa-cancel")?.addEventListener("click", hideQuickAdd);
+    document.getElementById("gqi-qa-close")?.addEventListener("click", hideQuickAdd);
+    document.getElementById("gqi-qa-suggest-btn")?.addEventListener("click", fetchEvidenceSuggestion);
+    document.getElementById("gqi-qa-rephrase")?.addEventListener("click", rephraseEvidence);
+    // Re-suggest when level changes
+    document.getElementById("gqi-qa-level")?.addEventListener("change", fetchEvidenceSuggestion);
+    document.getElementById("gqi-qa-evidence")?.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") hideQuickAdd();
+    });
+    // Close when clicking outside
+    document.addEventListener("mousedown", (e) => {
+      const dlg = document.getElementById("gqi-quick-add");
+      if (dlg && !dlg.classList.contains("hidden") && !dlg.contains(e.target) && !e.target.closest(".gqi-chip")) {
+        hideQuickAdd();
+      }
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // INIT
   // ═══════════════════════════════════════════════════════════════
   function init() {
     bindEvents();
     renderQueue();
     loadRagStatus();
-
+    initChipInteractions();
   }
 
   window.GenerateModule = { addToQueue, init };

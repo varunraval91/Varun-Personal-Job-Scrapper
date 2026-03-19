@@ -630,6 +630,18 @@ body {
   cursor: not-allowed;
 }
 
+/* Sign-in spinner */
+.auth-btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: authSpin 0.65s linear infinite;
+}
+@keyframes authSpin { to { transform: rotate(360deg); } }
+
 .btn-auth-guest {
   margin-top: 8px;
   background: transparent;

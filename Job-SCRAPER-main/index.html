@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SAP Job Automator</title>
   <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css" />
-  <link rel="stylesheet" href="css/redesign.css" />
+  <link rel="stylesheet" href="css/styles.css?v=7" />
+  <link rel="stylesheet" href="css/redesign.css?v=11" />
   <link rel="stylesheet" href="css/auth-screen-styles.css" />
-  <link rel="stylesheet" href="css/automator.css" />
+  <link rel="stylesheet" href="css/automator.css?v=19" />
   <link rel="stylesheet" href="css/skill-bank.css" />
 </head>
 <body>
@@ -45,7 +45,7 @@
           <div class="pipeline-row" style="--bar:var(--c-rejected);--target:42%;--idx:4;"><span class="row-dot"></span><span class="row-name">Rejected</span><span class="row-track"><span class="row-fill"></span></span><span class="row-count">0</span></div>
           <div class="pipeline-row" style="--bar:var(--c-offer);--target:25%;--idx:5;"><span class="row-dot"></span><span class="row-name">Offer</span><span class="row-track"><span class="row-fill"></span></span><span class="row-count">0</span></div>
         </div>
-        <p class="auth-left-quote" id="auth-quote">Small daily progress leads to extraordinary career outcomes.</p>
+        <p class="auth-left-quote" id="auth-quote">AI-powered job applications for the DACH market — from search to submission.</p>
       </div>
       <div class="auth-right-panel">
         <div class="auth-right-accent" aria-hidden="true"></div>
@@ -121,39 +121,44 @@
           <span class="nav-icon">🔍</span> <span class="nav-label">Search</span>
         </a>
         <a href="#" id="generateNavBtn" class="nav-item" data-view="generate" title="Generate Docs">
-          <span class="nav-icon">✨</span> <span class="nav-label">Generate</span>
+          <span class="nav-icon">⭐</span> <span class="nav-label">Generate</span>
         </a>
         <a href="#" id="dashboardBtn" class="nav-item" data-view="dashboard" title="Tracker">
-          <span class="nav-icon">▦</span> <span class="nav-label">Tracker</span>
+          <span class="nav-icon">📌</span> <span class="nav-label">Tracker</span>
         </a>
         <a href="#" id="skillBankNavBtn" class="nav-item" data-view="skillbank" title="Skill Bank">
-          <span class="nav-icon">◆</span> <span class="nav-label">Skill Bank</span>
+          <span class="nav-icon">🧠</span> <span class="nav-label">Skill Bank</span>
         </a>
         <button type="button" class="nav-item sb-icon" id="analyticsBtn" aria-label="Analytics" title="Analytics">
-          <span class="nav-icon">◍</span> <span class="nav-label">Analytics</span>
+          <span class="nav-icon">📊</span> <span class="nav-label">Analytics</span>
         </button>
+        <div class="sidebar-util-group">
+        <div class="sidebar-nav-divider"></div>
+        <button id="theme-toggle" class="utility-btn" aria-label="Toggle theme" title="Toggle theme">
+          <span class="utility-icon" id="theme-icon">☀</span>
+          <span class="utility-label">Theme</span>
+        </button>
+        <button id="import-data-btn" class="utility-btn" title="Import applications from CSV">
+          <span class="utility-icon" aria-hidden="true">↑</span>
+          <span class="utility-label">Import</span>
+        </button>
+        <input id="import-file-input" type="file" accept=".txt,.csv" class="hidden" />
+        <button id="download-template-btn" class="utility-btn" title="Download blank Excel template">
+          <span class="utility-icon" aria-hidden="true">📄</span>
+          <span class="utility-label">Template</span>
+        </button>
+        <button id="export-csv-btn" class="utility-btn" title="Export data as CSV">
+          <span class="utility-icon" aria-hidden="true">↓</span>
+          <span class="utility-label">Export</span>
+        </button>
+        <button id="account-logout-btn" class="utility-btn" title="Sign out">
+          <span class="utility-icon" aria-hidden="true">⇥</span>
+          <span class="utility-label">Logout</span>
+        </button>
+        </div>
       </nav>
       <div class="sidebar-footer">
         <div id="account-status" class="account-status">Signed out</div>
-        <div class="sidebar-utility-group">
-          <button id="theme-toggle" class="utility-btn" aria-label="Toggle theme" title="Toggle theme">
-            <span class="utility-icon" id="theme-icon">☀</span>
-            <span class="utility-label">Theme</span>
-          </button>
-          <button id="import-data-btn" class="utility-btn" title="Import applications from CSV">
-            <span class="utility-icon" aria-hidden="true">↑</span><span class="utility-label">Import</span>
-          </button>
-          <input id="import-file-input" type="file" accept=".txt,.csv" class="hidden" />
-          <button id="download-template-btn" class="utility-btn" title="Download blank Excel template">
-            <span class="utility-icon" aria-hidden="true">📄</span><span class="utility-label">Template</span>
-          </button>
-          <button id="export-csv-btn" class="utility-btn" title="Export data as CSV">
-            <span class="utility-icon" aria-hidden="true">↓</span><span class="utility-label">Export</span>
-          </button>
-          <button id="account-logout-btn" class="utility-btn" title="Sign out">
-            <span class="utility-icon" aria-hidden="true">⇥</span><span class="utility-label">Logout</span>
-          </button>
-        </div>
       </div>
     </aside>
 
@@ -168,6 +173,11 @@
           <div class="topbar-left">
             <h1 class="app-title">Search SAP Jobs</h1>
             <p class="app-subtitle">Find → Select → Generate CV & Cover Letter</p>
+          </div>
+          <div class="topbar-right">
+            <button type="button" class="btn btn-primary gen-topbar-add-job" aria-label="Add job" onclick="if(window.JobHuntHQOpenModal){window.JobHuntHQOpenModal();}">
+              <span>+</span> Add Job
+            </button>
           </div>
         </header>
 
@@ -221,6 +231,11 @@
           <div class="auto-card-header">
             <h2>Search Results</h2>
             <span class="auto-badge" id="scrape-result-count">0 jobs</span>
+            <select id="scrape-sort-select" class="scrape-sort-select" title="Sort results">
+              <option value="match">Best Match</option>
+              <option value="date-desc">Newest First</option>
+              <option value="date-asc">Oldest First</option>
+            </select>
           </div>
           <div class="auto-table-wrap">
             <table class="auto-table" id="scrape-results-table">
@@ -299,7 +314,6 @@
           </div>
           <!-- Document Library (collapsed by default) -->
           <div id="library-status" class="lib-collapsed">
-            <p class="auto-empty">Expand to browse indexed foundation documents.</p>
           </div>
           <!-- Hidden button kept for backward-compat with generate.js logic -->
           <button id="index-library-btn" type="button" style="display:none">Index Foundation PDFs</button>
@@ -331,7 +345,7 @@
           </div>
           <div class="topbar-right">
             <button type="button" class="btn btn-primary btn-add" id="open-modal-btn" aria-label="Add new application" onclick="if(window.JobHuntHQOpenModal){window.JobHuntHQOpenModal();}">
-              <span>+</span> New Application
+              <span>+</span> Add Job
             </button>
           </div>
         </header>
@@ -346,6 +360,21 @@
               <div class="goal-bar-track"><div class="goal-bar-fill" id="goal-bar-fill"></div></div>
               <div class="goal-text" id="goal-text">0 / 10 applications this week</div>
             </div>
+          </div>
+          <div class="deadline-widget" id="deadline-widget">
+            <div class="dw-header">📅 Self Deadline</div>
+            <div class="dw-chips">
+              <div class="dw-chip">
+                <span class="dw-val" id="dw-apps-left">—</span>
+                <span class="dw-lbl">apps to go</span>
+              </div>
+              <span class="dw-sep">·</span>
+              <div class="dw-chip">
+                <span class="dw-val" id="dw-days-left">—</span>
+                <span class="dw-lbl">days left</span>
+              </div>
+            </div>
+            <div class="dw-hint" id="dw-hint"></div>
           </div>
           <section class="quote-banner"><div id="motivational-quote-container" class="quote-text"></div></section>
         </section>
@@ -474,11 +503,11 @@
             </div>
             <article class="an-table-card">
               <div class="an-table-subhead">
-                <div style="display:flex;align-items:center;gap:8px;"><div class="an-table-title">Applications</div><div class="an-count-badge" id="anTableCount">0</div></div>
+                <div style="display:flex;align-items:center;gap:8px;"><div class="an-table-title">Applications</div><div class="an-count-badge" id="anTableCount">0</div><button type="button" id="anFullViewBtn" class="an-fullview-btn" title="Full screen view">&#x26F6;</button></div>
                 <div style="display:flex;gap:8px;"><select id="anSort" class="an-sel"><option value="company">Company A-Z</option><option value="status">Status</option><option value="deadline">Deadline</option></select></div>
               </div>
               <div class="an-tbl-wrap">
-                <table class="an-table"><thead><tr><th>☐</th><th>Company</th><th>Role</th><th>Location</th><th>Status</th><th>Keywords</th><th>Deadline</th><th>ID</th><th>Action</th></tr></thead>
+                <table class="an-table"><thead><tr><th>Company</th><th>Role</th><th>Location</th><th>Status</th><th>Posted → Due</th><th>ID</th><th>Action</th></tr></thead>
                 <tbody id="anTableBody"></tbody></table>
               </div>
               <div class="an-empty" id="anEmpty"><div class="an-empty-title">No applications match</div><div class="an-empty-sub">Try adjusting your filters.</div></div>
@@ -613,13 +642,59 @@
     </div>
   </div>
 
+  <!-- Quick-Add to Skill Bank dialog (shown when double-clicking tool chips) -->
+  <div id="gqi-quick-add" class="gqi-quick-add hidden">
+    <div class="gqi-qa-header" id="gqi-qa-header">
+      <span class="gqi-qa-title">&#x2795; Add to Skill Bank</span>
+      <button type="button" class="gqi-qa-close" id="gqi-qa-close">&#x2715;</button>
+    </div>
+    <div class="gqi-qa-tool-name" id="gqi-qa-tool-name"></div>
+    <div class="gqi-qa-field">
+      <label class="gqi-qa-label">Category</label>
+      <select id="gqi-qa-category" class="gqi-qa-select">
+        <option value="Tools">Tools</option>
+        <option value="Software">Software</option>
+        <option value="Design">Design</option>
+        <option value="Digital_Marketing">Digital Marketing</option>
+        <option value="Programming">Programming</option>
+        <option value="SAP_Technical">SAP Technical</option>
+        <option value="SAP_Functional">SAP Functional</option>
+        <option value="Analytics">Analytics</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="gqi-qa-field">
+      <label class="gqi-qa-label">Level</label>
+      <select id="gqi-qa-level" class="gqi-qa-select">
+        <option value="Beginner">Beginner</option>
+        <option value="Intermediate" selected>Intermediate</option>
+        <option value="Advanced">Advanced</option>
+        <option value="Expert">Expert</option>
+      </select>
+    </div>
+    <div class="gqi-qa-field">
+      <label class="gqi-qa-label">Evidence <span style="opacity:.6;font-size:.7rem">(AI-suggested, editable)</span></label>
+      <div class="gqi-qa-evidence-wrap">
+        <textarea id="gqi-qa-evidence" class="gqi-qa-input gqi-qa-textarea" placeholder="Generating suggestion…" rows="3"></textarea>
+        <button type="button" class="gqi-qa-suggest-btn" id="gqi-qa-suggest-btn" title="Regenerate suggestion">&#x27F3;</button>
+      </div>
+    </div>
+    <div class="gqi-qa-actions">
+      <button type="button" class="btn btn-sm" id="gqi-qa-cancel">Cancel</button>
+      <button type="button" class="btn btn-sm gqi-qa-rephrase-btn" id="gqi-qa-rephrase">&#x2728; Rephrase</button>
+      <button type="button" class="btn btn-sm btn-primary" id="gqi-qa-add">Add to Bank ✓</button>
+    </div>
+  </div>
+
   <!-- Scratchpad Popup -->
   <button type="button" id="scratchpad-fab" class="scratchpad-fab" title="Open scratchpad">&#x1F4DD;</button>
   <div id="scratchpad-popup" class="scratchpad-popup hidden">
     <div class="scratchpad-header">
       <span class="scratchpad-title">&#x1F4DD; Scratchpad</span>
       <div style="display:flex;gap:6px;align-items:center;">
+        <input type="color" id="scratchpad-bg-picker" class="scratchpad-bg-picker" title="Change background color" />
         <button type="button" class="btn btn-sm" id="scratchpad-new">+ New</button>
+        <button type="button" class="btn btn-sm" id="scratchpad-reset-size" title="Reset window size">⟲</button>
         <button type="button" class="btn btn-sm" id="scratchpad-close">&#10005;</button>
       </div>
     </div>
@@ -644,8 +719,25 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <!-- App logic (cache-busted to ensure latest JS is loaded) -->
-  <script src="js/app.js?v=2"></script>
-  <script src="js/generate.js?v=3"></script>
+  <script src="js/app.js?v=12"></script>
+  <script src="js/generate.js?v=12"></script>
   <script src="js/skill-bank.js?v=2"></script>
+
+  <!-- Full-view applications overlay -->
+  <div id="anFullViewOverlay" class="anfv-overlay hidden">
+    <div class="anfv-panel">
+      <div class="anfv-header">
+        <span class="anfv-title">All Applications</span>
+        <span class="an-count-badge" id="anfvCount">0</span>
+        <button type="button" id="anfvCloseBtn" class="anfv-close" title="Close">&#x2715;</button>
+      </div>
+      <div class="anfv-tbl-wrap">
+        <table class="an-table anfv-table">
+          <thead><tr><th>Company</th><th>Role</th><th>Location</th><th>Status</th><th>Posted → Due</th><th>ID</th><th>Action</th></tr></thead>
+          <tbody id="anfvTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
