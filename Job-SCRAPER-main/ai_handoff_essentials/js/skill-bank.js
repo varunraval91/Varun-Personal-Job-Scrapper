@@ -11,19 +11,6 @@
 
   function $(id) { return document.getElementById(id); }
 
-  const CATEGORY_META = {
-    SAP_Technical:       { color: "#0070f3", label: "SAP Technical",         emoji: "🔷" },
-    Engineering_Dev:     { color: "#7928ca", label: "Engineering & Dev",     emoji: "💻" },
-    Data_Analytics:      { color: "#00b894", label: "Data & Analytics",      emoji: "📊" },
-    Design_UX:           { color: "#f5a623", label: "Design & UX",           emoji: "🎨" },
-    Creative_Media:      { color: "#e84393", label: "Creative & Media",      emoji: "🎬" },
-    Tools_Platforms:     { color: "#718096", label: "Tools & Platforms",     emoji: "🛠️" },
-    Domain_Professional: { color: "#38a169", label: "Domain & Professional", emoji: "🧠" }
-  };
-  function getCategoryColor(cat) { return (CATEGORY_META[cat] || { color: "#a0aec0" }).color; }
-  function getCategoryLabel(cat) { return (CATEGORY_META[cat] || { label: cat.replace(/_/g," ") }).label; }
-  function getCategoryEmoji(cat) { return (CATEGORY_META[cat] || { emoji: "" }).emoji; }
-
   // ── Tab switching ──────────────────────────────────────────────
   function initTabs() {
     document.querySelectorAll(".sb-tab").forEach(tab => {
@@ -72,21 +59,6 @@
     }
   }
 
-  function setAddCategoryOptions() {
-    const addCategory = $("sb-add-category");
-    if (!addCategory) return;
-    addCategory.innerHTML = `
-      <option value="">— Select category —</option>
-      <option value="SAP_Technical">🔷 SAP Technical</option>
-      <option value="Engineering_Dev">💻 Engineering & Dev</option>
-      <option value="Data_Analytics">📊 Data & Analytics</option>
-      <option value="Design_UX">🎨 Design & UX</option>
-      <option value="Creative_Media">🎬 Creative & Media</option>
-      <option value="Tools_Platforms">🛠️ Tools & Platforms</option>
-      <option value="Domain_Professional">🧠 Domain & Professional</option>
-    `;
-  }
-
   // ── Render skills table ────────────────────────────────────────
   function renderTable() {
     const search = ($("sb-search")?.value || "").toLowerCase();
@@ -96,24 +68,21 @@
     const filtered = allSkills.filter(s => {
       if (catFilter && s.category !== catFilter) return false;
       if (levelFilter && s.level !== levelFilter) return false;
-      if (search && !s.skill.toLowerCase().includes(search) && !s.evidence.toLowerCase().includes(search) && !s.category.toLowerCase().includes(search) && !(s.tools || []).some(t => t.toLowerCase().includes(search))) return false;
+      if (search && !s.skill.toLowerCase().includes(search) && !s.evidence.toLowerCase().includes(search) && !s.category.toLowerCase().includes(search)) return false;
       return true;
     });
 
     const tbody = $("sb-table-body");
-    tbody.innerHTML = filtered.map(s => {
-      const toolTags = (s.tools || []).map(t => `<span class="sb-tool-tag">${esc(t)}</span>`).join(" ");
-      return `
+    tbody.innerHTML = filtered.map(s => `
       <tr>
         <td><code>${esc(s.id)}</code></td>
         <td><strong>${esc(s.skill)}</strong></td>
-        <td><span class="sb-cat-badge" style="color:${getCategoryColor(s.category)};background:${getCategoryColor(s.category)}1e;border-color:${getCategoryColor(s.category)}4d">${getCategoryEmoji(s.category)} ${esc(getCategoryLabel(s.category))}</span></td>
+        <td><span class="sb-cat-badge">${esc(s.category.replace(/_/g, " "))}</span></td>
         <td><span class="sb-level sb-level-${s.level.toLowerCase().replace(/[^a-z]/g, "")}">${esc(s.level)}</span></td>
-        <td class="sb-tools-cell">${toolTags || '<span class="sb-no-tools">—</span>'}</td>
         <td class="sb-evidence">${esc(s.evidence)}</td>
         <td><button class="sb-btn sb-btn-sm" onclick="window.SkillBank.editSkill('${s.id}')">Edit</button></td>
-      </tr>`;
-    }).join("");
+      </tr>
+    `).join("");
   }
 
   // ── Add skill ──────────────────────────────────────────────────
@@ -285,8 +254,8 @@
         const pct = (count / maxCount * 100).toFixed(0);
         html += `
           <div class="sb-cat-bar-row">
-            <span class="sb-cat-bar-label">${esc(getCategoryLabel(cat))}</span>
-            <div class="sb-cat-bar-track"><div class="sb-cat-bar-fill" style="width:${pct}%;background:${esc(getCategoryColor(cat))}"></div></div>
+            <span class="sb-cat-bar-label">${esc(cat.replace(/_/g, " "))}</span>
+            <div class="sb-cat-bar-track"><div class="sb-cat-bar-fill" style="width:${pct}%"></div></div>
             <span class="sb-cat-bar-count">${count}</span>
           </div>`;
       });
@@ -311,7 +280,6 @@
   // ── Init ───────────────────────────────────────────────────────
   function init() {
     initTabs();
-    setAddCategoryOptions();
 
     // Filters
     $("sb-search")?.addEventListener("input", renderTable);

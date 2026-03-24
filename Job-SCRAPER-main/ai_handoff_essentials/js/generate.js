@@ -19,8 +19,7 @@
     domainInsights: [],
     userId: null,
     libExpanded: false,
-    selectors: {},      // reqId → { we, projects, certifications, aiPickWE, aiPickProjects, aiPickCerts, pinnedWE, pinnedProjects, pinnedCerts, loading }
-    bankToolIndex: null  // cached map: tool-name-lower → true (for tool chip matching)
+    selectors: {}      // reqId → { we, projects, aiPickWE, aiPickProjects, pinnedWE, pinnedProjects, loading }
   };
 
   const $ = (id) => document.getElementById(id);
@@ -433,9 +432,9 @@
     // Top-right action area
     let topAction = "";
     const sel = genState.selectors[key];
-    const hasPins = sel && (sel.pinnedWE?.length || sel.pinnedProjects?.length || sel.pinnedCerts?.length);
+    const hasPins = sel && (sel.pinnedWE?.length || sel.pinnedProjects?.length);
     const customBtnCls = hasPins ? "btn btn-sm gqi-custom-btn gqi-custom-active" : "btn btn-sm gqi-custom-btn";
-    const customBtnTip = hasPins ? `${(sel.pinnedWE||[]).length} WE + ${(sel.pinnedProjects||[]).length} projects + ${(sel.pinnedCerts||[]).length} certs selected` : "Customize CV selection";
+    const customBtnTip = hasPins ? `${(sel.pinnedWE||[]).length} WE + ${(sel.pinnedProjects||[]).length} projects selected` : "Customize CV selection";
     const customBtn = `<button type="button" class="${customBtnCls}" data-gen-selector="${esc(key)}" title="${customBtnTip}">⚙ CV</button>`;
     if (gen.state === "idle") {
       topAction = `${customBtn}<button type="button" class="btn btn-primary btn-sm gen-start-btn" data-idx="${i}">Generate</button>`;
@@ -910,7 +909,6 @@
     const aiSkills = (summary?.skills || []).slice(0, 7);
     const aiTools  = (summary?.tools  || []).slice(0, 8);
     const matchedSkillNames = chunks.map(c => (c.metadata?.skill_name || "").toLowerCase());
-    const toolIndex = genState.bankToolIndex || {};
 
     const skillsHtml = aiSkills.map(s =>
       `<span class="gqi-chip gqi-chip-skill">${esc(s)}</span>`
@@ -920,9 +918,9 @@
       const isOptional = t.endsWith("+");
       const name = isOptional ? t.slice(0, -1) : t;
       const tl = name.toLowerCase();
-      const inBank = matchedSkillNames.some(n => n.includes(tl) || tl.includes(n)) || !!toolIndex[tl];
+      const inBank = matchedSkillNames.some(n => n.includes(tl) || tl.includes(n));
       const cls = inBank ? "gqi-chip gqi-chip-tool-match" : "gqi-chip gqi-chip-tool-gap";
-      const tip = inBank ? "✓ In your skill bank" : "⚠ Not in skill bank — click to tag";
+      const tip = inBank ? "✓ In your skill bank" : "⚠ Not in skill bank";
       return `<span class="${cls}${isOptional ? " gqi-chip-optional" : ""}" title="${tip}">${esc(name)}${isOptional ? `<sup class="gqi-opt-mark">opt</sup>` : ""}</span>`;
     }).join("");
 
@@ -1008,10 +1006,16 @@
   // CV SELECTOR DRAWER
   // ═══════════════════════════════════════════════════════════════
   async function openCvSelector(key, jdText, itemEl) {
-    const prevSel = genState.selectors[key] || null;
+    let sel = genState.selectors[key];
+
+    // If we already have data, just (re)render the drawer
+    if (sel && !sel.loading && sel.we) {
+      renderSelectorDrawer(key, sel, itemEl);
+      return;
+    }
 
     // Show loading state
-    genState.selectors[key] = { ...(prevSel || {}), loading: true };
+    genState.selectors[key] = { loading: true };
     updateJobUI(key);
 
     try {
@@ -1023,35 +1027,14 @@
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Selector load failed");
 
-      const we = data.work_experience || [];
-      const projects = data.projects || [];
-      const certifications = data.certifications || [];
-      const research = data.research || [];
-      const weIds = new Set(we.map(w => w.id));
-      const projectIds = new Set(projects.map(p => p.id));
-      const certIds = new Set(certifications.map(c => c.id));
-      const researchIds = new Set(research.map(r => r.id));
-
-      // Preserve previous manual selections when still valid; otherwise use fresh AI picks
-      const preservedWE = (prevSel?.pinnedWE || []).filter(id => weIds.has(id));
-      const preservedProjects = (prevSel?.pinnedProjects || []).filter(id => projectIds.has(id));
-      const preservedResearch = (prevSel?.pinnedResearch || []).filter(id => researchIds.has(id));
-      const aiPickCerts = (data.aiPickCerts || []).filter(id => certIds.has(id));
-      const certDefaults = aiPickCerts.length ? aiPickCerts : certifications.map(c => c.id);
-
       genState.selectors[key] = {
         loading: false,
-        we,
-        projects,
-        certifications,
-        research,
+        we: data.work_experience || [],
+        projects: data.projects || [],
         aiPickWE: data.aiPickWE || [],
         aiPickProjects: data.aiPickProjects || [],
-        aiPickCerts: certDefaults,
-        pinnedWE: preservedWE.length ? preservedWE : [...(data.aiPickWE || [])],
-        pinnedProjects: preservedProjects.length ? preservedProjects : [...(data.aiPickProjects || [])],
-        pinnedCerts: [],
-        pinnedResearch: preservedResearch.length ? preservedResearch : research.map(r => r.id)
+        pinnedWE: [...(data.aiPickWE || [])],
+        pinnedProjects: [...(data.aiPickProjects || [])]
       };
     } catch (err) {
       genState.selectors[key] = null;
@@ -1067,420 +1050,117 @@
   }
 
   function renderSelectorDrawer(key, sel, itemEl) {
+    // Remove any existing selector modal
     document.querySelectorAll(".gqi-selector-modal").forEach(m => m.remove());
 
-    // ── Section config ───────────────────────────────────────────
-    const SECTIONS = {
-      we: {
-        label: "Work Experience", emoji: "💼", accent: "#6c63ff",
-        getItems: () => sel.we,
-        getPinned: () => genState.selectors[key].pinnedWE || [],
-        setPinned: v => { genState.selectors[key].pinnedWE = v; },
-        getAiPick: () => genState.selectors[key].aiPickWE || [],
-        getTitle: e => e.title || "",
-        getSub: e => `${e.company || ""}${e.period ? " · " + e.period : ""}`,
-        getDesc: null,
-        getTags: null
-      },
-      projects: {
-        label: "Projects", emoji: "📁", accent: "#10b981",
-        getItems: () => sel.projects,
-        getPinned: () => genState.selectors[key].pinnedProjects || [],
-        setPinned: v => { genState.selectors[key].pinnedProjects = v; },
-        getAiPick: () => genState.selectors[key].aiPickProjects || [],
-        getTitle: e => e.name || "",
-        getSub: e => e.tech || "",
-        getDesc: e => e.description || "",
-        getTags: e => (e.tech || "").split(/[,;]/).map(t => t.trim()).filter(Boolean)
-      },
-      certs: {
-        label: "Certifications", emoji: "📜", accent: "#7e839e",
-        getItems: () => sel.certifications || [],
-        getPinned: () => genState.selectors[key].pinnedCerts || [],
-        setPinned: v => { genState.selectors[key].pinnedCerts = v; },
-        getAiPick: () => [],
-        getTitle: e => e.name || "",
-        getSub: e => `${e.provider || ""}${e.date ? " · " + e.date : ""}`,
-        getDesc: null,
-        getTags: null
-      },
-      research: {
-        label: "Research", emoji: "🔬", accent: "#4fc3f7",
-        getItems: () => sel.research || [],
-        getPinned: () => genState.selectors[key].pinnedResearch || [],
-        setPinned: v => { genState.selectors[key].pinnedResearch = v; },
-        getAiPick: () => [],
-        getTitle: e => e.title || "",
-        getSub: e => e.kind === "paper"
-          ? `${e.institution || ""}${e.date ? " · " + e.date : ""}`
-          : `${e.context || ""}${e.period ? " · " + e.period : ""}`,
-        getDesc: e => e.description || "",
-        getTags: null
-      }
-    };
+    function makeItem(entry, type) {
+      const isPinned = type === "we"
+        ? sel.pinnedWE.includes(entry.id)
+        : sel.pinnedProjects.includes(entry.id);
+      const isAi = type === "we"
+        ? sel.aiPickWE.includes(entry.id)
+        : sel.aiPickProjects.includes(entry.id);
+      const pct = entry.score || 0;
+      const scoreColor = pct >= 60 ? "#10b981" : pct >= 35 ? "#f59e0b" : "#94a3b8";
+      const label = type === "we"
+        ? `<span class="gqi-sel-title">${esc(entry.title)}</span><span class="gqi-sel-meta">${esc(entry.company || "")}${entry.period ? " · " + esc(entry.period) : ""}</span>`
+        : `<span class="gqi-sel-title">${esc(entry.name)}</span><span class="gqi-sel-meta">${esc(entry.tech || "")}</span>`;
+      return `<label class="gqi-sel-item${isPinned ? " gqi-sel-checked" : ""}">
+        <input type="checkbox" class="gqi-sel-cb" data-sel-type="${type}" data-sel-id="${esc(entry.id)}" ${isPinned ? "checked" : ""}>
+        <span class="gqi-sel-score" style="color:${scoreColor}">${pct}%</span>
+        ${isAi ? `<span class="gqi-sel-ai-badge" title="AI recommended">✦</span>` : `<span class="gqi-sel-ai-badge gqi-sel-ai-empty"></span>`}
+        <span class="gqi-sel-label">${label}</span>
+      </label>`;
+    }
 
-    // ── UI state ─────────────────────────────────────────────────
-    let activeTab = "we";
-    let searchQuery = "";
-    let filterMode = "all";
-    let projectFilter = "all"; // "all" | "sap_technical" | "sap_media" | "creative_media"
+    const weHtml = sel.we.map(e => makeItem(e, "we")).join("");
+    const prHtml = sel.projects.map(e => makeItem(e, "projects")).join("");
 
-    // ── Build modal skeleton ─────────────────────────────────────
     const modal = document.createElement("div");
     modal.className = "gqi-selector-modal";
     modal.setAttribute("data-sel-key", key);
     modal.innerHTML = `
-      <div class="gqi-sel-backdrop"></div>
-      <div class="gqi-selector-drawer" role="dialog" aria-modal="true" aria-labelledby="gqi-sel-dlg-title">
+      <div class="gqi-sel-modal-backdrop"></div>
+      <div class="gqi-selector-drawer">
         <div class="gqi-sel-hdr">
-          <span class="gqi-sel-hdr-title" id="gqi-sel-dlg-title">⚙ CV Selector</span>
-          <span class="gqi-sel-ai-legend"><span class="gqi-sel-ai-pill">✦ AI</span> Recommended</span>
+          <span class="gqi-sel-hdr-title">⚙ CV Selector</span>
+          <span class="gqi-sel-hdr-hint">✦ = AI recommended</span>
           <div class="gqi-sel-hdr-actions">
-            <button type="button" class="gqi-sel-reset-btn" aria-label="Reset to AI picks">↺ Reset</button>
-            <button type="button" class="gqi-sel-close-btn" aria-label="Close">✕</button>
+            <button type="button" class="btn btn-sm gqi-sel-reset-btn">Reset to AI picks</button>
+            <button type="button" class="btn btn-sm gqi-sel-close-btn">✕</button>
           </div>
         </div>
-        <div class="gqi-sel-tabs" role="tablist" aria-label="CV sections">
-          ${Object.entries(SECTIONS).map(([t, s]) =>
-            `<button class="gqi-sel-tab${t === "we" ? " gqi-tab-active" : ""}" data-tab="${t}" role="tab" aria-selected="${t === "we"}" style="--tab-accent:${s.accent}">
-              ${s.emoji} ${s.label} <span class="gqi-sel-tab-badge" data-tab-badge="${t}">0</span>
-            </button>`
-          ).join("")}
-        </div>
-        <div class="gqi-proj-subfilter" role="tablist" aria-label="Project category filter" style="display:none">
-          <button class="gqi-pf-btn gqi-pf-active" data-pf="all">📁 All Projects <span class="gqi-pf-count" data-pf-count="all">0</span></button>
-          <button class="gqi-pf-btn" data-pf="sap_technical">⚙️ SAP & Technical <span class="gqi-pf-count" data-pf-count="sap_technical">0</span></button>
-          <button class="gqi-pf-btn" data-pf="sap_media">🎬 SAP Media <span class="gqi-pf-count" data-pf-count="sap_media">0</span></button>
-          <button class="gqi-pf-btn" data-pf="creative_media">🎨 Creative Media <span class="gqi-pf-count" data-pf-count="creative_media">0</span></button>
-        </div>
-        <div class="gqi-sel-search-row">
-          <div class="gqi-sel-search-wrap">
-            <span class="gqi-sel-search-icon">⌕</span>
-            <input type="text" class="gqi-sel-search-input" placeholder="Search Work Experience..." aria-label="Search items">
-            <button type="button" class="gqi-sel-search-clear" aria-label="Clear search" style="display:none">✕</button>
+        <div class="gqi-sel-body">
+          <div class="gqi-sel-section">
+            <div class="gqi-sel-section-hdr">💼 Work Experience <span class="gqi-sel-count" data-count-we></span></div>
+            <div class="gqi-sel-list we-list">${weHtml}</div>
           </div>
-          <select class="gqi-sel-filter-select" aria-label="Filter items">
-            <option value="all">All Items</option>
-            <option value="ai">✦ AI Recommended</option>
-            <option value="selected">Selected</option>
-            <option value="unselected">Not Selected</option>
-          </select>
+          <div class="gqi-sel-section">
+            <div class="gqi-sel-section-hdr">📁 Projects <span class="gqi-sel-count" data-count-pr></span></div>
+            <div class="gqi-sel-list pr-list">${prHtml}</div>
+          </div>
         </div>
-        <div class="gqi-sel-chips-row" aria-label="Selected items">
-          <span class="gqi-sel-chips-label">Selected:</span>
-          <div class="gqi-sel-chips-list"><span class="gqi-chips-empty">Nothing selected yet</span></div>
-        </div>
-        <div class="gqi-sel-list-panel" role="tabpanel" aria-live="polite"></div>
         <div class="gqi-sel-footer">
-          <div class="gqi-sel-footer-counts">
-            ${Object.entries(SECTIONS).map(([t, s]) =>
-              `<span class="gqi-sel-footer-chip gqi-footer-chip-zero" data-footer-chip="${t}" style="--chip-accent:${s.accent}">${s.emoji} ${s.label}: <strong data-footer-num="${t}">0</strong></span>`
-            ).join("")}
-          </div>
-          <button type="button" class="gqi-sel-confirm-btn" aria-label="Confirm CV selection" disabled>Confirm Selection</button>
+          <span class="gqi-sel-summary" data-sel-summary></span>
+          <button type="button" class="btn btn-primary btn-sm gqi-sel-confirm-btn">Confirm Selection</button>
         </div>
       </div>`;
 
     document.body.appendChild(modal);
-    const drawer    = modal.querySelector(".gqi-selector-drawer");
-    const backdrop  = modal.querySelector(".gqi-sel-backdrop");
-    const searchIn  = drawer.querySelector(".gqi-sel-search-input");
-    const searchClr = drawer.querySelector(".gqi-sel-search-clear");
-    const filterSel = drawer.querySelector(".gqi-sel-filter-select");
-    const chipsRow       = drawer.querySelector(".gqi-sel-chips-row");
-    const chipsList      = drawer.querySelector(".gqi-sel-chips-list");
-    const listPanel      = drawer.querySelector(".gqi-sel-list-panel");
-    const confirmBtn     = drawer.querySelector(".gqi-sel-confirm-btn");
-    const subfilterRow   = drawer.querySelector(".gqi-proj-subfilter");
+    const drawer = modal.querySelector(".gqi-selector-drawer");
+    const backdrop = modal.querySelector(".gqi-sel-modal-backdrop");
 
-    const rootTheme = document.documentElement.getAttribute("data-theme");
-    if (rootTheme === "dark" || rootTheme === "light") {
-      drawer.setAttribute("data-theme", rootTheme);
+    function refreshCounts() {
+      const s = genState.selectors[key];
+      drawer.querySelector("[data-count-we]").textContent = `(${s.pinnedWE.length} selected)`;
+      drawer.querySelector("[data-count-pr]").textContent = `(${s.pinnedProjects.length} selected)`;
+      drawer.querySelector("[data-sel-summary]").textContent =
+        `${s.pinnedWE.length} work exp + ${s.pinnedProjects.length} projects selected`;
     }
+    refreshCounts();
 
-    // ── Helpers ──────────────────────────────────────────────────
-    function getPinned(t)   { return SECTIONS[t].getPinned(); }
-    function setPinned(t,v) { SECTIONS[t].setPinned(v); }
-    function selCount(t)    { return getPinned(t).length; }
-    function totalSel()     { return Object.keys(SECTIONS).reduce((n,t) => n + selCount(t), 0); }
-    function projectBucket(item) {
-      if (!item?.id) return "sap_technical";
-      if (item.id.startsWith("PJ")) return "sap_technical";
-      if (!item.id.startsWith("MPJ")) return "sap_technical";
-      const n = parseInt(item.id.replace("MPJ", ""), 10);
-      if (!Number.isFinite(n)) return "sap_technical";
-      return n <= 11 ? "sap_media" : "creative_media";
-    }
-    function projectAccent(bucket) {
-      if (bucket === "sap_media") return "#2563eb";
-      if (bucket === "creative_media") return "#d97706";
-      return "#6c63ff";
-    }
-    function projectGroupLabel(bucket) {
-      if (bucket === "sap_media") return "🎬 SAP Media Projects";
-      if (bucket === "creative_media") return "🎨 Creative Media Projects";
-      return "⚙️ SAP & Technical Projects";
-    }
-    function formatSubCategory(raw) {
-      if (!raw) return "";
-      return String(raw).replace(/_/g, " ");
-    }
-    function refreshProjectFilterCounts() {
-      const projects = SECTIONS.projects.getItems();
-      const sapTechnical = projects.filter(p => projectBucket(p) === "sap_technical").length;
-      const sapMedia = projects.filter(p => projectBucket(p) === "sap_media").length;
-      const creativeMedia = projects.filter(p => projectBucket(p) === "creative_media").length;
-      const total = projects.length;
-      const setCount = (key, value) => {
-        const el = drawer.querySelector(`[data-pf-count="${key}"]`);
-        if (el) el.textContent = String(value);
-      };
-      setCount("all", total);
-      setCount("sap_technical", sapTechnical);
-      setCount("sap_media", sapMedia);
-      setCount("creative_media", creativeMedia);
-    }
-
-    // ── Refresh counters / footer / confirm state ────────────────
-    function refreshAll() {
-      Object.keys(SECTIONS).forEach(t => {
-        const n = selCount(t);
-        const badge = drawer.querySelector(`[data-tab-badge="${t}"]`);
-        if (badge) badge.textContent = n;
-        const num = drawer.querySelector(`[data-footer-num="${t}"]`);
-        if (num) num.textContent = n;
-        const chip = drawer.querySelector(`[data-footer-chip="${t}"]`);
-        if (chip) chip.classList.toggle("gqi-footer-chip-zero", n === 0);
+    // Checkbox toggle
+    drawer.querySelectorAll(".gqi-sel-cb").forEach(cb => {
+      cb.addEventListener("change", () => {
+        const s = genState.selectors[key];
+        const id = cb.dataset.selId;
+        const type = cb.dataset.selType;
+        const arr = type === "we" ? s.pinnedWE : s.pinnedProjects;
+        if (cb.checked) { if (!arr.includes(id)) arr.push(id); }
+        else { const idx = arr.indexOf(id); if (idx !== -1) arr.splice(idx, 1); }
+        cb.closest(".gqi-sel-item").classList.toggle("gqi-sel-checked", cb.checked);
+        refreshCounts();
       });
-      confirmBtn.disabled = totalSel() === 0;
-      refreshProjectFilterCounts();
-      renderChips();
-    }
-
-    // ── Chips row ────────────────────────────────────────────────
-    function renderChips() {
-      const sec    = SECTIONS[activeTab];
-      const pinned = getPinned(activeTab);
-      const items  = sec.getItems();
-      const accent = sec.accent;
-      if (!pinned.length) { chipsList.innerHTML = `<span class="gqi-chips-empty">Nothing selected yet</span>`; return; }
-      chipsList.innerHTML = pinned.map(id => {
-        const item  = items.find(i => i.id === id);
-        const raw   = item ? sec.getTitle(item) : id;
-        const label = raw.length > 22 ? raw.slice(0, 20) + "…" : raw;
-        return `<span class="gqi-sel-chip" style="border-color:${accent}55;color:${accent}">${esc(label)}<button type="button" class="gqi-sel-chip-x" data-remove-id="${esc(id)}" aria-label="Remove">✕</button></span>`;
-      }).join("");
-      chipsList.querySelectorAll(".gqi-sel-chip-x").forEach(btn => {
-        btn.addEventListener("click", e => {
-          e.stopPropagation();
-          const arr = getPinned(activeTab).filter(x => x !== btn.dataset.removeId);
-          setPinned(activeTab, arr);
-          refreshAll(); renderList();
-        });
-      });
-    }
-
-    // ── Item list ────────────────────────────────────────────────
-    function renderList() {
-      const sec    = SECTIONS[activeTab];
-      const items  = sec.getItems();
-      const pinned = new Set(getPinned(activeTab));
-      const aiPick = new Set(sec.getAiPick());
-      const accent = sec.accent;
-      const q      = searchQuery.toLowerCase().trim();
-
-      let filtered = items.filter(item => {
-        const t = sec.getTitle(item).toLowerCase();
-        const s = sec.getSub(item).toLowerCase();
-        if (q && !t.includes(q) && !s.includes(q)) return false;
-        if (filterMode === "ai")         return aiPick.has(item.id);
-        if (filterMode === "selected")   return pinned.has(item.id);
-        if (filterMode === "unselected") return !pinned.has(item.id);
-        // Projects sub-filter
-        if (activeTab === "projects" && projectFilter !== "all") {
-          return projectBucket(item) === projectFilter;
-        }
-        return true;
-      });
-
-      // Sort: selected → AI → score
-      filtered.sort((a, b) => {
-        const ds = (pinned.has(b.id) ? 2 : 0) - (pinned.has(a.id) ? 2 : 0);
-        if (ds !== 0) return ds;
-        const da = (aiPick.has(b.id) ? 1 : 0) - (aiPick.has(a.id) ? 1 : 0);
-        if (da !== 0) return da;
-        return (b.score || 0) - (a.score || 0);
-      });
-
-      if (!filtered.length) {
-        listPanel.innerHTML = `<div class="gqi-sel-empty">No items match your search.${q ? ` <button type="button" class="gqi-sel-empty-clear">Clear</button>` : ""}</div>`;
-        listPanel.querySelector(".gqi-sel-empty-clear")?.addEventListener("click", () => {
-          searchQuery = ""; searchIn.value = ""; searchClr.style.display = "none";
-          renderList();
-        });
-        return;
-      }
-
-      const renderItem = (item) => {
-        const isSel  = pinned.has(item.id);
-        const isAi   = aiPick.has(item.id);
-        const score  = item.score || 0;
-        const title  = sec.getTitle(item);
-        const sub    = sec.getSub(item);
-        const desc   = sec.getDesc ? sec.getDesc(item) : "";
-        const rawTags = sec.getTags ? sec.getTags(item) : [];
-        const tags   = rawTags.slice(0, 3);
-        const extra  = rawTags.length > 3 ? rawTags.length - 3 : 0;
-        const bucket = activeTab === "projects" ? projectBucket(item) : "sap_technical";
-        const itemAccent = activeTab === "projects" ? projectAccent(bucket) : accent;
-        const barColor = score >= 70 ? itemAccent : score >= 40 ? itemAccent + "99" : "#252840";
-        const subBadge = activeTab === "projects" && !item.id.startsWith("PJ")
-          ? `<span class="gqi-sel-sub-badge" style="border-color:${itemAccent}4d;background:${itemAccent}1a;color:${itemAccent}">${esc(formatSubCategory(item.sub_category || "Media"))}</span>`
-          : "";
-
-        const tagHtml = tags.length
-          ? `<div class="gqi-sel-tags">${tags.map(t => `<span class="gqi-sel-tag" style="border-color:${itemAccent}4d;background:${itemAccent}1a;color:${itemAccent}">${esc(t)}</span>`).join("")}${extra ? `<span class="gqi-sel-tag" style="border-color:${itemAccent}4d;background:${itemAccent}1a;color:${itemAccent}">+${extra}</span>` : ""}</div>`
-          : "";
-
-        return `<div class="gqi-sel-item${isSel ? " gqi-item-sel" : ""}" data-item-id="${esc(item.id)}" role="checkbox" aria-checked="${isSel}" tabindex="0"
-            style="${isSel ? `--item-accent:${itemAccent};border-left-color:${itemAccent}` : ""}">
-          <span class="gqi-sel-chk${isSel ? " gqi-chk-on" : ""}" style="${isSel ? `border-color:${itemAccent};background:${itemAccent}22` : ""}">
-            ${isSel ? `<svg viewBox="0 0 10 8" fill="none" width="10" height="8"><polyline points="1,4 4,7 9,1" stroke="${itemAccent}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ""}
-          </span>
-          <div class="gqi-sel-item-body">
-            <div class="gqi-sel-item-hrow">
-              <span class="gqi-sel-item-title${isSel ? " gqi-title-sel" : ""}">${esc(title)}</span>
-              ${subBadge}
-              ${isAi ? `<span class="gqi-sel-ai-badge">✦ AI</span>` : ""}
-              <div class="gqi-sel-rel">
-                <div class="gqi-sel-bar-track"><div class="gqi-sel-bar-fill" style="width:${score}%;background:${barColor}"></div></div>
-                <span class="gqi-sel-bar-pct">${score}%</span>
-              </div>
-            </div>
-            ${sub  ? `<span class="gqi-sel-item-sub">${esc(sub)}</span>` : ""}
-            ${desc ? `<span class="gqi-sel-item-desc">${esc(desc.length > 120 ? desc.slice(0, 117) + "…" : desc)}</span>` : ""}
-            ${tagHtml}
-          </div>
-        </div>`;
-      };
-
-      if (activeTab === "projects" && projectFilter === "all") {
-        const groupKeys = ["sap_technical", "sap_media", "creative_media"];
-        const grouped = groupKeys.map(key => {
-          const groupItems = filtered.filter(item => projectBucket(item) === key).sort((a, b) => {
-            const ds = (pinned.has(b.id) ? 2 : 0) - (pinned.has(a.id) ? 2 : 0);
-            if (ds !== 0) return ds;
-            const da = (aiPick.has(b.id) ? 1 : 0) - (aiPick.has(a.id) ? 1 : 0);
-            if (da !== 0) return da;
-            return (b.score || 0) - (a.score || 0);
-          });
-          return { key, items: groupItems };
-        }).filter(g => g.items.length);
-
-        listPanel.innerHTML = grouped.map(g => {
-          const accentColor = projectAccent(g.key);
-          const header = `<div class="gqi-sel-group-header" style="color:${accentColor};border-color:${accentColor}55">${projectGroupLabel(g.key)} (${g.items.length})</div>`;
-          return header + g.items.map(renderItem).join("");
-        }).join("");
-      } else {
-        listPanel.innerHTML = filtered.map(renderItem).join("");
-      }
-
-      listPanel.querySelectorAll(".gqi-sel-item").forEach(el => {
-        const toggle = () => {
-          const id  = el.dataset.itemId;
-          const arr = getPinned(activeTab);
-          const idx = arr.indexOf(id);
-          if (idx !== -1) arr.splice(idx, 1); else arr.push(id);
-          setPinned(activeTab, [...arr]);
-          refreshAll(); renderList();
-        };
-        el.addEventListener("click", toggle);
-        el.addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(); } });
-      });
-    }
-
-    // ── Tab switching ────────────────────────────────────────────
-    function switchTab(t) {
-      activeTab = t; searchQuery = ""; filterMode = "all"; projectFilter = "all";
-      searchIn.value = ""; searchClr.style.display = "none";
-      filterSel.value = "all";
-      searchIn.placeholder = `Search ${SECTIONS[t].label}...`;
-      drawer.querySelectorAll(".gqi-sel-tab").forEach(btn => {
-        const on = btn.dataset.tab === t;
-        btn.classList.toggle("gqi-tab-active", on);
-        btn.setAttribute("aria-selected", on);
-      });
-      // Show sub-filter row only on Projects tab
-      subfilterRow.style.display = t === "projects" ? "flex" : "none";
-      // Reset sub-filter button active state
-      subfilterRow.querySelectorAll(".gqi-pf-btn").forEach(b =>
-        b.classList.toggle("gqi-pf-active", b.dataset.pf === "all")
-      );
-      // Fade-in animation on content change
-      listPanel.classList.remove("gqi-list-animating");
-      void listPanel.offsetWidth; // force reflow
-      listPanel.classList.add("gqi-list-animating");
-      renderList(); renderChips();
-      requestAnimationFrame(() => searchIn.focus());
-    }
-
-    // ── Sub-filter (Projects) event bindings ─────────────────────
-    subfilterRow.querySelectorAll(".gqi-pf-btn").forEach(btn =>
-      btn.addEventListener("click", () => {
-        projectFilter = btn.dataset.pf;
-        subfilterRow.querySelectorAll(".gqi-pf-btn").forEach(b =>
-          b.classList.toggle("gqi-pf-active", b === btn)
-        );
-        listPanel.classList.remove("gqi-list-animating");
-        void listPanel.offsetWidth;
-        listPanel.classList.add("gqi-list-animating");
-        renderList();
-      })
-    );
-
-    // ── Event bindings ───────────────────────────────────────────
-    drawer.querySelectorAll(".gqi-sel-tab").forEach(btn =>
-      btn.addEventListener("click", () => switchTab(btn.dataset.tab))
-    );
-
-    searchIn.addEventListener("input", () => {
-      searchQuery = searchIn.value;
-      searchClr.style.display = searchQuery ? "flex" : "none";
-      renderList();
     });
-    searchClr.addEventListener("click", () => {
-      searchQuery = ""; searchIn.value = ""; searchClr.style.display = "none";
-      renderList();
-    });
-    filterSel.addEventListener("change", () => { filterMode = filterSel.value; renderList(); });
 
+    // Reset
     drawer.querySelector(".gqi-sel-reset-btn").addEventListener("click", () => {
       const s = genState.selectors[key];
-      s.pinnedWE       = [...(s.aiPickWE || [])];
-      s.pinnedProjects = [...(s.aiPickProjects || [])];
-      s.pinnedCerts    = [];
-      s.pinnedResearch = (s.research || []).map(r => r.id);
-      refreshAll(); renderList();
+      s.pinnedWE = [...s.aiPickWE];
+      s.pinnedProjects = [...s.aiPickProjects];
+      drawer.querySelectorAll(".gqi-sel-cb").forEach(cb => {
+        const arr = cb.dataset.selType === "we" ? s.pinnedWE : s.pinnedProjects;
+        cb.checked = arr.includes(cb.dataset.selId);
+        cb.closest(".gqi-sel-item").classList.toggle("gqi-sel-checked", cb.checked);
+      });
+      refreshCounts();
     });
 
-    const closeModal = () => { document.removeEventListener("keydown", onEsc); modal.remove(); updateJobUI(key); };
-    const onEsc = e => { if (e.key === "Escape") closeModal(); };
-    document.addEventListener("keydown", onEsc);
-    drawer.querySelector(".gqi-sel-close-btn").addEventListener("click", closeModal);
-    backdrop.addEventListener("click", closeModal);
+    // Close
+    drawer.querySelector(".gqi-sel-close-btn").addEventListener("click", () => {
+      modal.remove();
+      updateJobUI(key);
+    });
+    backdrop.addEventListener("click", () => {
+      modal.remove();
+      updateJobUI(key);
+    });
 
-    confirmBtn.addEventListener("click", () => {
-      closeModal();
+    // Confirm
+    drawer.querySelector(".gqi-sel-confirm-btn").addEventListener("click", () => {
+      modal.remove();
+      updateJobUI(key);
       showToast("CV selection saved — click Generate to use it", "success");
-    });
-
-    // ── Initial render + entrance animation ─────────────────────
-    refreshAll();
-    renderList();
-    requestAnimationFrame(() => {
-      drawer.classList.add("gqi-drawer-in");
-      searchIn.focus();
     });
   }
 
@@ -1619,9 +1299,7 @@
         body: JSON.stringify({
           jobDescription: jdText, documentType: "cv",
           pinnedWeIds: selState.pinnedWE?.length ? selState.pinnedWE : null,
-          pinnedProjectIds: selState.pinnedProjects?.length ? selState.pinnedProjects : null,
-          pinnedCertIds: selState.pinnedCerts?.length ? selState.pinnedCerts : null,
-          pinnedResearchIds: selState.pinnedResearch?.length ? selState.pinnedResearch : null
+          pinnedProjectIds: selState.pinnedProjects?.length ? selState.pinnedProjects : null
         })
       });
       const cvData = await cvRes.json();
@@ -1638,13 +1316,7 @@
       const clRes = await fetch("/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobDescription: jdText, documentType: "cl",
-          pinnedWeIds: selState.pinnedWE?.length ? selState.pinnedWE : null,
-          pinnedProjectIds: selState.pinnedProjects?.length ? selState.pinnedProjects : null,
-          pinnedCertIds: selState.pinnedCerts?.length ? selState.pinnedCerts : null,
-          pinnedResearchIds: selState.pinnedResearch?.length ? selState.pinnedResearch : null
-        })
+        body: JSON.stringify({ jobDescription: jdText, documentType: "cl" })
       });
       const clData = await clRes.json();
       if (!clData.success) throw new Error(clData.error || "Cover letter generation failed");
@@ -2335,16 +2007,14 @@
   // ═══════════════════════════════════════════════════════════════
   // QUICK-ADD / DELETE TOOL CHIP INTERACTIONS
   // ═══════════════════════════════════════════════════════════════
-  let _qaTargetChip    = null;
-  let _qaToolName      = null;
-  let _qaSearchResults = [];
-  let _qaIsToolMode    = false; // true = tag existing skills; false = add new skill
+  let _qaTargetChip = null;
+  let _qaToolName   = null;
 
   function positionQuickAdd(chipEl) {
     const dlg  = document.getElementById("gqi-quick-add");
     if (!dlg) return;
     const rect = chipEl.getBoundingClientRect();
-    const dlgW = 420, dlgH = 520;
+    const dlgW = 300, dlgH = 280;
     let top  = rect.bottom + 8;
     let left = rect.left;
     if (left + dlgW > window.innerWidth - 8)  left  = window.innerWidth  - dlgW - 8;
@@ -2353,225 +2023,20 @@
     dlg.style.left = Math.max(8, left) + "px";
   }
 
-  function showQuickAdd(toolName, chipEl, isToolMode) {
-    _qaTargetChip    = chipEl;
-    _qaToolName      = toolName;
-    _qaSearchResults = [];
-    _qaIsToolMode    = !!isToolMode;
+  function showQuickAdd(toolName, chipEl) {
+    _qaTargetChip = chipEl;
+    _qaToolName   = toolName;
     const dlg = document.getElementById("gqi-quick-add");
     if (!dlg) return;
-
-    // Adjust title and visible sections based on mode
-    const titleEl = dlg.querySelector(".gqi-qa-title");
-    if (titleEl) titleEl.innerHTML = _qaIsToolMode ? "&#x1F3F7; Tag Skills with Tool" : "&#x2795; Add to Skill Bank";
     document.getElementById("gqi-qa-tool-name").textContent = toolName;
-
-    // In tool mode, hide add-skill fields (category, level, evidence, actions)
-    // Show only search bar + results with Tag buttons
-    const addFields = dlg.querySelector(".gqi-qa-add-fields");
-    if (addFields) addFields.style.display = _qaIsToolMode ? "none" : "";
-    const toolActions = dlg.querySelector(".gqi-qa-tool-actions");
-    if (toolActions) toolActions.style.display = _qaIsToolMode ? "" : "none";
-
     const evidenceEl = document.getElementById("gqi-qa-evidence");
-    if (evidenceEl) {
-      evidenceEl.value = "";
-      evidenceEl.placeholder = _qaIsToolMode ? "" : "Select results below or click Generate…";
-    }
+    evidenceEl.value = "";
+    evidenceEl.placeholder = "Generating suggestion…";
     document.getElementById("gqi-qa-level").value = "Intermediate";
-    // Pre-fill search bar and auto-search
-    const searchInput = document.getElementById("gqi-qa-search");
-    if (searchInput) searchInput.value = toolName;
-    const resultsEl = document.getElementById("gqi-qa-results");
-    if (resultsEl) resultsEl.innerHTML = "";
     dlg.classList.remove("hidden");
     positionQuickAdd(chipEl);
-    // Auto-search skill bank for the keyword
-    searchSkillBank(toolName);
-  }
-
-  // ── Skill bank search ──
-  async function searchSkillBank(query) {
-    const resultsEl = document.getElementById("gqi-qa-results");
-    if (!resultsEl || !query.trim()) return;
-    resultsEl.innerHTML = '<div class="gqi-qa-results-loading">Searching…</div>';
-    try {
-      const res  = await fetch("/skill-bank/search?q=" + encodeURIComponent(query.trim()));
-      const data = await res.json();
-      if (data.success && data.results.length > 0) {
-        _qaSearchResults = data.results;
-        renderQAResults(data.results);
-      } else {
-        _qaSearchResults = [];
-        resultsEl.innerHTML = '<div class="gqi-qa-results-empty">No matches — click <strong>⚡ Generate</strong> to create evidence</div>';
-      }
-    } catch {
-      _qaSearchResults = [];
-      resultsEl.innerHTML = '<div class="gqi-qa-results-empty">Search failed</div>';
-    }
-  }
-
-  function renderQAResults(results) {
-    const el = document.getElementById("gqi-qa-results");
-    if (!el) return;
-
-    if (_qaIsToolMode) {
-      // Tool-tag mode: show Tag button per skill
-      el.innerHTML = `<div class="gqi-qa-results-header">${results.length} skill${results.length !== 1 ? "s" : ""} to tag with "${esc(_qaToolName)}"</div>` +
-        results.map((r, i) => {
-          const alreadyTagged = (r.tools || []).some(t => t.toLowerCase() === _qaToolName.toLowerCase());
-          const existingTags = (r.tools || []).map(t => `<span class="gqi-qa-tool-pill">${esc(t)}</span>`).join(" ");
-          return `
-        <div class="gqi-qa-result-item gqi-qa-result-taggable" data-idx="${i}">
-          <div class="gqi-qa-result-info">
-            <div class="gqi-qa-result-name">${esc(r.skill)} <span class="gqi-qa-result-meta">${esc(r.level)} · ${esc(r.category.replace(/_/g, " "))}</span></div>
-            <div class="gqi-qa-result-evidence">${esc(r.evidence)}</div>
-            ${existingTags ? `<div class="gqi-qa-result-tools">${existingTags}</div>` : ""}
-          </div>
-          <button class="gqi-qa-tag-btn${alreadyTagged ? " tagged" : ""}" data-idx="${i}" ${alreadyTagged ? "disabled" : ""}>${alreadyTagged ? "✓ Tagged" : "🏷 Tag"}</button>
-        </div>`;
-        }).join("");
-      el.querySelectorAll(".gqi-qa-tag-btn:not(.tagged)").forEach(btn => {
-        btn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          tagSkillWithTool(parseInt(btn.dataset.idx));
-        });
-      });
-    } else {
-      // Add-skill mode: show checkboxes (existing behavior)
-      el.innerHTML = `<div class="gqi-qa-results-header">${results.length} match${results.length !== 1 ? "es" : ""} found</div>` +
-        results.map((r, i) => {
-          const existingTags = (r.tools || []).map(t => `<span class="gqi-qa-tool-pill">${esc(t)}</span>`).join(" ");
-          return `
-        <label class="gqi-qa-result-item">
-          <input type="checkbox" class="gqi-qa-result-cb" data-idx="${i}" />
-          <div class="gqi-qa-result-info">
-            <div class="gqi-qa-result-name">${esc(r.skill)} <span class="gqi-qa-result-meta">${esc(r.level)} · ${esc(r.category.replace(/_/g, " "))}</span></div>
-            <div class="gqi-qa-result-evidence">${esc(r.evidence)}</div>
-            ${existingTags ? `<div class="gqi-qa-result-tools">${existingTags}</div>` : ""}
-          </div>
-        </label>`;
-        }).join("");
-      el.querySelectorAll(".gqi-qa-result-cb").forEach(cb => {
-        cb.addEventListener("change", onQAResultSelectionChange);
-      });
-    }
-  }
-
-  // Tag an existing skill with the tool keyword
-  async function tagSkillWithTool(idx) {
-    const skill = _qaSearchResults[idx];
-    if (!skill) return;
-    const btn = document.querySelector(`.gqi-qa-tag-btn[data-idx="${idx}"]`);
-    if (btn) { btn.textContent = "Tagging…"; btn.disabled = true; }
-    try {
-      const res = await fetch("/skill-bank/add-tool", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: skill.id, tool: _qaToolName })
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
-      // Update local result with new tools
-      skill.tools = data.chunk.tools || [];
-      if (btn) { btn.textContent = "✓ Tagged"; btn.classList.add("tagged"); }
-      // Flip chip to match style
-      if (_qaTargetChip) {
-        _qaTargetChip.classList.replace("gqi-chip-tool-gap", "gqi-chip-tool-match");
-        _qaTargetChip.style.textDecoration = "";
-        _qaTargetChip.style.opacity = "";
-        _qaTargetChip.title = "✓ In your skill bank";
-      }
-      showToast(`✓ Tagged "${skill.skill}" with tool "${_qaToolName}"`);
-      // Refresh tool index cache
-      loadBankToolIndex();
-      // Refresh result item to show the new pill
-      const item = btn.closest(".gqi-qa-result-taggable");
-      const toolsDiv = item?.querySelector(".gqi-qa-result-tools");
-      if (toolsDiv) {
-        toolsDiv.innerHTML = skill.tools.map(t => `<span class="gqi-qa-tool-pill">${esc(t)}</span>`).join(" ");
-      } else if (item) {
-        const info = item.querySelector(".gqi-qa-result-info");
-        if (info) info.insertAdjacentHTML("beforeend", `<div class="gqi-qa-result-tools">${skill.tools.map(t => `<span class="gqi-qa-tool-pill">${esc(t)}</span>`).join(" ")}</div>`);
-      }
-    } catch (err) {
-      showToast("Tag failed: " + err.message, "error");
-      if (btn) { btn.textContent = "🏷 Tag"; btn.disabled = false; }
-    }
-  }
-
-  function onQAResultSelectionChange() {
-    const checked = document.querySelectorAll(".gqi-qa-result-cb:checked");
-    const evidenceEl = document.getElementById("gqi-qa-evidence");
-    if (!evidenceEl) return;
-    if (checked.length === 0) {
-      evidenceEl.value = "";
-      evidenceEl.placeholder = "Select results above or click Generate…";
-      return;
-    }
-    const parts = [];
-    checked.forEach(cb => {
-      const idx = parseInt(cb.dataset.idx);
-      if (_qaSearchResults[idx]) parts.push(_qaSearchResults[idx].evidence);
-    });
-    evidenceEl.value = parts.join(" | ");
-    // Apply first match's category
-    const firstIdx = parseInt(checked[0].dataset.idx);
-    if (_qaSearchResults[firstIdx]) {
-      const catEl = document.getElementById("gqi-qa-category");
-      if (catEl) catEl.value = _qaSearchResults[firstIdx].category;
-    }
-  }
-
-  async function generateQAEvidence() {
-    const evidenceEl = document.getElementById("gqi-qa-evidence");
-    const genBtn     = document.getElementById("gqi-qa-generate");
-    if (!evidenceEl || !_qaToolName) return;
-    if (genBtn) { genBtn.textContent = "⚡ Generating…"; genBtn.disabled = true; }
-    try {
-      const checked = document.querySelectorAll(".gqi-qa-result-cb:checked");
-      const selectedEvidence = [];
-      checked.forEach(cb => {
-        const idx = parseInt(cb.dataset.idx);
-        if (_qaSearchResults[idx]) selectedEvidence.push(_qaSearchResults[idx].evidence);
-      });
-      const level = document.getElementById("gqi-qa-level")?.value || "Intermediate";
-
-      if (selectedEvidence.length > 0) {
-        // Synthesize from selected evidence
-        const res  = await fetch("/skill-bank/synthesize", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ keyword: _qaToolName, evidence: selectedEvidence, level })
-        });
-        const data = await res.json();
-        if (data.success) {
-          evidenceEl.value = data.evidence;
-        } else {
-          throw new Error(data.error || "Synthesis failed");
-        }
-      } else {
-        // No selections → generate from scratch
-        const res  = await fetch("/skill-bank/suggest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ skill: _qaToolName, level })
-        });
-        const data = await res.json();
-        if (data.success && data.suggestion) {
-          evidenceEl.value = data.suggestion;
-          const catEl = document.getElementById("gqi-qa-category");
-          if (catEl && data.category) catEl.value = data.category;
-        }
-      }
-      // Flash to indicate new content
-      evidenceEl.style.borderColor = "var(--gqi-pct-high)";
-      setTimeout(() => { evidenceEl.style.borderColor = ""; }, 800);
-    } catch (err) {
-      showToast("Generate failed: " + err.message, "error");
-    } finally {
-      if (genBtn) { genBtn.textContent = "⚡ Generate"; genBtn.disabled = false; }
-    }
+    // Auto-fetch AI suggestion immediately on open
+    fetchEvidenceSuggestion();
   }
 
   async function fetchEvidenceSuggestion() {
@@ -2701,25 +2166,14 @@
   function initChipInteractions() {
     const listEl = document.getElementById("gen-queue-list");
     if (!listEl) return;
-
-    // Single click: TOOLS chips → tool-tag mode; SKILLS chips → add mode
-    listEl.addEventListener("click", (e) => {
-      const chip = e.target.closest(".gqi-chip");
-      if (!chip) return;
-      const name = chip.childNodes[0]?.textContent?.trim() || chip.textContent.replace("opt", "").trim();
-      if (chip.classList.contains("gqi-chip-tool-gap") || chip.classList.contains("gqi-chip-tool-match")) {
-        showQuickAdd(name, chip, true);  // tool-tag mode
-      } else if (chip.classList.contains("gqi-chip-skill")) {
-        showQuickAdd(name, chip, false); // add-skill mode
-      }
-    });
-
-    // Double-click match chip: delete from bank
     listEl.addEventListener("dblclick", (e) => {
       const chip = e.target.closest(".gqi-chip");
       if (!chip) return;
+      // Extract tool name (strip the "opt" superscript text)
       const name = chip.childNodes[0]?.textContent?.trim() || chip.textContent.replace("opt", "").trim();
-      if (chip.classList.contains("gqi-chip-tool-match")) {
+      if (chip.classList.contains("gqi-chip-tool-gap")) {
+        showQuickAdd(name, chip);
+      } else if (chip.classList.contains("gqi-chip-tool-match")) {
         deleteFromBank(name, chip);
       }
     });
@@ -2755,18 +2209,10 @@
     document.getElementById("gqi-qa-add")?.addEventListener("click", submitQuickAdd);
     document.getElementById("gqi-qa-cancel")?.addEventListener("click", hideQuickAdd);
     document.getElementById("gqi-qa-close")?.addEventListener("click", hideQuickAdd);
-    document.getElementById("gqi-qa-tool-cancel")?.addEventListener("click", hideQuickAdd);
     document.getElementById("gqi-qa-suggest-btn")?.addEventListener("click", fetchEvidenceSuggestion);
     document.getElementById("gqi-qa-rephrase")?.addEventListener("click", rephraseEvidence);
-    document.getElementById("gqi-qa-generate")?.addEventListener("click", generateQAEvidence);
-    // Search bar: search on Enter or button click
-    document.getElementById("gqi-qa-search")?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") { e.preventDefault(); searchSkillBank(e.target.value); }
-    });
-    document.getElementById("gqi-qa-search-btn")?.addEventListener("click", () => {
-      const q = document.getElementById("gqi-qa-search")?.value;
-      if (q) searchSkillBank(q);
-    });
+    // Re-suggest when level changes
+    document.getElementById("gqi-qa-level")?.addEventListener("change", fetchEvidenceSuggestion);
     document.getElementById("gqi-qa-evidence")?.addEventListener("keydown", (e) => {
       if (e.key === "Escape") hideQuickAdd();
     });
@@ -2782,29 +2228,11 @@
   // ═══════════════════════════════════════════════════════════════
   // INIT
   // ═══════════════════════════════════════════════════════════════
-  async function loadBankToolIndex() {
-    try {
-      const res = await fetch("/skill-bank");
-      const data = await res.json();
-      if (data.success) {
-        const idx = {};
-        for (const s of (data.skill_chunks || [])) {
-          // Index skill name
-          idx[s.skill.toLowerCase()] = true;
-          // Index tool tags
-          for (const t of (s.tools || [])) idx[t.toLowerCase()] = true;
-        }
-        genState.bankToolIndex = idx;
-      }
-    } catch { /* silent — tool index is optional enhancement */ }
-  }
-
   function init() {
     bindEvents();
     renderQueue();
     loadRagStatus();
     initChipInteractions();
-    loadBankToolIndex();
   }
 
   window.GenerateModule = { addToQueue, init };

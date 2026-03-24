@@ -85,9 +85,7 @@
       "scrape-keyword", "scrape-location", "scrape-period", "scrape-careerStatus", "scrape-country",
       "scrape-search-btn", "scrape-spinner", "scrape-btn-text", "scrape-result-count",
       "scrape-results-body", "selected-jobs-card", "selected-count", "selected-jobs-list",
-      "add-to-tracker-btn", "go-generate-btn",
-      // Outlook
-      "outlook-connect-btn", "outlook-sync-btn", "outlook-status"
+      "add-to-tracker-btn", "go-generate-btn"
     ];
     ids.forEach((id) => {
       const camel = id.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
@@ -893,98 +891,6 @@
     URL.revokeObjectURL(a.href);
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // OUTLOOK EMAIL INTEGRATION
-  // ═══════════════════════════════════════════════════════════════
-
-  async function checkOutlookStatus() {
-    try {
-      const res = await fetch("/api/email/status");
-      const data = await res.json();
-      if (data.connected) {
-        if (DOM.outlookConnectBtn) DOM.outlookConnectBtn.style.display = "none";
-        if (DOM.outlookSyncBtn) DOM.outlookSyncBtn.style.display = "";
-        if (DOM.outlookStatus) DOM.outlookStatus.textContent = `✓ ${data.email || "Connected"}`;
-      } else {
-        if (DOM.outlookConnectBtn) DOM.outlookConnectBtn.style.display = "";
-        if (DOM.outlookSyncBtn) DOM.outlookSyncBtn.style.display = "none";
-        if (DOM.outlookStatus) DOM.outlookStatus.textContent = "";
-      }
-    } catch {
-      // Outlook integration not available — hide buttons
-      if (DOM.outlookConnectBtn) DOM.outlookConnectBtn.style.display = "none";
-      if (DOM.outlookSyncBtn) DOM.outlookSyncBtn.style.display = "none";
-    }
-  }
-
-  function handleOutlookConnect() {
-    window.open("/auth/outlook", "_blank", "width=600,height=700");
-    // Poll for connection after auth popup
-    const poll = setInterval(async () => {
-      try {
-        const res = await fetch("/api/email/status");
-        const data = await res.json();
-        if (data.connected) {
-          clearInterval(poll);
-          checkOutlookStatus();
-          showToast("Outlook connected: " + (data.email || ""));
-        }
-      } catch { /* waiting */ }
-    }, 2000);
-    // Stop polling after 3 minutes
-    setTimeout(() => clearInterval(poll), 180000);
-  }
-
-  async function handleOutlookSync() {
-    if (!state.applications.length) { showToast("No applications to match against", "error"); return; }
-    const btn = DOM.outlookSyncBtn;
-    if (btn) { btn.disabled = true; btn.textContent = "🔄 Scanning…"; }
-    try {
-      const res = await fetch("/api/email/scan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ applications: state.applications })
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
-
-      if (data.rejections.length === 0) {
-        showToast(`Scanned ${data.totalScanned} emails — no new rejections found`);
-        return;
-      }
-
-      // Show confirmation before moving to Rejected
-      const summary = data.rejections.map(r =>
-        `• ${r.matchedApp.company} — ${r.matchedApp.role}${r.matchedApp.reqId ? " (" + r.matchedApp.reqId + ")" : ""}\n  From: ${r.emailFrom}\n  "${r.emailSubject}"`
-      ).join("\n\n");
-
-      const confirm = window.confirm(
-        `Found ${data.rejections.length} rejection(s) from ${data.totalScanned} emails:\n\n${summary}\n\nMove these to Rejected?`
-      );
-
-      if (confirm) {
-        let moved = 0;
-        for (const rej of data.rejections) {
-          const app = state.applications.find(a => a.id === rej.matchedApp.appId);
-          if (app && app.stage !== "Rejected") {
-            const rejNote = `[Email ${new Date(rej.emailDate).toLocaleDateString()}] ${rej.emailSubject}`;
-            app.stage = "Rejected";
-            app.notes = app.notes ? app.notes + " | " + rejNote : rejNote;
-            app.updatedAt = new Date().toISOString();
-            await persistApplication(app);
-            moved++;
-          }
-        }
-        renderUI();
-        showToast(`Moved ${moved} application(s) to Rejected`);
-      }
-    } catch (err) {
-      showToast("Scan failed: " + err.message, "error");
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = "🔄 Sync Rejections"; }
-    }
-  }
-
   async function onImportFileChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1386,17 +1292,6 @@
     }
     const scrapeSortSel = document.getElementById("scrape-sort-select");
     const scrapeSortVal = scrapeSortSel ? scrapeSortSel.value : "match";
-    const postedSortBtn = document.getElementById("scrape-posted-sort-btn");
-    if (postedSortBtn) {
-      postedSortBtn.classList.toggle("is-date-desc", scrapeSortVal === "date-desc");
-      postedSortBtn.classList.toggle("is-date-asc", scrapeSortVal === "date-asc");
-      postedSortBtn.setAttribute("aria-sort", scrapeSortVal === "date-desc" ? "descending" : scrapeSortVal === "date-asc" ? "ascending" : "none");
-      postedSortBtn.title = scrapeSortVal === "date-desc"
-        ? "Posted: newest jobs first"
-        : scrapeSortVal === "date-asc"
-          ? "Posted: oldest jobs first"
-          : "Sort by posted date";
-    }
     const parseRawDate = (r) => { if (!r || r === "N/A") return 0; const d = new Date(r); return isNaN(d) ? 0 : d.getTime(); };
     const displayJobs = [...scrapeState.jobs].map((job, i) => ({ job, i }));
     if (scrapeSortVal === "date-desc") displayJobs.sort((a, b) => parseRawDate(b.job.rawDate) - parseRawDate(a.job.rawDate));
@@ -1649,12 +1544,6 @@
     // Goal
     DOM.goalEditBtn?.addEventListener("click", editWeeklyGoal);
     document.getElementById("scrape-sort-select")?.addEventListener("change", renderScrapeResults);
-    document.getElementById("scrape-posted-sort-btn")?.addEventListener("click", () => {
-      const scrapeSortSel = document.getElementById("scrape-sort-select");
-      if (!scrapeSortSel) return;
-      scrapeSortSel.value = scrapeSortSel.value === "date-desc" ? "date-asc" : "date-desc";
-      renderScrapeResults();
-    });
 
     // Filter chips
     document.querySelectorAll("#filter-chips .chip").forEach((chip) => {
@@ -1674,11 +1563,6 @@
     DOM.importFileInput?.addEventListener("change", onImportFileChange);
     DOM.downloadTemplateBtn?.addEventListener("click", downloadImportTemplate);
     DOM.exportCsvBtn?.addEventListener("click", exportToCSV);
-
-    // Outlook email integration
-    DOM.outlookConnectBtn?.addEventListener("click", handleOutlookConnect);
-    DOM.outlookSyncBtn?.addEventListener("click", handleOutlookSync);
-    checkOutlookStatus();
 
     // Scroll to top
     DOM.scrollToTopBtn?.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));

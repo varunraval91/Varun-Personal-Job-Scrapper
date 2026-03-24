@@ -185,7 +185,7 @@
           <div class="auto-filters">
             <div class="auto-filter-group">
               <label>Keyword <span class="search-info-tip" title="Searches SAP's job portal (jobs.sap.com) only. Results depend on SAP's search relevance.">&#9432;</span></label>
-              <input type="text" id="scrape-keyword" placeholder="e.g. BTP, Analytics Cloud" value="" />
+              <input type="text" id="scrape-keyword" placeholder="e.g. BTP, Analytics Cloud" value="BTP" />
             </div>
             <div class="auto-filter-group">
               <label>Location</label>
@@ -246,15 +246,7 @@
                   <th>Keyword</th>
                   <th>Req ID</th>
                   <th>Location</th>
-                  <th>
-                    <button type="button" id="scrape-posted-sort-btn" class="scrape-column-sort" aria-label="Sort by posted date" title="Sort by posted date">
-                      <span>Posted</span>
-                      <span class="scrape-column-sort-arrows" aria-hidden="true">
-                        <span class="scrape-column-sort-up">▲</span>
-                        <span class="scrape-column-sort-down">▼</span>
-                      </span>
-                    </button>
-                  </th>
+                  <th>Posted</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -424,15 +416,6 @@
                 <option value="fit-desc">Fit Rating ↓</option>
               </select>
             </div>
-            <div class="outlook-controls" style="display:flex;gap:6px;margin-left:auto;">
-              <button type="button" id="outlook-connect-btn" class="chip" style="background:#0078d4;color:#fff;border:none;cursor:pointer;font-size:12px;" title="Connect university Outlook to scan for rejection emails">
-                📧 Connect Outlook
-              </button>
-              <button type="button" id="outlook-sync-btn" class="chip" style="background:#22c55e;color:#fff;border:none;cursor:pointer;font-size:12px;display:none;" title="Scan inbox for rejection emails">
-                🔄 Sync Rejections
-              </button>
-              <span id="outlook-status" style="font-size:11px;color:#888;align-self:center;"></span>
-            </div>
           </div>
           <div class="active-filter-bar" id="active-filter-bar" hidden>
             <span id="active-filter-label"></span>
@@ -573,7 +556,7 @@
           <div class="sb-table-wrap">
             <table class="sb-table">
               <thead>
-                <tr><th>ID</th><th>Skill</th><th>Category</th><th>Level</th><th>Tools</th><th>Evidence</th><th>Actions</th></tr>
+                <tr><th>ID</th><th>Skill</th><th>Category</th><th>Level</th><th>Evidence</th><th>Actions</th></tr>
               </thead>
               <tbody id="sb-table-body"></tbody>
             </table>
@@ -666,17 +649,6 @@
       <button type="button" class="gqi-qa-close" id="gqi-qa-close">&#x2715;</button>
     </div>
     <div class="gqi-qa-tool-name" id="gqi-qa-tool-name"></div>
-    <div class="gqi-qa-search-section">
-      <div class="gqi-qa-field">
-        <label class="gqi-qa-label">Search Skill Bank</label>
-        <div class="gqi-qa-search-wrap">
-          <input type="text" id="gqi-qa-search" class="gqi-qa-input" placeholder="Search keyword…" />
-          <button type="button" id="gqi-qa-search-btn" class="gqi-qa-search-go" title="Search">🔍</button>
-        </div>
-      </div>
-      <div id="gqi-qa-results" class="gqi-qa-results"></div>
-    </div>
-    <div class="gqi-qa-add-fields">
     <div class="gqi-qa-field">
       <label class="gqi-qa-label">Category</label>
       <select id="gqi-qa-category" class="gqi-qa-select">
@@ -709,16 +681,8 @@
     </div>
     <div class="gqi-qa-actions">
       <button type="button" class="btn btn-sm" id="gqi-qa-cancel">Cancel</button>
-      <button type="button" class="btn btn-sm gqi-qa-generate-btn" id="gqi-qa-generate">&#x26A1; Generate</button>
       <button type="button" class="btn btn-sm gqi-qa-rephrase-btn" id="gqi-qa-rephrase">&#x2728; Rephrase</button>
       <button type="button" class="btn btn-sm btn-primary" id="gqi-qa-add">Add to Bank ✓</button>
-    </div>
-    </div><!-- /.gqi-qa-add-fields -->
-    <div class="gqi-qa-tool-actions" style="display:none">
-      <div class="gqi-qa-actions">
-        <button type="button" class="btn btn-sm" id="gqi-qa-tool-cancel">Cancel</button>
-        <span class="gqi-qa-tool-hint">Click 🏷 Tag to link tool with skills</span>
-      </div>
     </div>
   </div>
 

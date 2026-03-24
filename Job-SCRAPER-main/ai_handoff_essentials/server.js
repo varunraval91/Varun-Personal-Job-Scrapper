@@ -162,7 +162,7 @@ try {
   const vsPath = path.join(__dirname, "data", "vector_store.json");
   if (fs.existsSync(vsPath)) {
     vectorReady = true;
-    console.log(`[OK] Vector store ready: ${skillBank.skill_chunks.length} skills, ${skillBank.projects.length} technical projects, ${(skillBank.media_projects?.sap_media_projects?.length||0)+(skillBank.media_projects?.creative_media_projects?.length||0)} media projects`);
+    console.log(`[OK] Vector store ready: ${skillBank.skill_chunks.length} skills, ${skillBank.projects.length} projects`);
   } else {
     console.warn("[!!] Vector store not initialized — run setup first");
   }
@@ -841,9 +841,9 @@ JSON SCHEMA:
 }`;
 }
 
-function buildClSystemPromptRAG(matchedSkills, matchedProjects, matchedWork, pinnedWeIds, pinnedProjectIds, selectedCerts, selectedResearch) {
+function buildClSystemPromptRAG(matchedSkills, matchedProjects, matchedWork) {
   const skillText = matchedSkills.map(s =>
-    `[${s.id}] ${s.metadata.skill_name} [${s.metadata.type || 'skill'}] (${s.metadata.level}): ${s.document}`
+    `[${s.id}] ${s.metadata.skill_name} (${s.metadata.level}): ${s.document}`
   ).join("\n");
 
   const projectText = matchedProjects.map(p =>
@@ -853,35 +853,6 @@ function buildClSystemPromptRAG(matchedSkills, matchedProjects, matchedWork, pin
   const workText = matchedWork.map(w =>
     `${w.metadata.title} at ${w.metadata.company} (${w.metadata.period}): ${w.document}`
   ).join("\n");
-
-  const certText = (selectedCerts || []).map(c =>
-    `${c.name}${c.date || c.date_range ? " (" + (c.date || c.date_range) + ")" : ""} — ${c.provider || ""}`
-  ).join("\n");
-
-  const researchText = (selectedResearch || []).map(r => {
-    if (r.title && r.description) {
-      const parts = [`[${r.id}] ${r.title}`];
-      if (r.institution) parts.push(`Institution: ${r.institution}`);
-      if (r.date || r.period) parts.push(`Date: ${r.date || r.period}`);
-      parts.push(r.description);
-      if (r.key_finding) parts.push(`Key finding: ${r.key_finding}`);
-      if (r.references) parts.push(`References: ${r.references}`);
-      return parts.join(" | ");
-    }
-    return null;
-  }).filter(Boolean).join("\n");
-
-  // Build highlight section when user selected specific WE/projects in CV selector
-  let highlightSection = "";
-  if (pinnedWeIds?.length || pinnedProjectIds?.length) {
-    const highlightedWork = pinnedWeIds?.length
-      ? matchedWork.filter(w => pinnedWeIds.includes(w.id)).map(w => `- ${w.metadata.title} at ${w.metadata.company}`).join("\n")
-      : "";
-    const highlightedProjects = pinnedProjectIds?.length
-      ? matchedProjects.filter(p => pinnedProjectIds.includes(p.id)).map(p => `- ${p.metadata.name} (${p.metadata.tech})`).join("\n")
-      : "";
-    highlightSection = `\n=== USER-SELECTED EXPERIENCE TO PRIORITIZE ===\nThe user chose these items because they likely matter for this JD. Prefer these examples where they improve JD alignment, but keep the strongest evidence-first narrative from all matched data.\nExtract specific technical details (tools, languages, platforms, methods) from these entries and weave them naturally into the letter.\n${highlightedWork ? "Preferred work experience examples:\n" + highlightedWork : ""}\n${highlightedProjects ? "Preferred project examples:\n" + highlightedProjects : ""}\n`;
-  }
 
   const style = styleProfile?.style_analysis || {};
   const styleSection = styleProfile ? `
@@ -936,11 +907,11 @@ ${projectText}
 
 === RELEVANT WORK EXPERIENCE ===
 ${workText}
-${certText ? `\n=== SELECTED CERTIFICATIONS ===\n${certText}\n` : ""}${researchText ? `\n=== RESEARCH PAPERS & ACTIVITIES ===\nThese are Varun's academic research outputs. Reference them in the Academic & Research paragraph when relevant to the JD.\n${researchText}\n` : ""}${highlightSection}${styleSection}
+${styleSection}
 
 === GENERATION RULES ===
 1. Use ONLY skills and evidence from the matched data above. NEVER invent.
-2. Pick a concise, relevant subset of evidence. Do not force every item.
+2. Pick the 4-6 MOST relevant items. Not all of them.
 3. Use quantified evidence when available (80% reduction, 1,000+ records, etc.)
 4. Write in first person as Varun.
 5. Structure: Opening hook → 2-3 evidence paragraphs → Closing with availability.
@@ -949,7 +920,6 @@ ${certText ? `\n=== SELECTED CERTIFICATIONS ===\n${certText}\n` : ""}${researchT
 8. Use **bold** around 2-3 key technical terms per paragraph.
 9. If job requires fluent German and candidate has B1, be honest about it.
 10. DO NOT include the closing "Thank you..." sentence — it is added automatically.
-11. If user-selected entries exist, prioritize them when they strengthen JD alignment; otherwise use stronger matched evidence.
 
 === NEVER USE THESE PHRASES ===
 "I am excited to apply", "I believe I would be a great fit", "leverage my skills",
@@ -974,9 +944,9 @@ Return ONLY valid JSON. No markdown fences, no explanation, no extra text.
 }`;
 }
 
-function buildCvSystemPromptRAG(matchedSkills, matchedProjects, matchedWork, pinnedWeIds, pinnedProjectIds, selectedCerts, selectedResearch) {
+function buildCvSystemPromptRAG(matchedSkills, matchedProjects, matchedWork, pinnedWeIds, pinnedProjectIds) {
   const skillText = matchedSkills.map(s =>
-    `[${s.id}] ${s.metadata.skill_name} [${s.metadata.type || 'skill'}] (${s.metadata.level}): ${s.document}`
+    `[${s.id}] ${s.metadata.skill_name} (${s.metadata.level}): ${s.document}`
   ).join("\n");
 
   const projectText = matchedProjects.map(p =>
@@ -986,22 +956,6 @@ function buildCvSystemPromptRAG(matchedSkills, matchedProjects, matchedWork, pin
   const workText = matchedWork.map(w =>
     `${w.metadata.title} at ${w.metadata.company} (${w.metadata.period}): ${w.document}`
   ).join("\n");
-
-  const certText = (selectedCerts || []).map(c =>
-    `${c.name}${c.date || c.date_range ? " (" + (c.date || c.date_range) + ")" : ""} — ${c.provider || ""}`
-  ).join("\n");
-
-  const researchText = (selectedResearch || []).map(r => {
-    if (r.title && r.description) {
-      const parts = [`[${r.id}] ${r.title}`];
-      if (r.institution) parts.push(`Institution: ${r.institution}`);
-      if (r.date || r.period) parts.push(`Date: ${r.date || r.period}`);
-      parts.push(r.description);
-      if (r.key_finding) parts.push(`Key finding: ${r.key_finding}`);
-      return parts.join(" | ");
-    }
-    return null;
-  }).filter(Boolean).join("\n");
 
   return `You are a CV content extractor for Varun Raval. Use ONLY the matched skill data below.
 
@@ -1013,14 +967,12 @@ ${projectText}
 
 === RELEVANT WORK EXPERIENCE ===
 ${workText}
-${certText ? `\n=== SELECTED CERTIFICATIONS ===\n${certText}\n` : ""}${researchText ? `\n=== RESEARCH PAPERS & ACTIVITIES ===\n${researchText}\n` : ""}
+
 RULES (non-negotiable):
 - Every fact MUST come from the matched data above. NEVER invent anything.
 - Reorder competencies and skills to match what the JD prioritizes.
-- Write detailed professional description paragraphs for each entry. Lead with action/tool/outcome.
-- For each work/project/research description, write 2-4 sentences (about 45-90 words) including tools, context, and measurable impact when available.
+- Write bullets that lead with action/tool/outcome.
 - NEVER use generic filler ("Results-driven", "Proven track record", etc.)
-- CV section order MUST be exactly: HEADER, KEY COMPETENCIES, TECHNICAL SKILLS, EDUCATION, WORK EXPERIENCE, PROJECTS, RESEARCH & ACTIVITIES, CERTIFICATIONS.
 - Return ONLY valid JSON. No markdown fences, no explanation, no extra text.
 
 ${pinnedWeIds?.length ? `WORK EXPERIENCE — USER-SELECTED (hard constraint):
@@ -1028,7 +980,7 @@ The user has manually selected exactly these work experience entries. Include AL
 ${pinnedWeIds.map((id, i) => `${i + 1}. ${id}`).join("\n")}
 These IDs match the entries in the RELEVANT WORK EXPERIENCE data above.` : `WORK EXPERIENCE RULES (important):
 - DEFAULT (SAP / tech / student roles): include ONLY the 3 SAP roles (IX Studio, Non-Commercial Licensing, Services Sales DemGen) in the experience section.
-  After those 3, add ONE compressed line as a single entry: { "title": "Earlier Experience", "company": "Media & EdTech (Byju's, Orange Sellers, Filmalaya, others)", "date": "2014 – 2024", "description": "Creative production, UX research, video direction and EdTech content roles across India, Netherlands and Germany — full detail available on request." }
+  After those 3, add ONE compressed line as a single entry: { "title": "Earlier Experience", "company": "Media & EdTech (Byju's, Orange Sellers, Filmalaya, others)", "date": "2014 – 2024", "bullets": ["Creative production, UX research, video direction and EdTech content roles across India, Netherlands and Germany — full detail available on request."] }
 - EXCEPTION (only if the JD explicitly targets media/film/video/EdTech/creative roles): include the relevant earlier media/EdTech roles in full.`}
 
 ${pinnedProjectIds?.length ? `PROJECTS — USER-SELECTED (hard constraint):
@@ -1045,15 +997,16 @@ JSON SCHEMA (fill every field, use empty string "" if not applicable):
   "email": "raval.varun@stud.hs-fresenius.de",
   "linkedin": "linkedin.com/in/varunraval",
   "github": "github.com/ravalvarun-SAP",
+  "availability": "${getAvailability().cv}",
+  "work_authorization": "Eligible to work as student in Germany",
   "languages": "English (fluent), German (B1 -- actively improving)",
-  "key_competencies": "<10-14 JD-relevant competencies separated by •>",
-  "competencies": [{ "category": "<optional label>", "items": "<optional fallback format>" }],
-  "technical_skills": [{ "category": "<Category>", "items": "<Tool; Tool; Tool; Tool>" }],
+  "profile": "<2-3 sentences: programme + what he brings for THIS job>",
+  "competencies": [{ "category": "<label>", "items": "<skill, skill, skill>" }],
+  "technical_skills": [{ "category": "<label>", "items": "<Tool; Tool; Tool>" }],
   "education": [{ "degree": "<Degree -- Field>", "institution": "<Institution, City, Country>", "date": "<Start -- End (status)>", "coursework": "<Module; Module> or empty string" }],
-  "experience": [{ "title": "<Job Title>", "company": "<Company -- Department / Team>", "date": "<Month Year -- Month Year>", "description": "<detailed 2-4 sentence professional paragraph with tools + outcome>", "bullets": ["<optional fallback bullet>"] }],
-  "projects": [{ "title": "<Project Title>", "date": "<Month Year or range>", "tech": "<Technologies / Tools Used>", "description": "<detailed 2-4 sentence professional paragraph with architecture + impact>", "bullets": ["<optional fallback bullet>"] }],
-  "research_activities": [{ "title": "<Research paper or activity title>", "date": "<Month Year or range>", "organization": "<Organisation / Context>", "description": "<detailed 2-4 sentence research summary with method + finding + relevance>", "kind": "<paper|activity>" }],
-  "certifications": [{ "name": "<Certification Name>", "date": "<Month Year>", "description": "<2-3 sentence scope + practical relevance to target role>" }]
+  "projects": [{ "title": "<Project Title>", "date": "<Month Year or range>", "tech": "<Tech stack>", "bullets": ["<bullet>", "<bullet>"] }],
+  "experience": [{ "title": "<Job Title>", "company": "<Company -- Department, City>", "date": "<Month Year -- Month Year>", "bullets": ["<bullet>", "<bullet>"] }],
+  "certifications": [{ "name": "<Certification Name>", "date": "<Month Year>", "description": "<1-2 sentences>" }]
 }`;
 }
 
@@ -1089,35 +1042,9 @@ app.post("/cv-selector-data", async (req, res) => {
   if (!jdText) return res.status(400).json({ success: false, error: "Missing jdText" });
 
   try {
-    // Read latest bank from disk so selector reflects recent edits immediately
-    let bank = skillBank || {};
-    try {
-      bank = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "skill_data_bank.json"), "utf-8"));
-      skillBank = bank;
-    } catch (_) {}
-
+    const bank = skillBank || {};
     const allWE = bank.work_experience || [];
-    // Flatten media projects (sap_media + creative_media) into the project pool
-    const mediaProjRaw = [
-      ...(bank.media_projects?.sap_media_projects || []),
-      ...(bank.media_projects?.creative_media_projects || [])
-    ].map(p => ({ ...p, name: p.title }));  // media projects use 'title' — normalise to 'name'
-    const allProjects = [...(bank.projects || []), ...mediaProjRaw];
-    const allCerts = (bank.certifications_registry || []).map(c => ({ id: c.id, name: c.name, provider: c.provider || "", date: c.date || c.date_range || "" }));
-
-    // Research papers + activities for selector
-    const researchPapers = (bank.research_papers || []).map(rp => ({
-      id: rp.id, title: rp.title, institution: rp.institution || "",
-      date: rp.date || "", description: rp.description || "",
-      key_finding: rp.key_finding || "", references: rp.references || "",
-      kind: "paper"
-    }));
-    const researchActivities = (bank.research_activities || []).map(ra => ({
-      id: ra.id, title: ra.title, context: ra.context || "",
-      period: ra.period || "", description: ra.description || "",
-      kind: "activity"
-    }));
-    const allResearch = [...researchPapers, ...researchActivities];
+    const allProjects = bank.projects || [];
 
     // Score each WE + project against JD using TF-IDF (reuse existing STOPWORDS + scoreDoc)
     const jdLower = jdText.toLowerCase();
@@ -1150,24 +1077,19 @@ app.post("/cv-selector-data", async (req, res) => {
       name: p.name,
       tech: p.tech,
       date: p.date,
-      sub_category: p.sub_category || null,
       score: scoreItem([p.name, p.tech, p.description || ""])
     })).sort((a, b) => b.score - a.score);
 
-    // Auto-tick top 3 WE + top 3 SAP Technical projects only (PJ prefix)
+    // Auto-tick top 3 WE + top 3 Projects
     const topWeIds = scoredWE.slice(0, 3).map(w => w.id);
-    const sapTechProjects = scoredProjects.filter(p => p.id.startsWith("PJ"));
-    const topProjectIds = sapTechProjects.slice(0, 3).map(p => p.id);
+    const topProjectIds = scoredProjects.slice(0, 3).map(p => p.id);
 
     return res.json({
       success: true,
       work_experience: scoredWE,
       projects: scoredProjects,
-      certifications: allCerts,
-      research: allResearch,
       aiPickWE: topWeIds,
-      aiPickProjects: topProjectIds,
-      aiPickCerts: allCerts.map(c => c.id)
+      aiPickProjects: topProjectIds
     });
   } catch (err) {
     return res.status(500).json({ success: false, error: safeError(err) });
@@ -1181,7 +1103,7 @@ app.post("/cv-selector-data", async (req, res) => {
 app.post("/generate", async (req, res) => {
   if (!aiProvider) return res.status(503).json({ success: false, error: "No AI provider configured. Set ANTHROPIC_API_KEY, GROQ_API_KEY, or GEMINI_API_KEY in .env" });
 
-  const { jobDescription, documentType, humanizeText, pinnedWeIds, pinnedProjectIds, pinnedCertIds, pinnedResearchIds } = req.body;
+  const { jobDescription, documentType, humanizeText, pinnedWeIds, pinnedProjectIds } = req.body;
   if (!jobDescription || !documentType) return res.status(400).json({ success: false, error: "Missing jobDescription or documentType." });
 
   const now = Date.now();
@@ -1204,66 +1126,28 @@ app.post("/generate", async (req, res) => {
       // If user pinned specific WE/Project IDs, inject them from skill_data_bank
       if (pinnedWeIds?.length || pinnedProjectIds?.length) {
         const bank = skillBank || {};
-        if (documentType === "cv") {
-          // CV: full replacement (existing behavior)
-          if (pinnedWeIds?.length) {
-            const pinned = (bank.work_experience || []).filter(w => pinnedWeIds.includes(w.id));
-            ragContext.work = pinned.map(w => ({
-              id: w.id,
-              document: `${w.title} at ${w.company} (${w.period}): ${(w.bullets||[]).join(' ')}`,
-              metadata: { title: w.title, company: w.company, period: w.period }
-            }));
-          }
-          if (pinnedProjectIds?.length) {
-            const pinned = (bank.projects || []).filter(p => pinnedProjectIds.includes(p.id));
-            ragContext.projects = pinned.map(p => ({
-              id: p.id,
-              document: p.description || p.name,
-              metadata: { name: p.name, tech: p.tech }
-            }));
-          }
-        } else {
-          // CL: merge pinned at the front, then fill with RAG picks (deduplicated)
-          if (pinnedWeIds?.length) {
-            const pinned = (bank.work_experience || []).filter(w => pinnedWeIds.includes(w.id)).map(w => ({
-              id: w.id,
-              document: `${w.title} at ${w.company} (${w.period}): ${(w.bullets||[]).join(' ')}`,
-              metadata: { title: w.title, company: w.company, period: w.period }
-            }));
-            const ragExtra = ragContext.work.filter(w => !pinnedWeIds.includes(w.id));
-            ragContext.work = [...pinned, ...ragExtra];
-          }
-          if (pinnedProjectIds?.length) {
-            const pinned = (bank.projects || []).filter(p => pinnedProjectIds.includes(p.id)).map(p => ({
-              id: p.id,
-              document: `${p.name} (${p.tech}): ${p.description}`,
-              metadata: { name: p.name, tech: p.tech }
-            }));
-            const ragExtra = ragContext.projects.filter(p => !pinnedProjectIds.includes(p.id));
-            ragContext.projects = [...pinned, ...ragExtra];
-          }
+        if (pinnedWeIds?.length) {
+          const pinned = (bank.work_experience || []).filter(w => pinnedWeIds.includes(w.id));
+          ragContext.work = pinned.map(w => ({
+            id: w.id,
+            document: `${w.title} at ${w.company} (${w.period}): ${(w.bullets||[]).join(' ')}`,
+            metadata: { title: w.title, company: w.company, period: w.period }
+          }));
         }
-        console.log(`  Pinned overrides (${documentType}): ${ragContext.work.length} WE, ${ragContext.projects.length} projects`);
+        if (pinnedProjectIds?.length) {
+          const pinned = (bank.projects || []).filter(p => pinnedProjectIds.includes(p.id));
+          ragContext.projects = pinned.map(p => ({
+            id: p.id,
+            document: p.description || p.name,
+            metadata: { name: p.name, tech: p.tech }
+          }));
+        }
+        console.log(`  Pinned overrides: ${ragContext.work.length} WE, ${ragContext.projects.length} projects`);
       }
 
-      // Resolve selected certifications
-      const bank2 = skillBank || {};
-      const allCerts = bank2.certifications_registry || [];
-      const selectedCerts = pinnedCertIds?.length
-        ? allCerts.filter(c => pinnedCertIds.includes(c.id))
-        : allCerts;
-
-      // Resolve selected research papers + activities
-      const allRP = bank2.research_papers || [];
-      const allRA = bank2.research_activities || [];
-      const allResearch = [...allRP, ...allRA];
-      const selectedResearch = pinnedResearchIds?.length
-        ? allResearch.filter(r => pinnedResearchIds.includes(r.id))
-        : allResearch;
-
       systemPrompt = documentType === "cv"
-        ? buildCvSystemPromptRAG(ragContext.skills, ragContext.projects, ragContext.work, pinnedWeIds, pinnedProjectIds, selectedCerts, selectedResearch)
-        : buildClSystemPromptRAG(ragContext.skills, ragContext.projects, ragContext.work, pinnedWeIds, pinnedProjectIds, selectedCerts, selectedResearch);
+        ? buildCvSystemPromptRAG(ragContext.skills, ragContext.projects, ragContext.work, pinnedWeIds, pinnedProjectIds)
+        : buildClSystemPromptRAG(ragContext.skills, ragContext.projects, ragContext.work);
 
       userPrompt = `=== TARGET JOB DESCRIPTION ===\n${jobDescription}\n\n=== TASK ===\nGenerate a complete ${docLabel} tailored to the job above.\nUse ONLY facts from the matched skill data. Output ONLY the final JSON.\n`;
     } else {
@@ -1425,15 +1309,17 @@ function jsonToDisplayCv(j) {
   if (ph) lines.push(ph);
   const lnk = [j.linkedin && `LinkedIn: ${j.linkedin}`, j.github && `GitHub: ${j.github}`].filter(Boolean).join(" | ");
   if (lnk) lines.push(lnk);
+  if (j.availability) lines.push(`Availability: ${j.availability}`);
+  if (j.work_authorization) lines.push(`Work authorization: ${j.work_authorization}`);
   if (j.languages) lines.push(`Languages: ${j.languages}`);
   lines.push("");
 
-  const keyComp = j.key_competencies || (j.competencies?.length
-    ? j.competencies.map(c => c.items).filter(Boolean).join(" • ")
-    : "");
-  if (keyComp) {
+  if (j.profile) {
+    lines.push("PROFILE"); lines.push(j.profile); lines.push("");
+  }
+  if (j.competencies?.length) {
     lines.push("KEY COMPETENCIES");
-    lines.push(keyComp);
+    j.competencies.forEach(c => lines.push(`${c.category}: ${c.items}`));
     lines.push("");
   }
   if (j.technical_skills?.length) {
@@ -1451,40 +1337,29 @@ function jsonToDisplayCv(j) {
     });
     lines.push("");
   }
+  if (j.projects?.length) {
+    lines.push("PROJECTS (MOST RELEVANT)");
+    j.projects.forEach((p, i) => {
+      lines.push(`${p.title}   ${p.date}`);
+      lines.push(p.tech);
+      (p.bullets || []).forEach(b => lines.push(`- ${b}`));
+      if (i < j.projects.length - 1) lines.push("");
+    });
+    lines.push("");
+  }
   if (j.experience?.length) {
     lines.push("WORK EXPERIENCE");
     j.experience.forEach((ex, i) => {
       lines.push(`${ex.title}   ${ex.date}`);
       lines.push(ex.company);
+      (ex.bullets || []).forEach(b => lines.push(`- ${b}`));
       if (ex.description) lines.push(ex.description);
-      else (ex.bullets || []).forEach(b => lines.push(`- ${b}`));
       if (i < j.experience.length - 1) lines.push("");
     });
     lines.push("");
   }
-  if (j.projects?.length) {
-    lines.push("PROJECTS");
-    j.projects.forEach((p, i) => {
-      lines.push(`${p.title}   ${p.date}`);
-      if (p.tech) lines.push(p.tech);
-      if (p.description) lines.push(p.description);
-      else (p.bullets || []).forEach(b => lines.push(`- ${b}`));
-      if (i < j.projects.length - 1) lines.push("");
-    });
-    lines.push("");
-  }
-  if (j.research_activities?.length) {
-    lines.push("RESEARCH & ACTIVITIES");
-    j.research_activities.forEach((r, i) => {
-      lines.push(`${r.title}   ${r.date || ""}`.trim());
-      if (r.organization) lines.push(r.organization);
-      if (r.description) lines.push(r.description);
-      if (i < j.research_activities.length - 1) lines.push("");
-    });
-    lines.push("");
-  }
   if (j.certifications?.length) {
-    lines.push("CERTIFICATIONS");
+    lines.push("CERTIFICATIONS / TRAINING");
     j.certifications.forEach((c, i) => {
       lines.push(`${c.name}   ${c.date}`);
       lines.push(c.description);
@@ -1537,9 +1412,6 @@ const LATEX_CV_PREAMBLE = `\\documentclass[11pt,a4paper]{article}
 \\titlespacing*{\\section}{0pt}{6pt}{2pt}
 \\newcommand{\\sectrule}{\\vspace{2pt}\\hrule\\vspace{3pt}}
 \\newcommand{\\name}[1]{{\\Huge\\bfseries\\color{heading} #1}\\par\\vspace{4pt}}
-\\newcommand{\\cventry}[2]{{\\color{heading}\\textbf{#1}} \\hfill {\\color{lighttext}#2}\\par}
-\\newcommand{\\cvsubtitle}[1]{{\\color{body}\\textit{#1}}\\par}
-\\newcommand{\\cvbody}[1]{{\\color{body}#1}\\par}
 
 \\begin{document}
 \\pagestyle{empty}
@@ -1585,34 +1457,59 @@ function buildCvLatexFromJson(j) {
   if (j.linkedin) linkParts.push(`\\textbf{LinkedIn:} \\href{https://${j.linkedin}}{${e(j.linkedin)}}`);
   if (j.github) linkParts.push(`\\textbf{GitHub:} \\href{https://${j.github}}{${e(j.github)}}`);
   if (linkParts.length) body += linkParts.join(" \\quad ") + "\\par\n";
+  if (j.availability) body += `\\textbf{Availability:} ${e(j.availability)}\\par\n`;
+  if (j.work_authorization) body += `\\textbf{Work authorization:} ${e(j.work_authorization)}\\par\n`;
   if (j.languages) body += `\\textbf{Languages:} ${e(j.languages)}\\par\n`;
   body += `}\n\n\\vspace{3pt}\n\\sectrule\n\n`;
 
+  // Profile
+  if (j.profile) {
+    body += `\\section*{PROFILE}\n{\\color{body}\n${e(j.profile)}\n}\n\n\\vspace{2pt}\n\\sectrule\n\n`;
+  }
+
   // Key Competencies
-  const keyComp = j.key_competencies || (j.competencies?.length
-    ? j.competencies.map(c => c.items).filter(Boolean).join(" • ")
-    : "");
-  if (keyComp) {
-    body += `\\section*{KEY COMPETENCIES}\n\n{\\color{body}\n${e(keyComp)}\\par\n}\n\n\\vspace{2pt}\n\\sectrule\n\n`;
+  if (j.competencies?.length) {
+    body += `\\section*{KEY COMPETENCIES}\n{\\color{body}\n`;
+    j.competencies.forEach((c, i) => {
+      body += `{\\color{heading}\\textbf{${e(c.category)}:}} ${e(c.items)}`;
+      body += i < j.competencies.length - 1 ? "\\par\n" : "\n";
+    });
+    body += `}\n\n\\vspace{2pt}\n\\sectrule\n\n`;
   }
 
   // Technical Skills
   if (j.technical_skills?.length) {
-    body += `\\section*{TECHNICAL SKILLS}\n\n{\\color{body}\n`;
+    body += `\\section*{TECHNICAL SKILLS}\n`;
     j.technical_skills.forEach(s => {
       body += `{\\color{heading}\\textbf{${e(s.category)}:}} {\\color{body}${e(s.items)}}\\par\n`;
     });
-    body += `}\n\n\\vspace{2pt}\n\\sectrule\n\n`;
+    body += `\n\\vspace{2pt}\n\\sectrule\n\n`;
   }
 
   // Education
   if (j.education?.length) {
     body += `\\section*{EDUCATION}\n`;
     j.education.forEach((ed, i) => {
-      body += `\\cventry{${e(ed.degree)}}{${e(ed.date)}}\n`;
-      body += `\\cvbody{${e(ed.institution)}}\n`;
+      body += `{\\color{heading}\\textbf{${e(ed.degree)}}} \\hfill\n{\\color{lighttext}${e(ed.date)}}\\par\n`;
+      body += `{\\color{body}${e(ed.institution)}}\\par\n`;
       if (ed.coursework) body += `{\\color{body}\\textit{Selected coursework:} ${e(ed.coursework)}}\\par\n`;
       body += i < j.education.length - 1 ? "\n\\vspace{2pt}\n\n" : "";
+    });
+    body += `\n\\vspace{2pt}\n\\sectrule\n\n`;
+  }
+
+  // Projects
+  if (j.projects?.length) {
+    body += `\\section*{PROJECTS (MOST RELEVANT)}\n`;
+    j.projects.forEach((p, i) => {
+      body += `{\\color{heading}\\textbf{${e(p.title)}}} \\hfill\n{\\color{lighttext}${e(p.date)}}\\par\n`;
+      body += `{\\color{body}\\textit{${e(p.tech)}}}\\par\n`;
+      if (p.bullets?.length) {
+        body += `\\begin{itemize}\n`;
+        p.bullets.forEach(b => body += `  \\item ${e(b)}\n`);
+        body += `\\end{itemize}\n`;
+      }
+      body += i < j.projects.length - 1 ? "\n\\vspace{3pt}\n\n" : "";
     });
     body += `\n\\vspace{2pt}\n\\sectrule\n\n`;
   }
@@ -1621,46 +1518,26 @@ function buildCvLatexFromJson(j) {
   if (j.experience?.length) {
     body += `\\section*{WORK EXPERIENCE}\n`;
     j.experience.forEach((ex, i) => {
-      body += `\\cventry{${e(ex.title)}}{${e(ex.date)}}\n`;
-      body += `\\cvsubtitle{${e(ex.company)}}\n`;
-      const exDesc = ex.description || (ex.bullets || []).join(" ");
-      if (exDesc) body += `\\cvbody{${e(exDesc)}}\n`;
+      body += `{\\color{heading}\\textbf{${e(ex.title)}}} \\hfill\n{\\color{lighttext}${e(ex.date)}}\\par\n`;
+      body += `{\\color{body}\\textit{${e(ex.company)}}}\\par\n`;
+      if (ex.bullets?.length) {
+        body += `\\begin{itemize}\n`;
+        ex.bullets.forEach(b => body += `  \\item ${e(b)}\n`);
+        body += `\\end{itemize}\n`;
+      } else if (ex.description) {
+        body += `{\\color{body}\n${e(ex.description)}\n}\n`;
+      }
       body += i < j.experience.length - 1 ? "\n\\vspace{3pt}\n\n" : "";
-    });
-    body += `\n\\vspace{2pt}\n\\sectrule\n\n`;
-  }
-
-  // Projects
-  if (j.projects?.length) {
-    body += `\\section*{PROJECTS}\n`;
-    j.projects.forEach((p, i) => {
-      body += `\\cventry{${e(p.title)}}{${e(p.date)}}\n`;
-      if (p.tech) body += `\\cvsubtitle{${e(p.tech)}}\n`;
-      const pDesc = p.description || (p.bullets || []).join(" ");
-      if (pDesc) body += `\\cvbody{${e(pDesc)}}\n`;
-      body += i < j.projects.length - 1 ? "\n\\vspace{3pt}\n\n" : "";
-    });
-    body += `\n\\vspace{2pt}\n\\sectrule\n\n`;
-  }
-
-  // Research & Activities
-  if (j.research_activities?.length) {
-    body += `\\section*{RESEARCH \\& ACTIVITIES}\n`;
-    j.research_activities.forEach((r, i) => {
-      body += `\\cventry{${e(r.title)}}{${e(r.date || "")}}\n`;
-      if (r.organization) body += `\\cvsubtitle{${e(r.organization)}}\n`;
-      if (r.description) body += `\\cvbody{${e(r.description)}}\n`;
-      body += i < j.research_activities.length - 1 ? "\n\\vspace{3pt}\n\n" : "";
     });
     body += `\n\\vspace{2pt}\n\\sectrule\n\n`;
   }
 
   // Certifications
   if (j.certifications?.length) {
-    body += `\\section*{CERTIFICATIONS}\n`;
+    body += `\\section*{CERTIFICATIONS / TRAINING}\n`;
     j.certifications.forEach((c, i) => {
-      body += `\\cventry{${e(c.name)}}{${e(c.date || "")}}\n`;
-      if (c.description) body += `\\cvbody{${e(c.description)}}\n`;
+      body += `{\\color{heading}\\textbf{${e(c.name)}}} \\hfill\n{\\color{lighttext}${e(c.date)}}\\par\n`;
+      body += `{\\color{body}\n${e(c.description)}\n}\n`;
       body += i < j.certifications.length - 1 ? "\n\\vspace{3pt}\n\n" : "";
     });
     body += `\n\\vspace{2pt}\n\\sectrule\n\n`;
@@ -2200,36 +2077,13 @@ app.post("/skill-bank/add", async (req, res) => {
 
 app.post("/skill-bank/update", async (req, res) => {
   if (!skillBankManager) return res.status(503).json({ success: false, error: "Skill bank not available" });
-  const { id, level, evidence, tools } = req.body;
+  const { id, level, evidence } = req.body;
   if (!id) return res.status(400).json({ success: false, error: "Missing skill id" });
   try {
     const updates = {};
     if (level) updates.level = level;
     if (evidence) updates.evidence = evidence;
-    if (tools) updates.tools = tools;
     const chunk = await skillBankManager.updateSkill(id, updates);
-    skillBank = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "skill_data_bank.json"), "utf-8"));
-    res.json({ success: true, chunk });
-  } catch (err) {
-    res.status(500).json({ success: false, error: safeError(err) });
-  }
-});
-
-// ── Add tool tag to existing skill ──
-app.post("/skill-bank/add-tool", async (req, res) => {
-  if (!skillBankManager) return res.status(503).json({ success: false, error: "Skill bank not available" });
-  const { id, tool } = req.body;
-  if (!id || !tool) return res.status(400).json({ success: false, error: "Missing id or tool" });
-  try {
-    const bank = skillBankManager.loadBank();
-    const chunk = bank.skill_chunks.find(c => c.id === id);
-    if (!chunk) return res.status(404).json({ success: false, error: `Skill ${id} not found` });
-    if (!chunk.tools) chunk.tools = [];
-    const toolName = tool.trim();
-    if (!chunk.tools.some(t => t.toLowerCase() === toolName.toLowerCase())) {
-      chunk.tools.push(toolName);
-    }
-    skillBankManager.saveBank(bank);
     skillBank = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "skill_data_bank.json"), "utf-8"));
     res.json({ success: true, chunk });
   } catch (err) {
@@ -2245,46 +2099,6 @@ app.post("/skill-bank/delete", (req, res) => {
     const removed = skillBankManager.deleteSkill(id);
     skillBank = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "skill_data_bank.json"), "utf-8"));
     res.json({ success: true, removed });
-  } catch (err) {
-    res.status(500).json({ success: false, error: safeError(err) });
-  }
-});
-
-// ── Search skill bank by keyword (text match on name + evidence) ──
-app.get("/skill-bank/search", (req, res) => {
-  if (!skillBank) return res.status(503).json({ success: false, error: "Skill bank not loaded" });
-  const q = (req.query.q || "").trim().toLowerCase();
-  if (!q) return res.json({ success: true, results: [] });
-  const tokens = q.split(/\s+/).filter(Boolean);
-  const results = (skillBank.skill_chunks || []).filter(s => {
-    const name = (s.skill || "").toLowerCase();
-    const ev = (s.evidence || "").toLowerCase();
-    const cat = (s.category || "").toLowerCase();
-    const toolTags = (s.tools || []).join(" ").toLowerCase();
-    const hay = name + " " + ev + " " + cat + " " + toolTags;
-    return tokens.every(t => hay.includes(t)) || name.includes(q) || q.includes(name);
-  }).map(s => ({
-    id: s.id, skill: s.skill, category: s.category, level: s.level, evidence: s.evidence, type: s.type, tools: s.tools || []
-  })).slice(0, 15);
-  res.json({ success: true, results });
-});
-
-// ── Synthesize merged evidence from selected skills ──
-app.post("/skill-bank/synthesize", async (req, res) => {
-  const { keyword, evidence, level } = req.body;
-  if (!keyword) return res.status(400).json({ success: false, error: "Missing keyword" });
-  try {
-    const style = styleProfile?.style_analysis || {};
-    const toneDesc = style.tone_description || "confident, specific, professional";
-    const avoids = (style.things_to_never_write_as_me || style.vocabulary_preferences?.avoids || []).join(", ");
-    const prompt = evidence && evidence.length
-      ? `Keyword: ${keyword}\nLevel: ${level || "Intermediate"}\nRelated evidence from skill bank:\n${evidence.map((e, i) => `${i + 1}. ${e}`).join("\n")}\n\nSynthesize a single concise evidence statement (max 20 words) that demonstrates proficiency in "${keyword}". Draw from the provided evidence. No trailing period.`
-      : `Keyword: ${keyword}\nLevel: ${level || "Intermediate"}\n\nWrite a single practical evidence statement (max 20 words) demonstrating experience with "${keyword}". No trailing period.`;
-    const text = await callAI(
-      `You write concise CV skill evidence. Tone: ${toneDesc}. Max 20 words, single sentence, no quotes, no trailing period.${avoids ? " NEVER use: " + avoids : ""}`,
-      prompt
-    );
-    res.json({ success: true, evidence: text.trim().replace(/^"|"$/g, "").replace(/\.$/, "") });
   } catch (err) {
     res.status(500).json({ success: false, error: safeError(err) });
   }
@@ -2450,225 +2264,6 @@ app.post("/humanize", async (req, res) => {
     res.status(500).json({ success: false, error: safeError(err) });
   }
 });
-
-// ═══════════════════════════════════════════════════════════════
-// OUTLOOK EMAIL INTEGRATION (OAuth2 + Microsoft Graph)
-// ═══════════════════════════════════════════════════════════════
-
-const OUTLOOK_CLIENT_ID = process.env.OUTLOOK_CLIENT_ID || "";
-const OUTLOOK_TENANT = process.env.OUTLOOK_TENANT || "common";
-const OUTLOOK_REDIRECT_URI = `http://localhost:${PORT}/auth/callback`;
-const OUTLOOK_SCOPES = "Mail.Read User.Read offline_access";
-
-// In-memory token store (per session — not persisted)
-let outlookTokens = null;
-
-app.get("/auth/outlook", (req, res) => {
-  if (!OUTLOOK_CLIENT_ID) return res.status(503).json({ error: "OUTLOOK_CLIENT_ID not set in .env" });
-  // PKCE: generate code_verifier and code_challenge
-  const crypto = require("crypto");
-  const codeVerifier = crypto.randomBytes(32).toString("base64url");
-  const codeChallenge = crypto.createHash("sha256").update(codeVerifier).digest("base64url");
-  // Store verifier in memory for callback
-  outlookTokens = { codeVerifier };
-  const authUrl = `https://login.microsoftonline.com/${OUTLOOK_TENANT}/oauth2/v2.0/authorize?` +
-    `client_id=${encodeURIComponent(OUTLOOK_CLIENT_ID)}` +
-    `&response_type=code` +
-    `&redirect_uri=${encodeURIComponent(OUTLOOK_REDIRECT_URI)}` +
-    `&scope=${encodeURIComponent(OUTLOOK_SCOPES)}` +
-    `&response_mode=query` +
-    `&code_challenge=${codeChallenge}` +
-    `&code_challenge_method=S256`;
-  res.redirect(authUrl);
-});
-
-app.get("/auth/callback", async (req, res) => {
-  const code = req.query.code;
-  if (!code || !outlookTokens?.codeVerifier) {
-    return res.status(400).send("<h3>Auth failed — no code received. <a href='/'>Go back</a></h3>");
-  }
-  try {
-    const tokenRes = await fetch(`https://login.microsoftonline.com/${OUTLOOK_TENANT}/oauth2/v2.0/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: OUTLOOK_CLIENT_ID,
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: OUTLOOK_REDIRECT_URI,
-        scope: OUTLOOK_SCOPES,
-        code_verifier: outlookTokens.codeVerifier
-      })
-    });
-    const tokenData = await tokenRes.json();
-    if (tokenData.error) throw new Error(tokenData.error_description || tokenData.error);
-    outlookTokens = {
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
-      expiresAt: Date.now() + (tokenData.expires_in * 1000)
-    };
-    console.log("[Outlook] Connected successfully");
-    res.send(`<html><body style="font-family:system-ui;text-align:center;padding:60px">
-      <h2 style="color:#22c55e">✓ Outlook Connected</h2>
-      <p>You can close this tab and go back to the app.</p>
-      <script>setTimeout(function(){window.close()},2000)</script>
-    </body></html>`);
-  } catch (err) {
-    console.error("[Outlook] Auth error:", err.message);
-    res.status(500).send(`<h3>Auth failed: ${err.message}. <a href='/'>Go back</a></h3>`);
-  }
-});
-
-async function refreshOutlookToken() {
-  if (!outlookTokens?.refreshToken) return false;
-  try {
-    const tokenRes = await fetch(`https://login.microsoftonline.com/${OUTLOOK_TENANT}/oauth2/v2.0/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: OUTLOOK_CLIENT_ID,
-        grant_type: "refresh_token",
-        refresh_token: outlookTokens.refreshToken,
-        scope: OUTLOOK_SCOPES
-      })
-    });
-    const data = await tokenRes.json();
-    if (data.error) throw new Error(data.error_description || data.error);
-    outlookTokens.accessToken = data.access_token;
-    if (data.refresh_token) outlookTokens.refreshToken = data.refresh_token;
-    outlookTokens.expiresAt = Date.now() + (data.expires_in * 1000);
-    return true;
-  } catch { return false; }
-}
-
-async function getOutlookToken() {
-  if (!outlookTokens?.accessToken) return null;
-  if (Date.now() > outlookTokens.expiresAt - 60000) {
-    const ok = await refreshOutlookToken();
-    if (!ok) { outlookTokens = null; return null; }
-  }
-  return outlookTokens.accessToken;
-}
-
-app.get("/api/email/status", async (req, res) => {
-  const token = await getOutlookToken();
-  if (!token) return res.json({ connected: false });
-  try {
-    const me = await fetch("https://graph.microsoft.com/v1.0/me", {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const user = await me.json();
-    res.json({ connected: true, email: user.mail || user.userPrincipalName, name: user.displayName });
-  } catch {
-    res.json({ connected: false });
-  }
-});
-
-// Rejection email patterns
-const REJECTION_PATTERNS = [
-  /unfortunately[,.]?\s.*(not|unable|cannot)/i,
-  /regret to inform/i,
-  /not (be )?mov(e|ing) forward/i,
-  /will not be (proceeding|continuing)/i,
-  /decided not to (proceed|continue|advance)/i,
-  /not (been )?selected/i,
-  /position has been filled/i,
-  /pursue other candidates/i,
-  /unable to offer/i,
-  /not (a |the )?match/i,
-  /your application.*(unsuccessful|not successful)/i,
-  /after careful (consideration|review).*(not|unfortunately)/i,
-  /we (have |will )?(chose|chosen|selected) (another|other|a different)/i,
-  /Absage/i,
-  /leider (nicht|kein)/i,
-  /können wir Ihnen leider/i,
-  /müssen wir Ihnen leider mitteilen/i
-];
-
-function isRejectionEmail(subject, bodyPreview) {
-  const text = (subject + " " + bodyPreview).trim();
-  return REJECTION_PATTERNS.some(p => p.test(text));
-}
-
-function extractMatchInfo(subject, bodyPreview, trackerApps) {
-  const text = (subject + " " + bodyPreview).toLowerCase();
-  const matches = [];
-  for (const app of trackerApps) {
-    let score = 0;
-    // Match by Req ID (strongest signal)
-    if (app.reqId && text.includes(app.reqId.toLowerCase())) score += 10;
-    // Match by company name
-    if (app.company && text.includes(app.company.toLowerCase())) score += 5;
-    // Match by role/title keywords (2+ word match)
-    if (app.role) {
-      const words = app.role.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-      const wordHits = words.filter(w => text.includes(w)).length;
-      if (wordHits >= 2) score += 3;
-      else if (wordHits === 1) score += 1;
-    }
-    if (score >= 3) matches.push({ appId: app.id, company: app.company, role: app.role, reqId: app.reqId, score });
-  }
-  return matches.sort((a, b) => b.score - a.score);
-}
-
-app.post("/api/email/scan", async (req, res) => {
-  const token = await getOutlookToken();
-  if (!token) return res.status(401).json({ success: false, error: "Outlook not connected. Click 'Connect Outlook' first." });
-
-  const { applications } = req.body; // Tracker apps from frontend
-  if (!applications?.length) return res.json({ success: true, rejections: [], message: "No applications to match against." });
-
-  try {
-    // Fetch last 60 days of emails, max 100
-    const since = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
-    const filter = `receivedDateTime ge ${since}`;
-    const select = "subject,bodyPreview,from,receivedDateTime";
-    const graphUrl = `https://graph.microsoft.com/v1.0/me/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=100&$orderby=receivedDateTime desc`;
-
-    const emailRes = await fetch(graphUrl, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!emailRes.ok) {
-      const err = await emailRes.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Graph API returned ${emailRes.status}`);
-    }
-    const emailData = await emailRes.json();
-    const emails = emailData.value || [];
-    console.log(`[Outlook] Scanned ${emails.length} emails from last 60 days`);
-
-    // Filter only potential active applications (Applied, OA/Test, Interview)
-    const activeApps = applications.filter(a => ["Applied", "OA/Test", "Interview"].includes(a.stage));
-
-    const rejections = [];
-    for (const email of emails) {
-      if (!isRejectionEmail(email.subject || "", email.bodyPreview || "")) continue;
-      const matched = extractMatchInfo(email.subject || "", email.bodyPreview || "", activeApps);
-      if (matched.length > 0) {
-        rejections.push({
-          emailSubject: email.subject,
-          emailFrom: email.from?.emailAddress?.address || "unknown",
-          emailDate: email.receivedDateTime,
-          emailPreview: (email.bodyPreview || "").slice(0, 200),
-          matchedApp: matched[0] // Best match
-        });
-      }
-    }
-
-    console.log(`[Outlook] Found ${rejections.length} rejection emails matching tracked applications`);
-    res.json({ success: true, rejections, totalScanned: emails.length });
-  } catch (err) {
-    console.error("[Outlook] Scan error:", err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.post("/auth/outlook/disconnect", (req, res) => {
-  outlookTokens = null;
-  console.log("[Outlook] Disconnected");
-  res.json({ success: true });
-});
-
-if (OUTLOOK_CLIENT_ID) console.log("[OK] Outlook integration ready");
 
 // ═══════════════════════════════════════════════════════════════
 // START

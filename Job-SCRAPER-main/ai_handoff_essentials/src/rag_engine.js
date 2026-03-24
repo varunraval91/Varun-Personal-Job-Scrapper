@@ -92,7 +92,6 @@ async function addSkillToVector(chunk) {
       level: chunk.level,
       skill_name: chunk.skill,
       phase: String(chunk.phase),
-      type: chunk.type || "skill",
       added_date: chunk.added_date || new Date().toISOString().split("T")[0]
     }]
   });
@@ -111,18 +110,9 @@ async function updateSkillInVector(chunk) {
       level: chunk.level,
       skill_name: chunk.skill,
       phase: String(chunk.phase),
-      type: chunk.type || "skill",
       added_date: chunk.last_updated || new Date().toISOString().split("T")[0]
     }]
   });
 }
 
-/**
- * Reset the cached client so the next call to getClient() rebuilds from disk.
- */
-function resetClient() {
-  client = null;
-  collections = {};
-}
-
-module.exports = { retrieveContext, addSkillToVector, updateSkillInVector, resetClient };
+module.exports = { retrieveContext, addSkillToVector, updateSkillInVector };
