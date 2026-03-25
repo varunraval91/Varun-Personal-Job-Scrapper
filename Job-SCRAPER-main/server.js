@@ -943,13 +943,14 @@ ${certText ? `\n=== SELECTED CERTIFICATIONS ===\n${certText}\n` : ""}${researchT
 2. Pick a concise, relevant subset of evidence. Do not force every item.
 3. Use quantified evidence when available (80% reduction, 1,000+ records, etc.)
 4. Write in first person as Varun.
-5. Structure: Opening hook → 2-3 evidence paragraphs → Closing with availability.
-6. Length: 300-400 words. Concise.
+5. Structure: Opening hook → 3 focused evidence paragraphs → Closing with availability.
+6. Length: 240-320 words. Keep sentences crisp.
 7. Reference the specific team/product mentioned in the job posting.
-8. Use **bold** around 2-3 key technical terms per paragraph.
+8. Do NOT use markdown or **bold** markers.
 9. If job requires fluent German and candidate has B1, be honest about it.
 10. DO NOT include the closing "Thank you..." sentence — it is added automatically.
 11. If user-selected entries exist, prioritize them when they strengthen JD alignment; otherwise use stronger matched evidence.
+12. Prioritize evidence in this order when role is project/program operations: project planning/status tracking, meeting documentation/action tracking, presentations/enablement/SharePoint, cross-functional coordination.
 
 === NEVER USE THESE PHRASES ===
 "I am excited to apply", "I believe I would be a great fit", "leverage my skills",
@@ -1017,6 +1018,9 @@ ${certText ? `\n=== SELECTED CERTIFICATIONS ===\n${certText}\n` : ""}${researchT
 RULES (non-negotiable):
 - Every fact MUST come from the matched data above. NEVER invent anything.
 - Reorder competencies and skills to match what the JD prioritizes.
+- PROFILE must be EXACTLY 2 sentences, role-specific, and 35-55 words total.
+- PROFILE sentence 1: who Varun is + target role fit; sentence 2: strongest 2 capability proofs for this JD.
+- PROFILE must avoid generic adjectives and cliches.
 - Write detailed professional description paragraphs for each entry. Lead with action/tool/outcome.
 - For each work/project/research description, write 2-4 sentences (about 45-90 words) including tools, context, and measurable impact when available.
 - NEVER use generic filler ("Results-driven", "Proven track record", etc.)
@@ -1046,6 +1050,7 @@ JSON SCHEMA (fill every field, use empty string "" if not applicable):
   "linkedin": "linkedin.com/in/varunraval",
   "github": "github.com/ravalvarun-SAP",
   "languages": "English (fluent), German (B1 -- actively improving)",
+  "profile": "<EXACTLY 2 sentences, 35-55 words total, JD-specific role fit + strongest evidence>",
   "key_competencies": "<10-14 JD-relevant competencies separated by •>",
   "competencies": [{ "category": "<optional label>", "items": "<optional fallback format>" }],
   "technical_skills": [{ "category": "<Category>", "items": "<Tool; Tool; Tool; Tool>" }],
@@ -1175,6 +1180,53 @@ app.post("/cv-selector-data", async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// Robust JSON helpers for AI output
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Try multiple strategies to extract JSON from raw AI text.
+ * 1. Strip markdown fences → JSON.parse
+ * 2. Regex-match first ```json...``` block → JSON.parse
+ * 3. Find first { … last } (or [ … ]) → JSON.parse
+ */
+function parseModelJson(raw) {
+  if (!raw || typeof raw !== "string") return null;
+
+  // Strategy 1 — strip common fences
+  try {
+    const s1 = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+    return JSON.parse(s1);
+  } catch (_) { /* continue */ }
+
+  // Strategy 2 — regex fence match
+  const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) {
+    try { return JSON.parse(fenceMatch[1].trim()); } catch (_) { /* continue */ }
+  }
+
+  // Strategy 3 — first { to last }
+  const first = raw.indexOf("{");
+  const last = raw.lastIndexOf("}");
+  if (first !== -1 && last > first) {
+    try { return JSON.parse(raw.slice(first, last + 1)); } catch (_) { /* continue */ }
+  }
+
+  return null;
+}
+
+/**
+ * Check whether a parsed JSON object looks like a CV (not a cover letter).
+ * CV signals: experience, projects, key_competencies, technical_skills
+ * CL signals: paragraphs, position_title
+ */
+function looksLikeCvJson(obj) {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
+  const cvSignals = ["experience", "projects", "key_competencies", "technical_skills", "education"].filter(k => obj[k]);
+  const clSignals = ["paragraphs", "position_title"].filter(k => obj[k]);
+  return cvSignals.length >= 2 && clSignals.length === 0;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // POST /generate
 // ═══════════════════════════════════════════════════════════════
 
@@ -1184,17 +1236,46 @@ app.post("/generate", async (req, res) => {
   const { jobDescription, documentType, humanizeText, pinnedWeIds, pinnedProjectIds, pinnedCertIds, pinnedResearchIds } = req.body;
   if (!jobDescription || !documentType) return res.status(400).json({ success: false, error: "Missing jobDescription or documentType." });
 
+  const normalizeIdList = (value) => {
+    if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean);
+    if (typeof value === "string") return value.split(",").map(v => v.trim()).filter(Boolean);
+    if (value && typeof value === "object") return Object.values(value).map(v => String(v).trim()).filter(Boolean);
+    return [];
+  };
+  const pinnedWEList = normalizeIdList(pinnedWeIds);
+  const pinnedProjectList = normalizeIdList(pinnedProjectIds);
+  const pinnedCertList = normalizeIdList(pinnedCertIds);
+  const pinnedResearchList = normalizeIdList(pinnedResearchIds);
+
   const now = Date.now();
   const wait = AI_MIN_GAP_MS - (now - lastAICall);
   if (wait > 0) await new Promise(r => setTimeout(r, wait));
   lastAICall = Date.now();
 
   try {
+    // Always resolve pins against latest bank from disk (selector endpoint also does this)
+    let latestBank = skillBank || {};
+    try {
+      latestBank = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "skill_data_bank.json"), "utf-8"));
+      skillBank = latestBank;
+    } catch (_) {}
+
     let systemPrompt;
     let userPrompt;
     let ragContext = null;
+    const pinTelemetry = {
+      requested: {
+        we: [...pinnedWEList],
+        projects: [...pinnedProjectList],
+        certs: [...pinnedCertList],
+        research: [...pinnedResearchList]
+      },
+      applied: { we: [], projects: [] },
+      cvProjectGuardrailEnforced: []
+    };
     const docLabel = documentType === "cv" ? "CV" : "Cover Letter";
     const modelUsed = aiProvider === "claude" ? CLAUDE_MODEL : aiProvider === "groq" ? GROQ_MODEL : GEMINI_MODEL;
+    console.log(`  /generate ${documentType.toUpperCase()} pins: WE=${pinnedWEList.length}, Projects=${pinnedProjectList.length}, Certs=${pinnedCertList.length}, Research=${pinnedResearchList.length}`);
 
     // ── RAG-based generation (primary path) ──
     if (vectorReady && retrieveContext) {
@@ -1202,20 +1283,33 @@ app.post("/generate", async (req, res) => {
       console.log(`  RAG: ${ragContext.skills.length} skills, ${ragContext.projects.length} projects, ${ragContext.work.length} work`);
 
       // If user pinned specific WE/Project IDs, inject them from skill_data_bank
-      if (pinnedWeIds?.length || pinnedProjectIds?.length) {
-        const bank = skillBank || {};
+      if (pinnedWEList.length || pinnedProjectList.length) {
+        const bank = latestBank;
+        const mediaProjects = [
+          ...(bank.media_projects?.sap_media_projects || []),
+          ...(bank.media_projects?.creative_media_projects || [])
+        ].map(p => ({
+          id: p.id,
+          name: p.name || p.title || "",
+          tech: p.tech || (Array.isArray(p.tech_tools) ? p.tech_tools.join(", ") : ""),
+          description: p.description || (Array.isArray(p.responsibilities) ? p.responsibilities.join(" ") : "")
+        }));
+        const projectPool = [...(bank.projects || []), ...mediaProjects];
+        const projectById = new Map(projectPool.map(p => [p.id, p]));
+        const workById = new Map((bank.work_experience || []).map(w => [w.id, w]));
+
         if (documentType === "cv") {
           // CV: full replacement (existing behavior)
-          if (pinnedWeIds?.length) {
-            const pinned = (bank.work_experience || []).filter(w => pinnedWeIds.includes(w.id));
+          if (pinnedWEList.length) {
+            const pinned = pinnedWEList.map(id => workById.get(id)).filter(Boolean);
             ragContext.work = pinned.map(w => ({
               id: w.id,
               document: `${w.title} at ${w.company} (${w.period}): ${(w.bullets||[]).join(' ')}`,
               metadata: { title: w.title, company: w.company, period: w.period }
             }));
           }
-          if (pinnedProjectIds?.length) {
-            const pinned = (bank.projects || []).filter(p => pinnedProjectIds.includes(p.id));
+          if (pinnedProjectList.length) {
+            const pinned = pinnedProjectList.map(id => projectById.get(id)).filter(Boolean);
             ragContext.projects = pinned.map(p => ({
               id: p.id,
               document: p.description || p.name,
@@ -1224,46 +1318,49 @@ app.post("/generate", async (req, res) => {
           }
         } else {
           // CL: merge pinned at the front, then fill with RAG picks (deduplicated)
-          if (pinnedWeIds?.length) {
-            const pinned = (bank.work_experience || []).filter(w => pinnedWeIds.includes(w.id)).map(w => ({
+          if (pinnedWEList.length) {
+            const pinned = pinnedWEList.map(id => workById.get(id)).filter(Boolean).map(w => ({
               id: w.id,
               document: `${w.title} at ${w.company} (${w.period}): ${(w.bullets||[]).join(' ')}`,
               metadata: { title: w.title, company: w.company, period: w.period }
             }));
-            const ragExtra = ragContext.work.filter(w => !pinnedWeIds.includes(w.id));
+            const ragExtra = ragContext.work.filter(w => !pinnedWEList.includes(w.id));
             ragContext.work = [...pinned, ...ragExtra];
           }
-          if (pinnedProjectIds?.length) {
-            const pinned = (bank.projects || []).filter(p => pinnedProjectIds.includes(p.id)).map(p => ({
+          if (pinnedProjectList.length) {
+            const pinned = pinnedProjectList.map(id => projectById.get(id)).filter(Boolean).map(p => ({
               id: p.id,
               document: `${p.name} (${p.tech}): ${p.description}`,
               metadata: { name: p.name, tech: p.tech }
             }));
-            const ragExtra = ragContext.projects.filter(p => !pinnedProjectIds.includes(p.id));
+            const ragExtra = ragContext.projects.filter(p => !pinnedProjectList.includes(p.id));
             ragContext.projects = [...pinned, ...ragExtra];
           }
         }
         console.log(`  Pinned overrides (${documentType}): ${ragContext.work.length} WE, ${ragContext.projects.length} projects`);
+        console.log(`  Resolved IDs (${documentType}): WE=[${ragContext.work.map(w => w.id).join(", ")}], Projects=[${ragContext.projects.map(p => p.id).join(", ")}]`);
+        pinTelemetry.applied.we = ragContext.work.map(w => w.id);
+        pinTelemetry.applied.projects = ragContext.projects.map(p => p.id);
       }
 
       // Resolve selected certifications
-      const bank2 = skillBank || {};
+      const bank2 = latestBank;
       const allCerts = bank2.certifications_registry || [];
-      const selectedCerts = pinnedCertIds?.length
-        ? allCerts.filter(c => pinnedCertIds.includes(c.id))
+      const selectedCerts = pinnedCertList.length
+        ? allCerts.filter(c => pinnedCertList.includes(c.id))
         : allCerts;
 
       // Resolve selected research papers + activities
       const allRP = bank2.research_papers || [];
       const allRA = bank2.research_activities || [];
       const allResearch = [...allRP, ...allRA];
-      const selectedResearch = pinnedResearchIds?.length
-        ? allResearch.filter(r => pinnedResearchIds.includes(r.id))
+      const selectedResearch = pinnedResearchList.length
+        ? allResearch.filter(r => pinnedResearchList.includes(r.id))
         : allResearch;
 
       systemPrompt = documentType === "cv"
-        ? buildCvSystemPromptRAG(ragContext.skills, ragContext.projects, ragContext.work, pinnedWeIds, pinnedProjectIds, selectedCerts, selectedResearch)
-        : buildClSystemPromptRAG(ragContext.skills, ragContext.projects, ragContext.work, pinnedWeIds, pinnedProjectIds, selectedCerts, selectedResearch);
+        ? buildCvSystemPromptRAG(ragContext.skills, ragContext.projects, ragContext.work, pinnedWEList, pinnedProjectList, selectedCerts, selectedResearch)
+        : buildClSystemPromptRAG(ragContext.skills, ragContext.projects, ragContext.work, pinnedWEList, pinnedProjectList, selectedCerts, selectedResearch);
 
       userPrompt = `=== TARGET JOB DESCRIPTION ===\n${jobDescription}\n\n=== TASK ===\nGenerate a complete ${docLabel} tailored to the job above.\nUse ONLY facts from the matched skill data. Output ONLY the final JSON.\n`;
     } else {
@@ -1278,12 +1375,99 @@ app.post("/generate", async (req, res) => {
     let contentJson = null;
     let content = rawContent;
     try {
-      const jsonStr = rawContent.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
-      contentJson = JSON.parse(jsonStr);
+      contentJson = parseModelJson(rawContent);
+      if (!contentJson) throw new Error("No JSON object found in AI response");
+
+      // Guard: if we asked for a CV but got CL-shaped JSON, reject it
+      if (documentType === "cv" && !looksLikeCvJson(contentJson)) {
+        console.warn("AI returned CL-shaped JSON for a CV request — will attempt repair");
+        throw new Error("Response has cover-letter shape, not CV shape");
+      }
+
+      if (documentType === "cv" && contentJson && typeof contentJson === "object") {
+        const rawProfile = (contentJson.profile || contentJson.profile_summary || contentJson.professional_summary || "").toString();
+        if (rawProfile.trim()) {
+          const sanitized = rawProfile
+            .replace(/\s+/g, " ")
+            .replace(/\b(results-driven|proven track record|passionate|excited to apply|highly motivated)\b/gi, "")
+            .replace(/\s{2,}/g, " ")
+            .trim();
+          // Improved: Split on sentence-ending punctuation NOT preceded by abbreviations (M.Sc., Dr., etc.)
+          const sentences = sanitized.split(/(?<!\b[A-Z])(?<!\b[A-Z][a-z])(?<!\bSc)(?<!\bDr)(?<!\bMr)(?<!\bMs)(?<!\bvs)(?<!\betc)(?<!\be\.g)(?<!\bi\.e)\.\s+/)
+            .map(s => s.trim()).filter(s => s.length > 5);
+          let crispProfile = sentences.slice(0, 2).join(". ").trim();
+          if (crispProfile && !crispProfile.endsWith(".")) crispProfile += ".";
+          if (crispProfile.length > 350) crispProfile = `${crispProfile.slice(0, 347).trimEnd()}...`;
+          contentJson.profile = crispProfile;
+        }
+
+        if (pinnedProjectList.length && Array.isArray(contentJson.projects)) {
+          const bankNow = latestBank;
+          const mediaNow = [
+            ...(bankNow.media_projects?.sap_media_projects || []),
+            ...(bankNow.media_projects?.creative_media_projects || [])
+          ].map(p => ({
+            id: p.id,
+            name: p.name || p.title || "",
+            tech: p.tech || (Array.isArray(p.tech_tools) ? p.tech_tools.join(", ") : ""),
+            description: p.description || (Array.isArray(p.responsibilities) ? p.responsibilities.join(" ") : "")
+          }));
+          const projectPoolNow = [...(bankNow.projects || []), ...mediaNow];
+          const byIdNow = new Map(projectPoolNow.map(p => [p.id, p]));
+          const resolvedPinnedCvProjects = pinnedProjectList.map(id => byIdNow.get(id)).filter(Boolean).map(p => ({
+            id: p.id,
+            document: p.description || p.name,
+            metadata: { name: p.name, tech: p.tech }
+          }));
+          if (resolvedPinnedCvProjects.length) {
+            const existingProjects = contentJson.projects;
+            const normalize = (value) => String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
+            const enforced = resolvedPinnedCvProjects.map((rp) => {
+              const existing = existingProjects.find(ep => normalize(ep.title) === normalize(rp.metadata?.name));
+              if (existing) return existing;
+              return {
+                title: rp.metadata?.name || "",
+                date: "",
+                tech: rp.metadata?.tech || "",
+                description: rp.document || "",
+                bullets: []
+              };
+            });
+            contentJson.projects = enforced;
+            pinTelemetry.cvProjectGuardrailEnforced = resolvedPinnedCvProjects.map(p => p.id);
+          }
+        }
+      }
+
       content = documentType === "cv" ? jsonToDisplayCv(contentJson) : jsonToDisplayCl(contentJson);
       console.log(`JSON parsed OK. Display text: ${content.length} chars`);
     } catch (parseErr) {
-      console.warn("JSON parse failed, using raw text:", parseErr.message);
+      console.warn("JSON parse failed:", parseErr.message);
+
+      // ── One repair attempt: ask AI to convert to valid JSON ──
+      if (documentType === "cv") {
+        try {
+          console.log("Attempting AI repair for CV JSON...");
+          const waitR = AI_MIN_GAP_MS - (Date.now() - lastAICall);
+          if (waitR > 0) await new Promise(r => setTimeout(r, waitR));
+          lastAICall = Date.now();
+          const repairPrompt = `The following text was supposed to be a CV in JSON format but is malformed or is a cover letter.\nConvert it into a valid JSON object matching this schema: {"name","location","phone","email","linkedin","github","languages","profile","key_competencies","technical_skills":[],"education":[],"experience":[],"projects":[],"research_activities":[],"certifications":[]}.\nReturn ONLY the JSON, nothing else.\n\nOriginal text:\n${rawContent.slice(0, 6000)}`;
+          const repairRaw = await callAI("You are a JSON repair assistant. Output ONLY valid JSON.", repairPrompt);
+          const repairJson = parseModelJson(repairRaw);
+          if (repairJson && looksLikeCvJson(repairJson)) {
+            contentJson = repairJson;
+            content = jsonToDisplayCv(contentJson);
+            console.log("AI repair succeeded — CV JSON recovered.");
+          } else {
+            console.warn("AI repair did not produce valid CV JSON.");
+            content = "[CV generation failed — the AI did not return a valid CV. Please click the refresh button to retry.]";
+          }
+        } catch (repairErr) {
+          console.warn("AI repair call failed:", repairErr.message);
+          content = "[CV generation failed — the AI did not return a valid CV. Please click the refresh button to retry.]";
+        }
+      }
+      // For CL, raw text fallback is acceptable
     }
 
     // ── Humanizer pass (if requested and available) ──
@@ -1333,7 +1517,8 @@ app.post("/generate", async (req, res) => {
         provider: aiProvider,
         mode: ragContext ? "RAG" : "legacy",
         chunksUsed: ragContext ? ragContext.skills.map(s => ({ id: s.id, skill: s.metadata.skill_name, relevance: s.relevance })) : [],
-        documentType
+        documentType,
+        pinTelemetry
       },
       applicationId: appEntry?.id || null
     });
@@ -1427,6 +1612,13 @@ function jsonToDisplayCv(j) {
   if (lnk) lines.push(lnk);
   if (j.languages) lines.push(`Languages: ${j.languages}`);
   lines.push("");
+
+  const profileText = (j.profile || j.profile_summary || j.professional_summary || "").toString().trim();
+  if (profileText) {
+    lines.push("PROFILE");
+    lines.push(profileText);
+    lines.push("");
+  }
 
   const keyComp = j.key_competencies || (j.competencies?.length
     ? j.competencies.map(c => c.items).filter(Boolean).join(" • ")
@@ -1587,6 +1779,12 @@ function buildCvLatexFromJson(j) {
   if (linkParts.length) body += linkParts.join(" \\quad ") + "\\par\n";
   if (j.languages) body += `\\textbf{Languages:} ${e(j.languages)}\\par\n`;
   body += `}\n\n\\vspace{3pt}\n\\sectrule\n\n`;
+
+  // Profile summary
+  const profileText = (j.profile || j.profile_summary || j.professional_summary || "").toString().trim();
+  if (profileText) {
+    body += `\\section*{PROFILE}\n\n{\\color{body}\n${e(profileText)}\\par\n}\n\n\\vspace{2pt}\n\\sectrule\n\n`;
+  }
 
   // Key Competencies
   const keyComp = j.key_competencies || (j.competencies?.length
