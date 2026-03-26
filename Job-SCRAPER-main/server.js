@@ -1709,6 +1709,8 @@ function runGhostscript(inputPdf, outputPdf) {
         "-dQUIET",
         "-dBATCH",
         "-dFastWebView=false",
+        "-dCompatibilityLevel=1.4",
+        "-dPDFSETTINGS=/printer",
         `-sOutputFile=${outputPdf}`,
         inputPdf
       ],
@@ -1833,7 +1835,8 @@ function jsonToDisplayCl(j) {
 // JSON → LaTeX BUILDERS (clean template injection — no parsing)
 // ═══════════════════════════════════════════════════════════════
 
-const LATEX_CV_PREAMBLE = `\\documentclass[11pt,a4paper]{article}
+const LATEX_CV_PREAMBLE = `\\pdfminorversion=4
+\\documentclass[11pt,a4paper]{article}
 
 %---------------------------------------------------------------
 % BASIC PACKAGES
@@ -1899,7 +1902,8 @@ const LATEX_CV_PREAMBLE = `\\documentclass[11pt,a4paper]{article}
 
 `;
 
-const LATEX_CL_PREAMBLE = `\\documentclass[11pt,a4paper]{article}
+const LATEX_CL_PREAMBLE = `\\pdfminorversion=4
+\\documentclass[11pt,a4paper]{article}
 \\usepackage[top=2.5cm,bottom=2.5cm,left=2.8cm,right=2.8cm]{geometry}
 \\usepackage[T1]{fontenc}
 \\usepackage[utf8]{inputenc}
@@ -2280,7 +2284,8 @@ function buildCvLatex(content) {
     }
   }
 
-  return `\\documentclass[11pt,a4paper]{article}
+  return `\\pdfminorversion=4
+\\documentclass[11pt,a4paper]{article}
 \\usepackage[margin=1.8cm]{geometry}
 \\usepackage[T1]{fontenc}
 \\usepackage[utf8]{inputenc}
@@ -2379,7 +2384,8 @@ function buildClLatex(content) {
     }
   }
 
-  return `\\documentclass[11pt,a4paper]{article}
+  return `\\pdfminorversion=4
+\\documentclass[11pt,a4paper]{article}
 \\usepackage[top=2.5cm,bottom=2.5cm,left=2.8cm,right=2.8cm]{geometry}
 \\usepackage[T1]{fontenc}
 \\usepackage[utf8]{inputenc}
