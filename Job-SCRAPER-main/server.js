@@ -1131,7 +1131,7 @@ app.post("/cv-selector-data", async (req, res) => {
     const mediaProjRaw = [
       ...(bank.media_projects?.sap_media_projects || []),
       ...(bank.media_projects?.creative_media_projects || [])
-    ].map(p => ({ ...p, name: p.title }));  // media projects use 'title' — normalise to 'name'
+    ].map(p => ({ ...p, name: p.name || p.title }));  // media projects use 'title' — normalise to 'name' (prefer saved name over title)
     const allProjects = [...(bank.projects || []), ...mediaProjRaw];
     const allCerts = (bank.certifications_registry || []).map(c => ({ id: c.id, name: c.name, provider: c.provider || "", date: c.date || c.date_range || "" }));
 
@@ -1217,21 +1217,25 @@ app.post("/update-bank-item", (req, res) => {
   try {
     const bank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
 
-    function applyFields(item) {
-      Object.entries(fields).forEach(([k, v]) => { item[k] = v; });
+    function applyFields(item, isMediaProject) {
+      Object.entries(fields).forEach(([k, v]) => {
+        item[k] = v;
+        // media projects store display name as 'title' — keep in sync
+        if (k === "name" && isMediaProject) item.title = v;
+      });
     }
-    function findAndUpdate(arr) {
+    function findAndUpdate(arr, isMediaProject) {
       const item = (arr || []).find(x => x.id === id);
-      if (item) { applyFields(item); return true; }
+      if (item) { applyFields(item, isMediaProject); return true; }
       return false;
     }
 
     let found = false;
     if (type === "we")       found = findAndUpdate(bank.work_experience);
     if (type === "projects") {
-      found = findAndUpdate(bank.projects);
-      if (!found) found = findAndUpdate(bank.media_projects?.sap_media_projects);
-      if (!found) found = findAndUpdate(bank.media_projects?.creative_media_projects);
+      found = findAndUpdate(bank.projects, false);
+      if (!found) found = findAndUpdate(bank.media_projects?.sap_media_projects, true);
+      if (!found) found = findAndUpdate(bank.media_projects?.creative_media_projects, true);
     }
     if (type === "certs")    found = findAndUpdate(bank.certifications_registry);
     if (type === "research") {
@@ -1243,6 +1247,43 @@ app.post("/update-bank-item", (req, res) => {
 
     fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2), "utf-8");
     skillBank = bank; // refresh in-memory cache
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: safeError(err) });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// POST /reorder-bank-items  — Save user-defined order to bank
+// ═══════════════════════════════════════════════════════════════
+app.post("/reorder-bank-items", (req, res) => {
+  const { type, orderedIds } = req.body || {};
+  if (!type || !Array.isArray(orderedIds)) return res.status(400).json({ success: false, error: "Missing type or orderedIds" });
+  const bankPath = path.join(__dirname, "data", "skill_data_bank.json");
+  try {
+    const bank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
+    function reorder(arr) {
+      if (!arr?.length) return arr;
+      const map = new Map(arr.map(x => [x.id, x]));
+      const ordered = orderedIds.map(id => map.get(id)).filter(Boolean);
+      const rest = arr.filter(x => !orderedIds.includes(x.id));
+      return [...ordered, ...rest];
+    }
+    if (type === "we") bank.work_experience = reorder(bank.work_experience);
+    if (type === "projects") {
+      bank.projects = reorder(bank.projects);
+      if (bank.media_projects) {
+        bank.media_projects.sap_media_projects    = reorder(bank.media_projects.sap_media_projects);
+        bank.media_projects.creative_media_projects = reorder(bank.media_projects.creative_media_projects);
+      }
+    }
+    if (type === "certs")    bank.certifications_registry = reorder(bank.certifications_registry);
+    if (type === "research") {
+      bank.research_papers     = reorder(bank.research_papers);
+      bank.research_activities = reorder(bank.research_activities);
+    }
+    fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2), "utf-8");
+    skillBank = bank;
     return res.json({ success: true });
   } catch (err) {
     return res.status(500).json({ success: false, error: safeError(err) });

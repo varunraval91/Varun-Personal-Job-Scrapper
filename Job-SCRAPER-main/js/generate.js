@@ -1323,7 +1323,7 @@
           ? `<div class="gqi-sel-tags">${tags.map(t => `<span class="gqi-sel-tag" style="border-color:${itemAccent}4d;background:${itemAccent}1a;color:${itemAccent}">${esc(t)}</span>`).join("")}${extra ? `<span class="gqi-sel-tag" style="border-color:${itemAccent}4d;background:${itemAccent}1a;color:${itemAccent}">+${extra}</span>` : ""}</div>`
           : "";
 
-        return `<div class="gqi-sel-item${isSel ? " gqi-item-sel" : ""}" data-item-id="${esc(item.id)}" role="checkbox" aria-checked="${isSel}" tabindex="0"
+        return `<div class="gqi-sel-item${isSel ? " gqi-item-sel" : ""}" data-item-id="${esc(item.id)}" role="checkbox" aria-checked="${isSel}" tabindex="0" draggable="true"
             style="${isSel ? `--item-accent:${itemAccent};border-left-color:${itemAccent}` : ""}">
           <span class="gqi-sel-chk${isSel ? " gqi-chk-on" : ""}" style="${isSel ? `border-color:${itemAccent};background:${itemAccent}22` : ""}">
             ${isSel ? `<svg viewBox="0 0 10 8" fill="none" width="10" height="8"><polyline points="1,4 4,7 9,1" stroke="${itemAccent}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ""}
@@ -1383,6 +1383,48 @@
 
       listPanel.querySelectorAll(".gqi-sel-edit-btn").forEach(btn => {
         btn.addEventListener("click", e => { e.stopPropagation(); openEditForm(btn.dataset.editId); });
+      });
+
+      // ── Drag-to-reorder ──────────────────────────────────────
+      let dragSrcId = null;
+      listPanel.querySelectorAll(".gqi-sel-item").forEach(el => {
+        el.addEventListener("dragstart", e => {
+          dragSrcId = el.dataset.itemId;
+          el.classList.add("gqi-item-dragging");
+          e.dataTransfer.effectAllowed = "move";
+        });
+        el.addEventListener("dragend", () => {
+          el.classList.remove("gqi-item-dragging");
+          listPanel.querySelectorAll(".gqi-item-dragover").forEach(x => x.classList.remove("gqi-item-dragover"));
+        });
+        el.addEventListener("dragover", e => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          if (el.dataset.itemId !== dragSrcId) {
+            listPanel.querySelectorAll(".gqi-item-dragover").forEach(x => x.classList.remove("gqi-item-dragover"));
+            el.classList.add("gqi-item-dragover");
+          }
+        });
+        el.addEventListener("drop", e => {
+          e.preventDefault();
+          el.classList.remove("gqi-item-dragover");
+          if (!dragSrcId || dragSrcId === el.dataset.itemId) return;
+          const items = sec.getItems();
+          const srcIdx = items.findIndex(i => i.id === dragSrcId);
+          const dstIdx = items.findIndex(i => i.id === el.dataset.itemId);
+          if (srcIdx === -1 || dstIdx === -1) return;
+          const [moved] = items.splice(srcIdx, 1);
+          items.splice(dstIdx, 0, moved);
+          dragSrcId = null;
+          renderList();
+          fetch("/reorder-bank-items", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: activeTab, orderedIds: items.map(i => i.id) })
+          }).then(r => r.json()).then(d => {
+            showToast(d.success ? "Order saved" : ("Reorder failed: " + d.error), d.success ? "success" : "error");
+          }).catch(() => showToast("Reorder failed", "error"));
+        });
       });
     }
 

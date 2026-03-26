@@ -2723,6 +2723,12 @@
   text-align: right;
 }
 
+/* Drag-to-reorder */
+.gqi-sel-item[draggable="true"] { cursor: grab; }
+.gqi-sel-item[draggable="true"]:active { cursor: grabbing; }
+.gqi-sel-item.gqi-item-dragging { opacity: .4; }
+.gqi-sel-item.gqi-item-dragover { border-top: 2px solid var(--accent-primary, #6c63ff); background: var(--accent-primary-10, rgba(108,99,255,.06)); }
+
 /* Edit button on each item */
 .gqi-sel-edit-btn {
   flex-shrink: 0;
