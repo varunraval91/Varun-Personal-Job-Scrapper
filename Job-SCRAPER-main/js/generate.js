@@ -523,6 +523,7 @@
                 <button type="button" class="btn btn-sm gen-copy-btn"   data-target="gqi-cl-${safe}" title="Copy to clipboard">&#x2398;</button>
                 <button type="button" class="btn btn-sm gen-fullview"   data-target="gqi-cl-${safe}" data-label="Cover Letter">&#x26F6;</button>
                 <button type="button" class="btn btn-sm gen-clear-write" data-target="gqi-cl-${safe}" title="Clear &amp; write your own">&#x270E;</button>
+                <button type="button" class="btn btn-sm gen-cl-bold" data-target="gqi-cl-${safe}" title="Bold selected word (**word**)"><strong>B</strong></button>
               </div>
             </div>
             <textarea class="gqi-result-textarea" id="gqi-cl-${safe}" rows="20">${esc(gen.clContent || "")}</textarea>
@@ -551,6 +552,7 @@
     return `<div class="gen-queue-item" data-gqi="${esc(key)}" data-qi="${i}">
       <div class="gqi-top">
         <div class="gen-queue-info">
+          <span class="gqi-task-num">Task #${i + 1}</span>
           <span class="gen-queue-title">${job.url ? `<a href="${esc(job.url)}" target="_blank" rel="noopener" class="gqi-title-link">${esc(job.title)}</a>` : esc(job.title)} ${scoreBadge}${titleMatchBadge}</span>
           <span class="gen-queue-meta">${esc(job.location)} &middot; ${esc(job.reqId)}</span>
           ${skillTags ? `<div class="gen-queue-skills">${skillTags}</div>` : ""}
@@ -765,36 +767,15 @@
       const jdText = jdData.jd.fullText || "";
       const jdSections = jdData.jd.sections || {};
 
-      // Build a requirements-only text slice for Sonnet (What you bring / profile / requirements),
-      // falling back to the full JD text when we cannot detect a dedicated section.
-      let reqText = "";
-      try {
-        const reqChunks = [];
-        for (const [label, content] of Object.entries(jdSections)) {
-          const lower = (label || "").toLowerCase();
-          if (
-            lower.includes("what you bring") ||
-            lower.includes("your profile") ||
-            lower.includes("requirements") ||
-            lower.includes("qualifications")
-          ) {
-            if (content) reqChunks.push(content);
-          }
-        }
-        reqText = reqChunks.join("\n\n").trim();
-      } catch {
-        reqText = "";
-      }
-      if (!reqText) reqText = jdText;
-
-      // Ask backend to build a compact UX summary (Snapshot + What They Want)
+      // Ask backend to build a compact UX summary — always send full JD text so the AI
+      // has context for both "what you'll do" and "what you bring" sections.
       let jdSummary = null;
       try {
         const sumRes = await fetch("/jd-summary", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            jdText: reqText,
+            jdText: jdText,
             title: jdData.jd.title,
             location: jdData.jd.location,
             requisitionId: jdData.jd.requisitionId,
@@ -1356,6 +1337,7 @@
                 <div class="gqi-sel-bar-track"><div class="gqi-sel-bar-fill" style="width:${score}%;background:${barColor}"></div></div>
                 <span class="gqi-sel-bar-pct">${score}%</span>
               </div>
+              <button type="button" class="gqi-sel-edit-btn" data-edit-id="${esc(item.id)}" title="Edit">✏</button>
             </div>
             ${sub  ? `<span class="gqi-sel-item-sub">${esc(sub)}</span>` : ""}
             ${desc ? `<span class="gqi-sel-item-desc">${esc(desc.length > 120 ? desc.slice(0, 117) + "…" : desc)}</span>` : ""}
@@ -1395,8 +1377,104 @@
           setPinned(activeTab, [...arr]);
           refreshAll(); renderList();
         };
-        el.addEventListener("click", toggle);
+        el.addEventListener("click", e => { if (e.target.closest(".gqi-sel-edit-btn")) return; toggle(); });
         el.addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(); } });
+      });
+
+      listPanel.querySelectorAll(".gqi-sel-edit-btn").forEach(btn => {
+        btn.addEventListener("click", e => { e.stopPropagation(); openEditForm(btn.dataset.editId); });
+      });
+    }
+
+    // ── Inline edit form ─────────────────────────────────────────
+    function openEditForm(itemId) {
+      const sec   = SECTIONS[activeTab];
+      const items = sec.getItems();
+      const item  = items.find(i => i.id === itemId);
+      if (!item) return;
+      drawer.querySelector(".gqi-sel-edit-form")?.remove();
+
+      let fields = [];
+      if (activeTab === "we") {
+        fields = [
+          { key: "title",       label: "Title",           value: item.title       || "" },
+          { key: "company",     label: "Company / Team",  value: item.company     || "" },
+          { key: "period",      label: "Period",          value: item.period      || "" },
+          { key: "description", label: "Description",     value: item.description || (Array.isArray(item.bullets) ? item.bullets.join("\n") : ""), multi: true }
+        ];
+      } else if (activeTab === "projects") {
+        fields = [
+          { key: "name",        label: "Project Name",    value: item.name        || "" },
+          { key: "tech",        label: "Technologies",    value: item.tech        || "" },
+          { key: "description", label: "Description",     value: item.description || "", multi: true }
+        ];
+      } else if (activeTab === "certs") {
+        fields = [
+          { key: "name",        label: "Name",            value: item.name        || "" },
+          { key: "provider",    label: "Provider",        value: item.provider    || "" },
+          { key: "date",        label: "Date",            value: item.date        || "" },
+          { key: "description", label: "Description",     value: item.description || "", multi: true }
+        ];
+      } else if (activeTab === "research") {
+        fields = [
+          { key: "title",       label: "Title",           value: item.title       || "" },
+          { key: "_org",        label: "Institution / Context", value: item.institution || item.context || "" },
+          { key: "_period",     label: "Period / Date",   value: item.period      || item.date || "" },
+          { key: "description", label: "Description",     value: item.description || "", multi: true }
+        ];
+      }
+
+      const form = document.createElement("div");
+      form.className = "gqi-sel-edit-form";
+      form.innerHTML = `
+        <div class="gqi-edit-form-title">Edit: ${esc(sec.getTitle(item))}</div>
+        ${fields.map(f => `<div class="gqi-edit-field">
+          <label class="gqi-edit-label">${f.label}</label>
+          ${f.multi
+            ? `<textarea class="gqi-edit-input" data-field="${f.key}" rows="3">${esc(f.value)}</textarea>`
+            : `<input class="gqi-edit-input" data-field="${f.key}" type="text" value="${esc(f.value)}">`}
+        </div>`).join("")}
+        <div class="gqi-edit-actions">
+          <button type="button" class="gqi-edit-save-btn">Save</button>
+          <button type="button" class="gqi-edit-cancel-btn">Cancel</button>
+        </div>`;
+
+      const itemEl = listPanel.querySelector(`[data-item-id="${itemId}"]`);
+      itemEl?.after(form);
+      form.querySelector(".gqi-edit-input")?.focus();
+
+      form.querySelector(".gqi-edit-cancel-btn").addEventListener("click", () => form.remove());
+      form.querySelector(".gqi-edit-save-btn").addEventListener("click", async () => {
+        const fields = {};
+        form.querySelectorAll(".gqi-edit-input").forEach(inp => {
+          const f = inp.dataset.field, v = inp.value;
+          if (f === "_org") {
+            const key = "institution" in item ? "institution" : "context";
+            item[key] = v; fields[key] = v;
+          } else if (f === "_period") {
+            const key = "period" in item ? "period" : "date";
+            item[key] = v; fields[key] = v;
+          } else if (f === "description" && Array.isArray(item.bullets)) {
+            item.bullets = v.split("\n").map(l => l.replace(/^-\s*/, "").trim()).filter(Boolean);
+            item.description = v;
+            fields.bullets = item.bullets; fields.description = v;
+          } else {
+            item[f] = v; fields[f] = v;
+          }
+        });
+        form.remove();
+        renderList();
+        try {
+          const r = await fetch("/update-bank-item", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: activeTab, id: itemId, fields })
+          });
+          const d = await r.json();
+          showToast(d.success ? "Saved permanently" : ("Save failed: " + d.error), d.success ? "success" : "error");
+        } catch (e) {
+          showToast("Save failed: " + e.message, "error");
+        }
       });
     }
 
@@ -1618,6 +1696,8 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobDescription: jdText, documentType: "cv",
+          jobTitle: job.title || null,
+          jobReqId: job.reqId || null,
           pinnedWeIds: selState.pinnedWE?.length ? selState.pinnedWE : null,
           pinnedProjectIds: selState.pinnedProjects?.length ? selState.pinnedProjects : null,
           pinnedCertIds: selState.pinnedCerts?.length ? selState.pinnedCerts : null,
@@ -1640,6 +1720,8 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobDescription: jdText, documentType: "cl",
+          jobTitle: job.title || null,
+          jobReqId: job.reqId || null,
           pinnedWeIds: selState.pinnedWE?.length ? selState.pinnedWE : null,
           pinnedProjectIds: selState.pinnedProjects?.length ? selState.pinnedProjects : null,
           pinnedCertIds: selState.pinnedCerts?.length ? selState.pinnedCerts : null,
@@ -1942,16 +2024,168 @@
     }
   }
 
+  function parseDisplayToCvJson(text) {
+    if (!text) return null;
+    try {
+      const lines = text.split('\n');
+      const SECTIONS = ['PROFILE SUMMARY','PROFILE','KEY COMPETENCIES','TECHNICAL SKILLS','EDUCATION','WORK EXPERIENCE','PROJECTS','RESEARCH & ACTIVITIES','CERTIFICATIONS'];
+      const sectionMap = {};
+      for (let i = 0; i < lines.length; i++) {
+        const t = lines[i].trim();
+        if (SECTIONS.includes(t)) sectionMap[t] = i;
+      }
+      const allStarts = Object.values(sectionMap).filter(v => !isNaN(v));
+      const firstSection = allStarts.length ? Math.min(...allStarts) : lines.length;
+      const headerLines = lines.slice(0, firstSection).filter(l => l.trim());
+      const j = {};
+      if (headerLines[0]) j.name = headerLines[0].trim();
+      let hIdx = 1;
+      if (headerLines[hIdx] && !/^(Phone:|Email:|LinkedIn:|GitHub:|Languages:)/i.test(headerLines[hIdx])) {
+        j.location = headerLines[hIdx].trim(); hIdx++;
+      }
+      for (let k = hIdx; k < headerLines.length; k++) {
+        headerLines[k].split('|').map(p => p.trim()).forEach(part => {
+          if (part.startsWith('Phone:')) j.phone = part.slice(6).trim();
+          if (part.startsWith('Email:')) j.email = part.slice(6).trim();
+          if (part.startsWith('LinkedIn:')) j.linkedin = part.slice(9).trim();
+          if (part.startsWith('GitHub:')) j.github = part.slice(7).trim();
+          if (part.startsWith('Languages:')) j.languages = part.slice(10).trim();
+        });
+      }
+      function getSectionLines(name) {
+        if (sectionMap[name] === undefined) return [];
+        const start = sectionMap[name] + 1;
+        const nextStarts = SECTIONS.filter(s => s !== name && sectionMap[s] !== undefined && sectionMap[s] > sectionMap[name]).map(s => sectionMap[s]);
+        const end = nextStarts.length > 0 ? Math.min(...nextStarts) : lines.length;
+        return lines.slice(start, end);
+      }
+      function parseEntries(name) {
+        const slines = getSectionLines(name);
+        const entries = [], current = [];
+        for (const line of slines) {
+          if (line.trim() === '') { if (current.length) { entries.push([...current]); current.length = 0; } }
+          else current.push(line);
+        }
+        if (current.length) entries.push([...current]);
+        return entries;
+      }
+      function parseTitleDate(line) {
+        const m = line.match(/^(.+?)\s{3,}(.+)$/);
+        return m ? { title: m[1].trim(), date: m[2].trim() } : { title: line.trim(), date: '' };
+      }
+      const profLines = (getSectionLines('PROFILE SUMMARY').length ? getSectionLines('PROFILE SUMMARY') : getSectionLines('PROFILE')).filter(l => l.trim());
+      if (profLines.length) j.profile = profLines.join(' ').trim();
+      const kcLines = getSectionLines('KEY COMPETENCIES').filter(l => l.trim());
+      if (kcLines.length) j.key_competencies = kcLines.join(' ').trim();
+      const techLines = getSectionLines('TECHNICAL SKILLS').filter(l => l.trim());
+      if (techLines.length) j.technical_skills = techLines.map(line => {
+        const ci = line.indexOf(':');
+        return ci > 0 ? { category: line.slice(0, ci).trim(), items: line.slice(ci + 1).trim() } : { category: line.trim(), items: '' };
+      });
+      const eduEntries = parseEntries('EDUCATION');
+      if (eduEntries.length) j.education = eduEntries.map(entry => {
+        const { title: degree, date } = parseTitleDate(entry[0] || '');
+        const institution = entry[1]?.trim() || '';
+        const cwLine = entry.find(l => l.trim().startsWith('Selected coursework:'));
+        return { degree, date, institution, coursework: cwLine ? cwLine.replace('Selected coursework:', '').trim() : '' };
+      });
+      const weEntries = parseEntries('WORK EXPERIENCE');
+      if (weEntries.length) j.experience = weEntries.map(entry => {
+        const { title, date } = parseTitleDate(entry[0] || '');
+        const company = entry[1]?.trim() || '';
+        const descLines = entry.slice(2);
+        if (descLines.some(l => l.trim().startsWith('- '))) return { title, date, company, bullets: descLines.filter(l => l.trim().startsWith('- ')).map(l => l.replace(/^-\s*/, '')) };
+        return { title, date, company, description: descLines.join(' ').trim() };
+      });
+      const projEntries = parseEntries('PROJECTS');
+      if (projEntries.length) j.projects = projEntries.map(entry => {
+        const { title, date } = parseTitleDate(entry[0] || '');
+        let tech = '', descLines = [];
+        if (entry.length > 1) {
+          const second = entry[1]?.trim() || '';
+          if (!second.startsWith('- ') && !parseTitleDate(second).date) { tech = second; descLines = entry.slice(2); }
+          else descLines = entry.slice(1);
+        }
+        if (descLines.some(l => l.trim().startsWith('- '))) return { title, date, tech, bullets: descLines.filter(l => l.trim().startsWith('- ')).map(l => l.replace(/^-\s*/, '')) };
+        return { title, date, tech, description: descLines.join(' ').trim() };
+      });
+      const resEntries = parseEntries('RESEARCH & ACTIVITIES');
+      if (resEntries.length) j.research_activities = resEntries.map(entry => {
+        const { title, date } = parseTitleDate(entry[0]?.trim() || '');
+        const organization = entry[1]?.trim() || '';
+        const description = entry.slice(2).join(' ').trim();
+        return { title, date, organization, description };
+      });
+      const certEntries = parseEntries('CERTIFICATIONS');
+      if (certEntries.length) j.certifications = certEntries.map(entry => {
+        const { title: name, date } = parseTitleDate(entry[0] || '');
+        return { name, date, description: entry.slice(1).join(' ').trim() };
+      });
+      return j;
+    } catch (e) { console.warn('parseDisplayToCvJson failed:', e); return null; }
+  }
+
+  function parseDisplayToClJson(text, existingJson) {
+    if (!text) return null;
+    try {
+      const lines = text.split('\n');
+      const j = existingJson ? { ...existingJson } : {};
+      const headerLine = lines[0]?.trim() || '';
+      if (headerLine.includes('Position:') || headerLine.includes('Req ID:') || headerLine.includes('Location:')) {
+        headerLine.split('|').map(p => p.trim()).forEach(part => {
+          if (part.startsWith('Position:')) j.position_title = part.slice(9).trim();
+          if (part.startsWith('Req ID:')) j.req_id = part.slice(7).trim();
+          if (part.startsWith('Location:')) j.location = part.slice(9).trim();
+        });
+      }
+      let inBody = false;
+      const paragraphs = [];
+      let currentPara = [];
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed === 'Dear Hiring Manager,') { inBody = true; continue; }
+        if (!inBody) continue;
+        if (trimmed.startsWith('Thank you very much')) break;
+        if (trimmed === '') {
+          if (currentPara.length) { paragraphs.push(currentPara.join(' ')); currentPara = []; }
+        } else { currentPara.push(trimmed); }
+      }
+      if (currentPara.length) paragraphs.push(currentPara.join(' '));
+      if (paragraphs.length) j.paragraphs = paragraphs;
+      return j;
+    } catch (e) { console.warn('parseDisplayToClJson failed:', e); return null; }
+  }
+
   async function exportPdfForJob(type, reqId) {
     const gen  = genState.generations[reqId];
     const i    = genState.queue.findIndex(j => getGenKey(j) === reqId);
     const job  = i >= 0 ? genState.queue[i] : null;
     if (!gen) { showToast("No generation found", "error"); return; }
     const safe = safeId(reqId);
-    const content     = type === "cv"
+    const content = type === "cv"
       ? (document.getElementById("gqi-cv-" + safe)?.value || gen.cvContent)
       : (document.getElementById("gqi-cl-" + safe)?.value || gen.clContent);
-    const contentJson = type === "cv" ? gen.cvJson : gen.clJson;
+    const originalContent = type === "cv" ? gen.cvContent : gen.clContent;
+    const isEdited = content !== originalContent;
+    let contentJson;
+    if (!isEdited) {
+      // Unedited: use original structured JSON for clean template formatting
+      contentJson = type === "cv" ? gen.cvJson : gen.clJson;
+    } else {
+      // Edited: try to parse display text back to JSON for template formatting
+      const parsed = type === "cv" ? parseDisplayToCvJson(content) : parseDisplayToClJson(content, null);
+      // If parse produced a meaningful JSON, use it; otherwise null → server uses text parser
+      // NEVER fall back to gen.cvJson/gen.clJson when edited (that would export original text)
+      if (type === "cl") {
+        // CL: require at least one body paragraph, otherwise text parser handles raw content
+        contentJson = (parsed && parsed.paragraphs?.length > 0) ? parsed : null;
+      } else {
+        // CV: require at least one real section (not just name/location header fields)
+        const CV_SECTIONS = ["profile","key_competencies","technical_skills","education","experience","projects","research_activities","certifications"];
+        const hasSection = parsed && CV_SECTIONS.some(k => parsed[k]?.length > 0);
+        contentJson = hasSection ? parsed : null;
+      }
+    }
     if (!content && !contentJson) { showToast("No content to export", "error"); return; }
     const filename = `Varun_Raval_${type === "cv" ? "CV" : "CL"}_${(job?.reqId || "doc")}`;
     try {
@@ -2245,6 +2479,22 @@
       textarea.style.fontSize = Math.max(10, Math.min(24, current + delta)) + "px";
     });
 
+    // CL Bold button — wraps selection with **...**
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(".gen-cl-bold");
+      if (!btn) return;
+      const ta = $(btn.dataset.target);
+      if (!ta) return;
+      const start = ta.selectionStart, end = ta.selectionEnd;
+      const sel = ta.value.slice(start, end);
+      const replacement = sel.length ? `**${sel}**` : `****`;
+      ta.value = ta.value.slice(0, start) + replacement + ta.value.slice(end);
+      // Place cursor: inside the stars if no selection, after closing ** if selection
+      const newPos = sel.length ? start + replacement.length : start + 2;
+      ta.setSelectionRange(newPos, newPos);
+      ta.focus();
+    });
+
     // Inline copy buttons
     document.addEventListener("click", (e) => {
       const btn = e.target.closest(".gen-copy-btn");
@@ -2271,8 +2521,10 @@
       if (!modal || !modalTa) return;
       modalTa.value = textarea.value;
       modalTa._sourceId = btn.dataset.target;
+      modalTa._docType = (btn.dataset.label || "").toLowerCase().includes("cover") ? "cl" : "cv";
       if (title) title.textContent = "Edit " + (btn.dataset.label || "Document");
       modal.classList.remove("hidden");
+      updateA4Preview();
     });
     $("gen-fullview-close")?.addEventListener("click", () => {
       const modal = $("gen-fullview-modal");
@@ -2280,6 +2532,64 @@
       if (!modal || !modalTa) return;
       if (modalTa._sourceId) { const src = $(modalTa._sourceId); if (src) src.value = modalTa.value; }
       modal.classList.add("hidden");
+    });
+
+    // A4 preview toggle
+    $("gen-fv-toggle-preview")?.addEventListener("click", () => {
+      const pane = $("gen-fv-preview-pane");
+      const btn  = $("gen-fv-toggle-preview");
+      if (!pane) return;
+      const hidden = pane.classList.toggle("hidden");
+      btn?.classList.toggle("gen-fv-active", !hidden);
+    });
+
+    // Swap preview/editor sides
+    $("gen-fv-swap")?.addEventListener("click", () => {
+      const body = document.querySelector(".gen-fv-body");
+      const btn  = $("gen-fv-swap");
+      if (!body) return;
+      const swapped = body.classList.toggle("swapped");
+      if (btn) btn.classList.toggle("gen-fv-active", swapped);
+    });
+
+    // Drag-to-resize between editor and preview panes
+    const resizer    = $("gen-fv-resizer");
+    const editorPane = $("gen-fv-editor-pane");
+    const fvBody     = $("gen-fv-body");
+    if (resizer && editorPane && fvBody) {
+      let dragging = false, startX = 0, startW = 0;
+      resizer.addEventListener("mousedown", e => {
+        dragging = true;
+        startX = e.clientX;
+        startW = editorPane.getBoundingClientRect().width;
+        resizer.classList.add("dragging");
+        document.body.style.cursor = "col-resize";
+        document.body.style.userSelect = "none";
+        e.preventDefault();
+      });
+      document.addEventListener("mousemove", e => {
+        if (!dragging) return;
+        const body = fvBody;
+        const swapped = body.classList.contains("swapped");
+        const delta = swapped ? startX - e.clientX : e.clientX - startX;
+        const totalW = fvBody.getBoundingClientRect().width;
+        const newW = Math.min(Math.max(startW + delta, 240), totalW - 240);
+        editorPane.style.width = newW + "px";
+      });
+      document.addEventListener("mouseup", () => {
+        if (!dragging) return;
+        dragging = false;
+        resizer.classList.remove("dragging");
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      });
+    }
+
+    // Live A4 preview update (debounced)
+    let _fvPreviewTimer = null;
+    $("gen-fullview-textarea")?.addEventListener("input", () => {
+      clearTimeout(_fvPreviewTimer);
+      _fvPreviewTimer = setTimeout(updateA4Preview, 300);
     });
     $("gen-fullview-copy")?.addEventListener("click", (e) => {
       const modalTa = $("gen-fullview-textarea");
@@ -2403,7 +2713,24 @@
         renderQAResults(data.results);
       } else {
         _qaSearchResults = [];
-        resultsEl.innerHTML = '<div class="gqi-qa-results-empty">No matches — click <strong>⚡ Generate</strong> to create evidence</div>';
+        if (_qaIsToolMode) {
+          // Tool-tag mode: offer inline Generate & Add instead of dead text
+          resultsEl.innerHTML = `
+            <div class="gqi-qa-results-empty" style="padding:10px 0;">
+              <div style="margin-bottom:10px;color:var(--text-muted,#888);">Not in skill bank yet.</div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <select id="gqi-qa-inline-level" style="padding:4px 8px;border-radius:6px;border:1px solid #ccc;font-size:13px;">
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate" selected>Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                </select>
+                <button type="button" id="gqi-qa-inline-gen-btn" class="btn btn-sm" style="background:var(--gqi-accent,#5b4fcf);color:#fff;padding:4px 12px;">⚡ Generate &amp; Add</button>
+              </div>
+            </div>`;
+          document.getElementById("gqi-qa-inline-gen-btn")?.addEventListener("click", generateAndAddSkill);
+        } else {
+          resultsEl.innerHTML = '<div class="gqi-qa-results-empty">No matches — click <strong>⚡ Generate</strong> to create evidence</div>';
+        }
       }
     } catch {
       _qaSearchResults = [];
@@ -2497,6 +2824,97 @@
     } catch (err) {
       showToast("Tag failed: " + err.message, "error");
       if (btn) { btn.textContent = "🏷 Tag"; btn.disabled = false; }
+    }
+  }
+
+  // Called when user clicks "⚡ Generate & Add" in tool-tag mode with no search results.
+  // Generates evidence via /skill-bank/suggest, shows an editable confirm form,
+  // then saves the new skill + immediately tags it with the tool name.
+  async function generateAndAddSkill() {
+    const resultsEl = document.getElementById("gqi-qa-results");
+    const genBtn    = document.getElementById("gqi-qa-inline-gen-btn");
+    const level     = document.getElementById("gqi-qa-inline-level")?.value || "Intermediate";
+    if (!_qaToolName || !resultsEl) return;
+
+    if (genBtn) { genBtn.textContent = "⚡ Generating…"; genBtn.disabled = true; }
+
+    try {
+      const suggestRes  = await fetch("/skill-bank/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skill: _qaToolName, level })
+      });
+      const suggestData = await suggestRes.json();
+      if (!suggestData.success) throw new Error(suggestData.error || "Generate failed");
+
+      const category = suggestData.category || "Tools";
+      const evidence = suggestData.suggestion || "";
+
+      // Show editable confirm form
+      resultsEl.innerHTML = `
+        <div style="padding:8px 0;">
+          <div style="font-size:12px;color:var(--text-muted,#888);margin-bottom:6px;">
+            New skill · <strong>${esc(_qaToolName)}</strong> · ${esc(level)} · ${esc(category)}
+          </div>
+          <textarea id="gqi-qa-inline-evidence" rows="3"
+            style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid #ccc;font-size:13px;resize:vertical;">${esc(evidence)}</textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button type="button" id="gqi-qa-inline-save-btn" class="btn btn-sm"
+              style="background:var(--gqi-accent,#5b4fcf);color:#fff;padding:4px 14px;">💾 Save &amp; Tag</button>
+            <button type="button" id="gqi-qa-inline-back-btn" class="btn btn-sm">↩ Back</button>
+          </div>
+        </div>`;
+
+      document.getElementById("gqi-qa-inline-back-btn")?.addEventListener("click", () => {
+        searchSkillBank(_qaToolName);
+      });
+
+      document.getElementById("gqi-qa-inline-save-btn")?.addEventListener("click", async () => {
+        const finalEvidence = document.getElementById("gqi-qa-inline-evidence")?.value?.trim();
+        if (!finalEvidence) return;
+        const saveBtn = document.getElementById("gqi-qa-inline-save-btn");
+        if (saveBtn) { saveBtn.textContent = "Saving…"; saveBtn.disabled = true; }
+
+        try {
+          // 1. Add skill to bank
+          const addRes  = await fetch("/skill-bank/add", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ category, skill: _qaToolName, level, evidence: finalEvidence })
+          });
+          const addData = await addRes.json();
+          if (!addData.success) throw new Error(addData.error);
+
+          // 2. Tag the new skill with the tool name (the chip keyword)
+          const tagRes  = await fetch("/skill-bank/add-tool", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: addData.chunk.id, tool: _qaToolName })
+          });
+          const tagData = await tagRes.json();
+          if (!tagData.success) throw new Error(tagData.error);
+
+          // Flip chip to matched style
+          if (_qaTargetChip) {
+            _qaTargetChip.classList.replace("gqi-chip-tool-gap", "gqi-chip-tool-match");
+            _qaTargetChip.style.textDecoration = "";
+            _qaTargetChip.style.opacity        = "";
+            _qaTargetChip.title                = "✓ In your skill bank";
+            _qaTargetChip.dataset.skillId      = addData.chunk.id;
+          }
+          showToast(`✓ "${_qaToolName}" added to skill bank and tagged`);
+          loadBankToolIndex();
+          hideQuickAdd();
+        } catch (err) {
+          showToast("Save failed: " + err.message, "error");
+          if (saveBtn) { saveBtn.textContent = "💾 Save & Tag"; saveBtn.disabled = false; }
+        }
+      });
+
+    } catch (err) {
+      showToast("Generate failed: " + err.message, "error");
+      // Restore the generate button
+      searchSkillBank(_qaToolName);
     }
   }
 
@@ -2799,12 +3217,297 @@
     } catch { /* silent — tool index is optional enhancement */ }
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // ✨ POLISH DRAWER
+  // ═══════════════════════════════════════════════════════════════
+
+  function initPolishDrawer() {
+    const popup     = document.getElementById("polish-popup");
+    const header    = document.getElementById("polish-popup-header");
+    const closeBtn  = document.getElementById("polish-drawer-close");
+    const openBtn   = document.getElementById("polishNavBtn");
+    const resetBtn  = document.getElementById("polish-reset-size");
+    const runBtn    = document.getElementById("polish-run-btn");
+    const copyBtn   = document.getElementById("polish-copy-btn");
+    const inputTa   = document.getElementById("polish-input");
+    const outputTa  = document.getElementById("polish-output");
+    const inputWc   = document.getElementById("polish-input-wc");
+    const status    = document.getElementById("polish-status");
+    const outputSec = document.getElementById("polish-output-section");
+    const wcDiff    = document.getElementById("polish-wc-diff");
+    let   activeMode = "cl";
+
+    if (!popup) return;
+
+    openBtn?.addEventListener("click", () => popup.classList.toggle("hidden"));
+    document.getElementById("polish-fab")?.addEventListener("click", () => popup.classList.toggle("hidden"));
+    closeBtn?.addEventListener("click", () => popup.classList.add("hidden"));
+
+    // Reset size & position
+    resetBtn?.addEventListener("click", () => {
+      popup.style.width = ""; popup.style.height = "";
+      popup.style.top = ""; popup.style.left = "";
+      popup.style.bottom = ""; popup.style.right = "";
+    });
+
+    // Drag-to-move via header
+    if (header) {
+      let dragging = false, startX = 0, startY = 0, origLeft = 0, origTop = 0;
+      header.addEventListener("mousedown", (e) => {
+        if (e.target.closest("button, input, select")) return;
+        dragging = true;
+        const rect = popup.getBoundingClientRect();
+        popup.style.top    = rect.top  + "px";
+        popup.style.left   = rect.left + "px";
+        popup.style.bottom = "auto";
+        popup.style.right  = "auto";
+        startX = e.clientX; startY = e.clientY;
+        origLeft = rect.left; origTop = rect.top;
+        e.preventDefault();
+      });
+      document.addEventListener("mousemove", (e) => {
+        if (!dragging) return;
+        popup.style.left = Math.max(0, origLeft + (e.clientX - startX)) + "px";
+        popup.style.top  = Math.max(0, origTop  + (e.clientY - startY)) + "px";
+      });
+      document.addEventListener("mouseup", () => { dragging = false; });
+    }
+
+    // Mode toggle
+    document.querySelectorAll(".polish-mode-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".polish-mode-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        activeMode = btn.dataset.mode;
+      });
+    });
+
+    // Live word count on input
+    function countWords(str) { return str.trim() ? str.trim().split(/\s+/).length : 0; }
+    inputTa?.addEventListener("input", () => {
+      const n = countWords(inputTa.value);
+      if (inputWc) inputWc.textContent = `${n} word${n !== 1 ? "s" : ""}`;
+    });
+
+    // Run: apply style then humanize
+    runBtn?.addEventListener("click", async () => {
+      const raw = inputTa?.value?.trim();
+      if (!raw) { inputTa?.focus(); return; }
+
+      runBtn.disabled = true;
+      runBtn.textContent = "⚡ Applying style…";
+      outputSec?.classList.add("hidden");
+      status?.classList.remove("hidden");
+      if (status) status.textContent = "Pass 1 — applying Varun's writing style…";
+
+      try {
+        // Pass 1: style
+        const styleRes  = await fetch("/apply-style", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: raw, mode: activeMode })
+        });
+        const styleData = await styleRes.json();
+        if (!styleData.success) throw new Error(styleData.error || "Style pass failed");
+
+        if (status) status.textContent = "Pass 2 — removing AI patterns…";
+        runBtn.textContent = "⚡ Humanizing…";
+
+        // Pass 2: humanize
+        const humanRes  = await fetch("/humanize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: styleData.styled })
+        });
+        const humanData = await humanRes.json();
+        if (!humanData.success) throw new Error(humanData.error || "Humanize pass failed");
+
+        const finalText = (humanData.humanized || styleData.styled).trim();
+        if (outputTa) outputTa.value = finalText;
+
+        const inWords  = countWords(raw);
+        const outWords = countWords(finalText);
+        const diff     = outWords - inWords;
+        if (wcDiff) wcDiff.textContent = `${inWords}w → ${outWords}w${diff !== 0 ? ` (${diff > 0 ? "+" : ""}${diff})` : ""}`;
+
+        outputSec?.classList.remove("hidden");
+        status?.classList.add("hidden");
+        showToast("✨ Polished");
+      } catch (err) {
+        status?.classList.add("hidden");
+        showToast("Polish failed: " + err.message, "error");
+      } finally {
+        runBtn.disabled  = false;
+        runBtn.textContent = "✨ Apply Style + Humanize";
+      }
+    });
+
+    // Copy button
+    copyBtn?.addEventListener("click", () => {
+      const text = outputTa?.value;
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.textContent = "✓ Copied";
+        setTimeout(() => { copyBtn.textContent = "⎘ Copy"; }, 1500);
+      });
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // A4 LIVE PREVIEW RENDERER
+  // ═══════════════════════════════════════════════════════════════
+
+  function updateA4Preview() {
+    const ta   = $("gen-fullview-textarea");
+    const page = $("gen-fv-a4-page");
+    if (!ta || !page) return;
+    const docType = ta._docType || "cv";
+    page.innerHTML = docType === "cl" ? renderClA4(ta.value) : renderCvA4(ta.value);
+  }
+
+  // ── Shared LaTeX strip helper ───────────────────────────────
+  function stripTex(s) {
+    return (s || '')
+      .replace(/\\href\{[^}]*\}\{([^}]*)\}/g, '$1')
+      .replace(/\\url\{([^}]*)\}/g, '$1')
+      .replace(/\\textbf\{([^}]*)\}/g, '$1')
+      .replace(/\\textit\{([^}]*)\}/g, '$1')
+      .replace(/\\textsc\{([^}]*)\}/g, '$1')
+      .replace(/\\color\{[^}]*\}/g, '')
+      .replace(/\\small\b|\\large\b|\\Huge\b|\\bfseries\b|\\itshape\b/g, '')
+      .replace(/\\nobreakdash/g, '-')
+      .replace(/\\enspace\b/g, ' ')
+      .replace(/\\quad\b/g, '  ')
+      .replace(/\\textbar\{\}/g, '|')
+      .replace(/\\textbackslash\{\}/g, '\\')
+      .replace(/\\&/g, '&').replace(/\\%/g, '%').replace(/\\#/g, '#')
+      .replace(/\\_/g, '_').replace(/\\par\b/g, '')
+      .replace(/\\vspace\{[^}]*\}|\\sectrule\b|\\pagestyle\{[^}]*\}/g, '')
+      .replace(/\{|\}/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  // ── Extract body after \begin{document} ────────────────────
+  function extractDocBody(text) {
+    let body = text;
+    const di = body.indexOf('\\begin{document}');
+    if (di !== -1) body = body.slice(di + '\\begin{document}'.length);
+    const ei = body.indexOf('\\end{document}');
+    if (ei !== -1) body = body.slice(0, ei);
+    return body;
+  }
+
+  function renderCvA4(text) {
+    if (!text?.trim()) return `<p class="fv-empty">Start typing to see preview…</p>`;
+    const h = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const body = extractDocBody(text);
+    let html = '';
+
+    // ── Name ──
+    const nameM = /\\name\{([^}]+)\}/.exec(body);
+    if (nameM) {
+      html += `<div class="fv-contact">`;
+      html += `<div class="fv-name">${h(stripTex(nameM[1]))}</div>`;
+      // Contact block: {\small\n...\n}
+      const smallM = /\{\\small\n([\s\S]*?)\n\}/.exec(body);
+      if (smallM) {
+        smallM[1].split('\\par').forEach(part => {
+          const t = stripTex(part);
+          if (t) html += `<div class="fv-contact-line">${h(t)}</div>`;
+        });
+      }
+      html += `</div><hr class="fv-rule">`;
+    }
+
+    // ── Sections: split on \section*{...} ──
+    const secRe = /\\section\*\{([^}]+)\}/g;
+    const secs = [];
+    let sm;
+    while ((sm = secRe.exec(body)) !== null) {
+      secs.push({ name: sm[1], matchStart: sm.index, contentStart: sm.index + sm[0].length });
+    }
+
+    secs.forEach((sec, idx) => {
+      const contentEnd = idx + 1 < secs.length ? secs[idx + 1].matchStart : body.length;
+      const secBody = body.slice(sec.contentStart, contentEnd);
+
+      html += `<div class="fv-section">`;
+      html += `<div class="fv-section-hdr">${h(sec.name)}</div>`;
+
+      if (/\\cventry\{/.test(secBody)) {
+        // Entry-based section (Education, Work Experience, Projects…)
+        const eRe = /\\cventry\{([^}]*)\}\{([^}]*)\}|\\cvsubtitle\{([^}]*)\}|\\cvbody\{([^}]*)\}/g;
+        let em;
+        while ((em = eRe.exec(secBody)) !== null) {
+          if (em[1] !== undefined) {
+            html += `<div class="fv-entry-row">` +
+              `<span class="fv-entry-title">${h(stripTex(em[1]))}</span>` +
+              `<span class="fv-entry-date">${h(stripTex(em[2]))}</span></div>`;
+          } else if (em[3] !== undefined) {
+            html += `<div class="fv-subtitle">${h(stripTex(em[3]))}</div>`;
+          } else if (em[4] !== undefined) {
+            html += `<div class="fv-cvbody">${h(stripTex(em[4]))}</div>`;
+          }
+        }
+      } else {
+        // Plain-text section (Profile, Key Competencies, Technical Skills)
+        const cleaned = secBody
+          .replace(/\\vspace\{[^}]*\}|\\sectrule\b/g, '')
+          .split('\n')
+          .map(l => stripTex(l))
+          .filter(Boolean)
+          .join(' ');
+        if (cleaned) html += `<div class="fv-cvbody">${h(cleaned)}</div>`;
+      }
+
+      html += `</div>`;
+    });
+
+    return html || `<p class="fv-empty">Start typing to see preview…</p>`;
+  }
+
+  function renderClA4(text) {
+    if (!text?.trim()) return `<p class="fv-empty">Start typing to see preview…</p>`;
+    const h = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    let body = extractDocBody(text);
+    let html = '';
+
+    // Extract \begin{center}...\end{center} blocks (title + position info)
+    const centerBlocks = [];
+    body = body.replace(/\\begin\{center\}([\s\S]*?)\\end\{center\}/g, (_, c) => {
+      centerBlocks.push(c.trim());
+      return '\n';
+    });
+    if (centerBlocks[0]) html += `<div class="fv-cl-title">${h(stripTex(centerBlocks[0]))}</div>`;
+    if (centerBlocks[1]) html += `<div class="fv-cl-meta">${h(stripTex(centerBlocks[1]))}</div>`;
+
+    // Remaining body → paragraphs
+    body = body.replace(/\\vspace\{[^}]*\}/g, '\n');
+    body.split(/\n{2,}/).map(p => p.trim()).filter(Boolean).forEach(para => {
+      const t = stripTex(para);
+      if (!t) return;
+      if (/^best regards/i.test(t) || /^varun\s+raval$/i.test(t)) {
+        html += `<div class="fv-cl-sign">${h(t)}</div>`;
+      } else if (para.includes('raval.varun@') || para.includes('linkedin.com') || para.includes('github.com')) {
+        html += `<div class="fv-cl-footer">${h(t)}</div>`;
+      } else if (/i am open to/i.test(t)) {
+        html += `<div class="fv-cl-footer">${h(t)}</div>`;
+      } else {
+        html += `<p class="fv-cl-para">${h(t)}</p>`;
+      }
+    });
+
+    return html || `<p class="fv-empty">Start typing to see preview…</p>`;
+  }
+
   function init() {
     bindEvents();
     renderQueue();
     loadRagStatus();
     initChipInteractions();
     loadBankToolIndex();
+    initPolishDrawer();
   }
 
   window.GenerateModule = { addToQueue, init };

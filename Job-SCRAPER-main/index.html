@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="css/styles.css?v=7" />
   <link rel="stylesheet" href="css/redesign.css?v=11" />
   <link rel="stylesheet" href="css/auth-screen-styles.css" />
-  <link rel="stylesheet" href="css/automator.css?v=19" />
+  <link rel="stylesheet" href="css/automator.css?v=22" />
   <link rel="stylesheet" href="css/skill-bank.css" />
 </head>
 <body>
@@ -97,8 +97,6 @@
   <div id="modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-box" id="modal-box"></div>
   </div>
-  <button id="scroll-to-top-btn" class="scroll-to-top-btn hidden" aria-label="Scroll to top" title="Back to top">↑</button>
-
   <!-- ═══════════════════════════════════════ -->
   <!-- MAIN APP LAYOUT                         -->
   <!-- ═══════════════════════════════════════ -->
@@ -129,6 +127,9 @@
         <a href="#" id="skillBankNavBtn" class="nav-item" data-view="skillbank" title="Skill Bank">
           <span class="nav-icon">🧠</span> <span class="nav-label">Skill Bank</span>
         </a>
+        <button type="button" class="nav-item" id="polishNavBtn" title="Polish Text — apply style + humanize">
+          <span class="nav-icon">✨</span> <span class="nav-label">Polish</span>
+        </button>
         <button type="button" class="nav-item sb-icon" id="analyticsBtn" aria-label="Analytics" title="Analytics">
           <span class="nav-icon">📊</span> <span class="nav-label">Analytics</span>
         </button>
@@ -649,13 +650,24 @@
       <div class="gen-fullview-header">
         <h2 id="gen-fullview-title">Edit</h2>
         <div style="display:flex;gap:8px;align-items:center;">
+          <button type="button" class="btn btn-sm gen-fv-active" id="gen-fv-toggle-preview" title="Toggle A4 preview">⊞ A4 Preview</button>
+          <button type="button" class="btn btn-sm" id="gen-fv-swap" title="Swap preview and editor sides">&#x21C6; Swap</button>
           <button type="button" class="btn btn-sm" id="gen-fullview-font-minus" title="Decrease font">A-</button>
           <button type="button" class="btn btn-sm" id="gen-fullview-font-plus" title="Increase font">A+</button>
           <button type="button" class="btn btn-sm" id="gen-fullview-copy">&#x2398; Copy</button>
           <button type="button" class="btn btn-sm" id="gen-fullview-close">&#10005; Close</button>
         </div>
       </div>
-      <textarea id="gen-fullview-textarea"></textarea>
+      <div class="gen-fv-body" id="gen-fv-body">
+        <div class="gen-fv-editor-pane" id="gen-fv-editor-pane">
+          <textarea id="gen-fullview-textarea"></textarea>
+        </div>
+        <div class="gen-fv-resizer" id="gen-fv-resizer" title="Drag to resize"></div>
+        <div class="gen-fv-preview-pane" id="gen-fv-preview-pane">
+          <div class="gen-fv-preview-label">Approximate preview — final look rendered by LaTeX on export</div>
+          <div class="gen-fv-a4-page" id="gen-fv-a4-page"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -722,8 +734,52 @@
     </div>
   </div>
 
+  <!-- ✨ Polish Drawer -->
+  <!-- Polish Popup (draggable, resizable) -->
+  <div id="polish-popup" class="polish-popup hidden">
+    <div class="polish-popup-header" id="polish-popup-header">
+      <span class="polish-popup-title">✨ Polish Text</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <div class="polish-mode-toggle">
+          <button type="button" class="polish-mode-btn active" data-mode="cl">CL</button>
+          <button type="button" class="polish-mode-btn" data-mode="cv">CV</button>
+        </div>
+        <button type="button" class="btn btn-sm" id="polish-reset-size" title="Reset size &amp; position">⟲</button>
+        <button type="button" class="btn btn-sm" id="polish-drawer-close" title="Close">✕</button>
+      </div>
+    </div>
+    <div class="polish-popup-body">
+      <div class="polish-section">
+        <div class="polish-label-row">
+          <label class="polish-label">Paste your text</label>
+          <span class="polish-wc" id="polish-input-wc">0 words</span>
+        </div>
+        <textarea id="polish-input" class="polish-textarea" rows="8"
+          placeholder="Paste any draft — rough paragraph, notes, copied text…"></textarea>
+      </div>
+      <button type="button" id="polish-run-btn" class="btn btn-primary polish-run-btn">
+        ✨ Apply Style + Humanize
+      </button>
+      <div id="polish-status" class="polish-status hidden"></div>
+      <div id="polish-output-section" class="polish-output-section hidden">
+        <div class="polish-output-header">
+          <label class="polish-label">Result</label>
+          <span id="polish-wc-diff" class="polish-wc-diff"></span>
+        </div>
+        <textarea id="polish-output" class="polish-textarea" rows="8" readonly></textarea>
+        <button type="button" id="polish-copy-btn" class="btn btn-sm polish-copy-btn">⎘ Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Action Buttons (row, bottom-right) -->
+  <div class="fab-column">
+    <button id="scroll-to-top-btn" class="scroll-to-top-btn hidden" aria-label="Scroll to top" title="Back to top">↑</button>
+    <button type="button" id="scratchpad-fab" class="scratchpad-fab" title="Open scratchpad">&#x1F4DD;</button>
+    <button type="button" id="polish-fab" class="polish-fab" title="Polish Text">&#x2728;</button>
+  </div>
+
   <!-- Scratchpad Popup -->
-  <button type="button" id="scratchpad-fab" class="scratchpad-fab" title="Open scratchpad">&#x1F4DD;</button>
   <div id="scratchpad-popup" class="scratchpad-popup hidden">
     <div class="scratchpad-header">
       <span class="scratchpad-title">&#x1F4DD; Scratchpad</span>
@@ -756,7 +812,7 @@
 
   <!-- App logic (cache-busted to ensure latest JS is loaded) -->
   <script src="js/app.js?v=12"></script>
-  <script src="js/generate.js?v=12"></script>
+  <script src="js/generate.js?v=21"></script>
   <script src="js/skill-bank.js?v=2"></script>
 
   <!-- Full-view applications overlay -->

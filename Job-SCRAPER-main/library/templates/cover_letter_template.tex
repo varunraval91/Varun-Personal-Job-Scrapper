@@ -21,12 +21,10 @@
 
 % CONTENT_PLACEHOLDER
 
-% ── Hyperlink style ─────────────────────────────────────────
-\hypersetup{
-  colorlinks = true,
-  urlcolor   = black,       % keeps it print-friendly; change to blue if preferred
-  linkcolor  = black
-}
+% No hyperref — portal-safe plain-text stubs (no active content in PDF)
+\newcommand{\href}[2]{#2}
+\newcommand{\url}[1]{\texttt{#1}}
+\newcommand{\hypersetup}[1]{}
 
 % ── Typography ──────────────────────────────────────────────
 % Recommended: Latin Modern (default) or swap to Times / Palatino below

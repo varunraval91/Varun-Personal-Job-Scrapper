@@ -6,7 +6,7 @@ const { chromium } = require("playwright");
 const fs = require("fs");
 const os = require("os");
 const { execFile } = require("child_process");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenAI } = require("@google/genai");
 
 const app = express();
 
@@ -40,7 +40,8 @@ const RATE_LIMITS = {
   "/export-pdf": { windowMs: 60000, max: 15 },
   "/dach-fix":   { windowMs: 60000, max: 10 },
   "/dach-check": { windowMs: 60000, max: 15 },
-  "/humanize":   { windowMs: 60000, max: 10 },
+  "/humanize":     { windowMs: 60000, max: 10 },
+  "/apply-style":  { windowMs: 60000, max: 15 },
 };
 
 function rateLimiter(req, res, next) {
@@ -132,7 +133,7 @@ if (process.env.ANTHROPIC_API_KEY) {
   console.log(`[OK] Groq AI ready (${GROQ_MODEL})`);
 } else if (process.env.GEMINI_API_KEY) {
   aiProvider = "gemini";
-  genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   console.log(`[OK] Gemini AI ready (${GEMINI_MODEL})`);
 } else {
   console.warn("[!!] No AI key found — set ANTHROPIC_API_KEY, GROQ_API_KEY, or GEMINI_API_KEY in .env");
@@ -195,11 +196,14 @@ async function callClaude(systemPrompt, userPrompt) {
 }
 
 async function callGemini(systemPrompt, userPrompt) {
-  const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
   for (let attempt = 0; attempt <= 1; attempt++) {
     try {
-      const result = await model.generateContent({ contents: [{ role: "user", parts: [{ text: userPrompt }] }], systemInstruction: { parts: [{ text: systemPrompt }] } });
-      return result.response.text();
+      const result = await genAI.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+        config: { systemInstruction: systemPrompt }
+      });
+      return result.text;
     } catch (err) {
       const is429 = err.status === 429 || err.message?.includes("429") || err.message?.includes("RESOURCE_EXHAUSTED");
       if (!is429 || attempt === 1) throw err;
@@ -727,14 +731,13 @@ Return ONLY valid JSON conforming to the schema above.`;
     const jsonStr = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
     const summary = JSON.parse(jsonStr);
 
-    // Post-filter MUST HAVE to strip obvious non-requirement branding lines
-    const requirementKeywords = ["experience", "knowledge", "skills", "degree", "background", "proficiency", "familiarity", "education"];
+    // Post-filter MUST HAVE — only strip obvious employer branding, keep everything else
     const cleanedMust = Array.isArray(summary.must_have) ? summary.must_have.filter(b => {
       if (!b || typeof b !== "string") return false;
       const trimmed = b.trim();
-      const lower = trimmed.toLowerCase();
-      if (trimmed.startsWith("We ") || trimmed.startsWith("At SAP")) return false;
-      if (!requirementKeywords.some(k => lower.includes(k))) return false;
+      if (!trimmed) return false;
+      // Drop pure branding sentences that start with "We " or company slogans
+      if (/^(We |At SAP|SAP helps|Our company)/i.test(trimmed)) return false;
       return true;
     }) : [];
     if (cleanedMust.length) summary.must_have = cleanedMust;
@@ -850,9 +853,13 @@ function buildClSystemPromptRAG(matchedSkills, matchedProjects, matchedWork, pin
     `${p.metadata.name} (${p.metadata.tech}): ${p.document}`
   ).join("\n");
 
-  const workText = matchedWork.map(w =>
-    `${w.metadata.title} at ${w.metadata.company} (${w.metadata.period}): ${w.document}`
-  ).join("\n");
+  const workText = matchedWork.map(w => {
+    const meta = w.metadata || {};
+    const skills = meta.skills_used?.length
+      ? `\n  Tools/Skills used: ${Array.isArray(meta.skills_used) ? meta.skills_used.join(", ") : meta.skills_used}`
+      : "";
+    return `${meta.title} at ${meta.company} (${meta.period}):${skills}\n  ${w.document}`;
+  }).join("\n\n");
 
   const certText = (selectedCerts || []).map(c =>
     `${c.name}${c.date || c.date_range ? " (" + (c.date || c.date_range) + ")" : ""} — ${c.provider || ""}`
@@ -887,8 +894,8 @@ function buildClSystemPromptRAG(matchedSkills, matchedProjects, matchedWork, pin
   const styleSection = styleProfile ? `
 === WRITING STYLE (learned from Varun's real cover letters — ${styleProfile.total_samples} samples) ===
 Tone: ${style.tone_description || "Professional but warm, specific not generic"}
-Structure: ${style.structural_pattern || "Opening hook → academic evidence → project evidence → soft skills → availability"}
-Average letter length: ${style.avg_cover_letter_words || 380} words
+Structure: ${style.structural_pattern || "Opening identity claim → career/SAP experience breadth → specific role evidence → soft skills → availability"}
+Target length: 260-300 words (the style profile avg of 380 is from older, longer letters — use 280 as the current target)
 Average sentence length: ${style.avg_sentence_length || 24} words
 Sentence variety: ${style.sentence_variety_pattern || "Long compound sentences, rarely short punchy ones"}
 Evidence style: ${style.evidence_style || "Flowing narrative prose, never bullets. Company names and roles inline."}
@@ -896,25 +903,21 @@ Self-presentation: ${style.self_presentation_style || "Confident achiever, pract
 How he bridges academic to practical: ${style.how_i_bridge_academic_to_practical || "Brief degree mention then immediately pivots to professional experience"}
 How he states availability: ${style.how_i_handle_availability || "Simple direct sentence near closing: 'I can join from [Month]'"}
 
-Opening patterns he actually uses (use one of these as the basis):
-${(style.opening_patterns || []).slice(0, 4).map(p => `  - "${p}"`).join("\n")}
+⚠ UPDATED OPENING PATTERNS for SAP student applications (use one of THESE — the archived patterns in the style profile contain now-banned phrases):
+  - "Please accept this letter as an expression of my interest in the [Position] at [Company]. Currently in my second semester of M.Sc. SAP Engineering & Analytics at Hochschule Fresenius, I bring 1.5+ years of hands-on experience at SAP Walldorf across [relevant area] — directly aligned with what [Team] is looking for."
+  - "My current Master's studies in SAP Engineering & Analytics at Hochschule Fresenius, combined with [X] months of practical work at SAP's [Department], make [Position] at [Company] a natural next step in my trajectory."
+  - "With 1.5 years at SAP Walldorf and ongoing M.Sc. studies in SAP Engineering & Analytics, I am applying for [Position] — a role where my background in [specific skill from JD] translates directly into day-one contribution for [Team]."
 
-Closing patterns he uses:
-${(style.closing_patterns || []).slice(0, 2).map(p => `  - "${p}"`).join("\n")}
-
-Best opening example (study this carefully):
-"${(styleProfile.best_opening_examples || [])[0] || ""}"
-
-Phrases he naturally uses: ${(style.signature_phrases || []).join(" | ")}
-Connector words he favors: ${(style.connector_words || []).join(", ")}
+Phrases he naturally uses: ${(style.signature_phrases || []).filter(p => !p.includes("I am excited") && !p.includes("Throughout my career")).join(" | ")}
+Connector words he favors: ${(style.connector_words || []).filter(c => c !== "Throughout my career").join(", ")}
 Words/phrases he NEVER uses: ${(style.things_to_never_write_as_me || style.vocabulary_preferences?.avoids || []).join(" | ")}
 
 CRITICAL RULES from his style:
-- Uses bold: ${style.uses_bold === false ? "NO — never use **bold** in cover letters" : "yes"}
+- Uses bold: YES — use **double asterisks** around key technical terms (SAP modules, tool names, product names) — 2-3 per paragraph max
 - Typical paragraph count: ${style.paragraph_count_typical || 5}
 - Evidence = flowing prose narrative, NEVER bullet points inside the letter body
-- Name employers and years of experience explicitly ("At Byju's...", "12 years of experience...")
-- Do NOT write "I am excited", "I am passionate", "please find attached", "I look forward to"` : "";
+- Name employers inline with "At SAP IX Studio..." or "At SAP Non-Commercial Licensing..." style
+- Never hedge accomplishments with qualifiers — state them directly` : "";
 
   return `You are writing a cover letter AS Varun Raval for an SAP-related student position in Germany.
 
@@ -946,17 +949,23 @@ ${certText ? `\n=== SELECTED CERTIFICATIONS ===\n${certText}\n` : ""}${researchT
 5. Structure: Opening hook → 3 focused evidence paragraphs → Closing with availability.
 6. Length: 240-320 words. Keep sentences crisp.
 7. Reference the specific team/product mentioned in the job posting.
-8. Do NOT use markdown or **bold** markers.
+8. Use **double asterisks** around key technical terms (SAP modules, tool names, product names) — 2-3 per paragraph max. No other markdown.
 9. If job requires fluent German and candidate has B1, be honest about it.
-10. DO NOT include the closing "Thank you..." sentence — it is added automatically.
+10. HARD STOP — closing block: Do NOT write "Thank you", "Best regards", "Sincerely", email addresses, LinkedIn/GitHub links, or availability footer text in ANY paragraph. These are appended automatically. Paragraph 5 must end with a forward-looking contribution statement or direct availability sentence — never a sign-off. Output containing any closing phrase is invalid.
 11. If user-selected entries exist, prioritize them when they strengthen JD alignment; otherwise use stronger matched evidence.
 12. Prioritize evidence in this order when role is project/program operations: project planning/status tracking, meeting documentation/action tracking, presentations/enablement/SharePoint, cross-functional coordination.
+13. EVIDENCE RULE: Every paragraph mentioning a role or project MUST include at least one specific tool name, deliverable name, or number from the matched data above. "Managed digital assets" fails — "managed 200+ reusable media assets in DaVinci Resolve for CONNECT 2024" passes. Extract specifics from the Tools/Skills used fields in the work data.
+14. OPENING RULE: Paragraph 1 MUST start with one of the SAP-era patterns from the UPDATED OPENING PATTERNS section above. NEVER start with "I am writing to apply", "I am writing to express", or "I am excited to".
 
-=== NEVER USE THESE PHRASES ===
-"I am excited to apply", "I believe I would be a great fit", "leverage my skills",
-"I am confident that", "throughout my career", "passion for", "I am eager to",
-"testament to", "landscape", "groundbreaking", "nestled", "tapestry",
-"delve into", "in conclusion", "the future looks bright"
+=== NEVER USE THESE PHRASES (any match = invalid output) ===
+"I am writing to apply", "I am writing to express", "I am excited to apply",
+"I am excited to submit", "I believe I would be a great fit", "leverage my skills",
+"leverage my experience", "I am confident that", "throughout my career", "passion for",
+"I am eager to", "I would welcome the opportunity", "I look forward to the opportunity",
+"please find attached", "I am reaching out", "detail-oriented self-starter",
+"perfect fit", "testament to", "landscape", "groundbreaking", "nestled", "tapestry",
+"delve into", "in conclusion", "the future looks bright", "dynamic environment",
+"fast-paced", "results-driven", "proven track record", "Thank you for considering"
 ${styleProfile ? `Also never write (Varun's personal no-go phrases): ${(styleProfile.style_analysis?.things_to_never_write_as_me || []).join(" | ")}` : ""}
 
 === OUTPUT FORMAT ===
@@ -975,7 +984,7 @@ Return ONLY valid JSON. No markdown fences, no explanation, no extra text.
 }`;
 }
 
-function buildCvSystemPromptRAG(matchedSkills, matchedProjects, matchedWork, pinnedWeIds, pinnedProjectIds, selectedCerts, selectedResearch) {
+function buildCvSystemPromptRAG(matchedSkills, matchedProjects, matchedWork, pinnedWeIds, pinnedProjectIds, selectedCerts, selectedResearch, bank) {
   const skillText = matchedSkills.map(s =>
     `[${s.id}] ${s.metadata.skill_name} [${s.metadata.type || 'skill'}] (${s.metadata.level}): ${s.document}`
   ).join("\n");
@@ -984,9 +993,13 @@ function buildCvSystemPromptRAG(matchedSkills, matchedProjects, matchedWork, pin
     `${p.metadata.name} (${p.metadata.tech}): ${p.document}`
   ).join("\n");
 
-  const workText = matchedWork.map(w =>
-    `${w.metadata.title} at ${w.metadata.company} (${w.metadata.period}): ${w.document}`
-  ).join("\n");
+  const workText = matchedWork.map(w => {
+    const meta = w.metadata || {};
+    const skills = meta.skills_used?.length
+      ? `\n  Tools/Skills used: ${Array.isArray(meta.skills_used) ? meta.skills_used.join(", ") : meta.skills_used}`
+      : "";
+    return `${meta.title} at ${meta.company} (${meta.period}):${skills}\n  ${w.document}`;
+  }).join("\n\n");
 
   const certText = (selectedCerts || []).map(c =>
     `${c.name}${c.date || c.date_range ? " (" + (c.date || c.date_range) + ")" : ""} — ${c.provider || ""}`
@@ -1003,6 +1016,16 @@ function buildCvSystemPromptRAG(matchedSkills, matchedProjects, matchedWork, pin
     }
     return null;
   }).filter(Boolean).join("\n");
+
+  const educationBlock = (bank?.education || [])
+    .filter(e => !e.degree?.toLowerCase().includes("bachelor"))
+    .map(e => {
+      let line = `${e.degree} | ${e.institution} | ${e.period}`;
+      if (e.status) line += ` (${e.status})`;
+      if (e.key_modules?.length) line += ` | Coursework: ${e.key_modules.join("; ")}`;
+      if (e.relevance) line += ` | Relevance: ${e.relevance}`;
+      return line;
+    }).join("\n");
 
   return `You are a CV content extractor for Varun Raval. Use ONLY the matched skill data below.
 
@@ -1039,7 +1062,9 @@ ${pinnedProjectIds?.length ? `PROJECTS — USER-SELECTED (hard constraint):
 Include ONLY these projects (all of them, nothing else):
 ${pinnedProjectIds.map((id, i) => `${i + 1}. ${id}`).join("\n")}` : `PROJECTS: Select 2-3 most relevant from the matched data above.`}
 
-EDUCATION: Include ONLY M.Sc. SAP Engineering & Analytics (Hochschule Fresenius) and M.Des Communication Design (MIT Institute of Design). Do NOT include University of Bremen or any unfinished course.
+EDUCATION (HARD CONSTRAINT — copy EVERY date, city, and institution EXACTLY as written, do NOT change any value):
+${educationBlock || "M.Sc. SAP Engineering & Analytics | Hochschule Fresenius, Heidelberg, Germany | Oct 2025 – Sep 2027 (Currently Enrolled, 2nd semester)\nMaster of Design – Communication Design | MIT Institute of Design, Pune, India | 2015 – 2018"}
+Do NOT include University of Bremen, B.Eng, or any unfinished course. Do NOT invent or alter any date, city, or institution name.
 
 JSON SCHEMA (fill every field, use empty string "" if not applicable):
 {
@@ -1147,6 +1172,8 @@ app.post("/cv-selector-data", async (req, res) => {
       period: we.period,
       location: we.location || "",
       skills_used: we.skills_used || [],
+      bullets: we.bullets || [],
+      description: we.description || (we.bullets || []).join(" "),
       score: scoreItem([we.title, we.company, (we.bullets || []).join(" "), (we.skills_used || []).join(" ")])
     })).sort((a, b) => b.score - a.score);
 
@@ -1155,6 +1182,7 @@ app.post("/cv-selector-data", async (req, res) => {
       name: p.name,
       tech: p.tech,
       date: p.date,
+      description: p.description || "",
       sub_category: p.sub_category || null,
       score: scoreItem([p.name, p.tech, p.description || ""])
     })).sort((a, b) => b.score - a.score);
@@ -1174,6 +1202,48 @@ app.post("/cv-selector-data", async (req, res) => {
       aiPickProjects: topProjectIds,
       aiPickCerts: allCerts.map(c => c.id)
     });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: safeError(err) });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// POST /update-bank-item  — Permanently edit an item in skill_data_bank.json
+// ═══════════════════════════════════════════════════════════════
+app.post("/update-bank-item", (req, res) => {
+  const { type, id, fields } = req.body || {};
+  if (!type || !id || !fields) return res.status(400).json({ success: false, error: "Missing type, id or fields" });
+  const bankPath = path.join(__dirname, "data", "skill_data_bank.json");
+  try {
+    const bank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
+
+    function applyFields(item) {
+      Object.entries(fields).forEach(([k, v]) => { item[k] = v; });
+    }
+    function findAndUpdate(arr) {
+      const item = (arr || []).find(x => x.id === id);
+      if (item) { applyFields(item); return true; }
+      return false;
+    }
+
+    let found = false;
+    if (type === "we")       found = findAndUpdate(bank.work_experience);
+    if (type === "projects") {
+      found = findAndUpdate(bank.projects);
+      if (!found) found = findAndUpdate(bank.media_projects?.sap_media_projects);
+      if (!found) found = findAndUpdate(bank.media_projects?.creative_media_projects);
+    }
+    if (type === "certs")    found = findAndUpdate(bank.certifications_registry);
+    if (type === "research") {
+      found = findAndUpdate(bank.research_papers);
+      if (!found) found = findAndUpdate(bank.research_activities);
+    }
+
+    if (!found) return res.status(404).json({ success: false, error: "Item not found" });
+
+    fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2), "utf-8");
+    skillBank = bank; // refresh in-memory cache
+    return res.json({ success: true });
   } catch (err) {
     return res.status(500).json({ success: false, error: safeError(err) });
   }
@@ -1233,7 +1303,7 @@ function looksLikeCvJson(obj) {
 app.post("/generate", async (req, res) => {
   if (!aiProvider) return res.status(503).json({ success: false, error: "No AI provider configured. Set ANTHROPIC_API_KEY, GROQ_API_KEY, or GEMINI_API_KEY in .env" });
 
-  const { jobDescription, documentType, humanizeText, pinnedWeIds, pinnedProjectIds, pinnedCertIds, pinnedResearchIds } = req.body;
+  const { jobDescription, documentType, humanizeText, pinnedWeIds, pinnedProjectIds, pinnedCertIds, pinnedResearchIds, jobTitle, jobReqId } = req.body;
   if (!jobDescription || !documentType) return res.status(400).json({ success: false, error: "Missing jobDescription or documentType." });
 
   const normalizeIdList = (value) => {
@@ -1305,7 +1375,7 @@ app.post("/generate", async (req, res) => {
             ragContext.work = pinned.map(w => ({
               id: w.id,
               document: `${w.title} at ${w.company} (${w.period}): ${(w.bullets||[]).join(' ')}`,
-              metadata: { title: w.title, company: w.company, period: w.period }
+              metadata: { title: w.title, company: w.company, period: w.period, skills_used: w.skills_used || [] }
             }));
           }
           if (pinnedProjectList.length) {
@@ -1322,7 +1392,7 @@ app.post("/generate", async (req, res) => {
             const pinned = pinnedWEList.map(id => workById.get(id)).filter(Boolean).map(w => ({
               id: w.id,
               document: `${w.title} at ${w.company} (${w.period}): ${(w.bullets||[]).join(' ')}`,
-              metadata: { title: w.title, company: w.company, period: w.period }
+              metadata: { title: w.title, company: w.company, period: w.period, skills_used: w.skills_used || [] }
             }));
             const ragExtra = ragContext.work.filter(w => !pinnedWEList.includes(w.id));
             ragContext.work = [...pinned, ...ragExtra];
@@ -1359,10 +1429,13 @@ app.post("/generate", async (req, res) => {
         : allResearch;
 
       systemPrompt = documentType === "cv"
-        ? buildCvSystemPromptRAG(ragContext.skills, ragContext.projects, ragContext.work, pinnedWEList, pinnedProjectList, selectedCerts, selectedResearch)
+        ? buildCvSystemPromptRAG(ragContext.skills, ragContext.projects, ragContext.work, pinnedWEList, pinnedProjectList, selectedCerts, selectedResearch, latestBank)
         : buildClSystemPromptRAG(ragContext.skills, ragContext.projects, ragContext.work, pinnedWEList, pinnedProjectList, selectedCerts, selectedResearch);
 
-      userPrompt = `=== TARGET JOB DESCRIPTION ===\n${jobDescription}\n\n=== TASK ===\nGenerate a complete ${docLabel} tailored to the job above.\nUse ONLY facts from the matched skill data. Output ONLY the final JSON.\n`;
+      const titleConstraint = jobTitle
+        ? `\nHARD CONSTRAINT — copy these EXACTLY into the JSON, do NOT paraphrase:\nposition_title: ${jobTitle}\nreq_id: ${jobReqId || ""}\n`
+        : "";
+      userPrompt = `=== TARGET JOB DESCRIPTION ===\n${jobDescription}\n${titleConstraint}\n=== TASK ===\nGenerate a complete ${docLabel} tailored to the job above.\nUse ONLY facts from the matched skill data. Output ONLY the final JSON.\n`;
     } else {
       return res.status(503).json({ success: false, error: "Vector store not initialized. Ensure skill_data_bank.json and vector_store.json exist and restart the server." });
     }
@@ -1437,6 +1510,32 @@ app.post("/generate", async (req, res) => {
             pinTelemetry.cvProjectGuardrailEnforced = resolvedPinnedCvProjects.map(p => p.id);
           }
         }
+      }
+
+      // ── CL: auto-bold skill/tool names from matched DB entries ──
+      if (documentType === "cl" && Array.isArray(contentJson?.paragraphs) && ragContext) {
+        const boldTerms = new Set();
+        (ragContext.skills || []).forEach(s => {
+          const name = (s.metadata?.skill_name || "").trim();
+          if (name.length >= 4) boldTerms.add(name);
+        });
+        (ragContext.projects || []).forEach(p => {
+          (p.metadata?.tech || "").split(/[,/]/).forEach(t => {
+            const term = t.trim();
+            if (term.length >= 4) boldTerms.add(term);
+          });
+        });
+        // Longest-first so multi-word terms match before their components
+        const termList = [...boldTerms].sort((a, b) => b.length - a.length);
+        contentJson.paragraphs = contentJson.paragraphs.map(para => {
+          let result = para;
+          for (const term of termList) {
+            const esc = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            // Bold first occurrence per term per paragraph; skip if already wrapped
+            result = result.replace(new RegExp(`(?<!\\*)\\b(${esc})\\b(?!\\*)`, "i"), "**$1**");
+          }
+          return result;
+        });
       }
 
       content = documentType === "cv" ? jsonToDisplayCv(contentJson) : jsonToDisplayCl(contentJson);
@@ -1560,9 +1659,14 @@ app.post("/export-pdf", async (req, res) => {
 
     if (!fs.existsSync(pdfFile)) throw new Error("pdflatex did not produce a PDF. Check .tex syntax.");
 
-    const pdfBuffer = fs.readFileSync(pdfFile);
+    // Ghostscript post-processing: strip all active/clickable content for portal compatibility
+    const sanitizedPdf = path.join(tmpDir, `${safeName}_sanitized.pdf`);
+    await runGhostscript(pdfFile, sanitizedPdf);
+    const finalPdf = fs.existsSync(sanitizedPdf) ? sanitizedPdf : pdfFile;
+
+    const pdfBuffer = fs.readFileSync(finalPdf);
     fs.mkdirSync(outDir, { recursive: true });
-    fs.copyFileSync(pdfFile, path.join(outDir, `${safeName}.pdf`));
+    fs.copyFileSync(finalPdf, path.join(outDir, `${safeName}.pdf`));
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${safeName}.pdf"`);
@@ -1588,6 +1692,32 @@ function runPdflatex(texFile, outDir) {
       (err, stdout, stderr) => {
         // pdflatex returns non-zero on warnings too — only fail if no PDF produced
         if (err && err.code !== 1) return reject(new Error(stderr || err.message));
+        resolve();
+      }
+    );
+  });
+}
+
+function runGhostscript(inputPdf, outputPdf) {
+  const gsCmd = process.platform === "win32" ? "gswin64c" : "gs";
+  return new Promise((resolve, reject) => {
+    execFile(
+      gsCmd,
+      [
+        "-sDEVICE=pdfwrite",
+        "-dNOPAUSE",
+        "-dQUIET",
+        "-dBATCH",
+        "-dFastWebView=false",
+        `-sOutputFile=${outputPdf}`,
+        inputPdf
+      ],
+      { timeout: 30000 },
+      (err, stdout, stderr) => {
+        if (err) {
+          console.warn("Ghostscript sanitization failed (falling back to raw PDF):", err.message);
+          return resolve(); // non-fatal — fall back to unsanitized PDF
+        }
         resolve();
       }
     );
@@ -1704,6 +1834,10 @@ function jsonToDisplayCl(j) {
 // ═══════════════════════════════════════════════════════════════
 
 const LATEX_CV_PREAMBLE = `\\documentclass[11pt,a4paper]{article}
+
+%---------------------------------------------------------------
+% BASIC PACKAGES
+%---------------------------------------------------------------
 \\usepackage[margin=1.8cm]{geometry}
 \\usepackage[T1]{fontenc}
 \\usepackage[utf8]{inputenc}
@@ -1712,26 +1846,53 @@ const LATEX_CV_PREAMBLE = `\\documentclass[11pt,a4paper]{article}
 \\usepackage{setspace}
 \\usepackage{enumitem}
 \\usepackage{xcolor}
-\\usepackage{hyperref}
+% No hyperref — portal-safe plain-text stubs (no active content in PDF)
+\\newcommand{\\href}[2]{#2}
+\\newcommand{\\url}[1]{\\texttt{#1}}
+\\newcommand{\\hypersetup}[1]{}
 \\usepackage{titlesec}
 
+%---------------------------------------------------------------
+% COLORS
+%---------------------------------------------------------------
 \\definecolor{heading}{HTML}{111111}
 \\definecolor{body}{HTML}{333333}
 \\definecolor{lighttext}{HTML}{666666}
-\\definecolor{linkcolor}{HTML}{003366}
 
-\\hypersetup{colorlinks=true,urlcolor=linkcolor,linkcolor=linkcolor}
+%---------------------------------------------------------------
+% GLOBAL TEXT SETTINGS
+%---------------------------------------------------------------
 \\setlength{\\parindent}{0pt}
 \\setlength{\\parskip}{1pt}
 \\renewcommand{\\baselinestretch}{1.05}
-\\setlist[itemize]{leftmargin=1.8em,itemsep=1pt,topsep=1pt}
-\\titleformat{\\section}{\\large\\bfseries\\color{heading}}{}{0pt}{}
+
+\\setlist[itemize]{
+  leftmargin=1.8em,
+  itemsep=1pt,
+  topsep=1pt
+}
+
+%---------------------------------------------------------------
+% SECTION FORMATTING
+%---------------------------------------------------------------
+\\titleformat{\\section}{
+  \\large\\bfseries\\color{heading}
+}{}{0pt}{}
+
 \\titlespacing*{\\section}{0pt}{6pt}{2pt}
+
+%---------------------------------------------------------------
+% REUSABLE COMMANDS
+%---------------------------------------------------------------
 \\newcommand{\\sectrule}{\\vspace{2pt}\\hrule\\vspace{3pt}}
-\\newcommand{\\name}[1]{{\\Huge\\bfseries\\color{heading} #1}\\par\\vspace{4pt}}
+
+\\newcommand{\\name}[1]{%
+  {\\Huge\\bfseries\\color{heading} #1}\\par\\vspace{4pt}%
+}
+
 \\newcommand{\\cventry}[2]{{\\color{heading}\\textbf{#1}} \\hfill {\\color{lighttext}#2}\\par}
-\\newcommand{\\cvsubtitle}[1]{{\\color{body}\\textit{#1}}\\par}
-\\newcommand{\\cvbody}[1]{{\\color{body}#1}\\par}
+\\newcommand{\\cvsubtitle}[1]{{\\color{body}\\textit{#1}\\par}}
+\\newcommand{\\cvbody}[1]{{\\color{body}#1\\par}}
 
 \\begin{document}
 \\pagestyle{empty}
@@ -1747,10 +1908,12 @@ const LATEX_CL_PREAMBLE = `\\documentclass[11pt,a4paper]{article}
 \\usepackage{setspace}
 \\usepackage{parskip}
 \\usepackage{xcolor}
-\\usepackage{hyperref}
+% No hyperref — portal-safe plain-text stubs (no active content in PDF)
+\\newcommand{\\href}[2]{#2}
+\\newcommand{\\url}[1]{\\texttt{#1}}
+\\newcommand{\\hypersetup}[1]{}
 
 \\definecolor{lighttext}{HTML}{555555}
-\\hypersetup{colorlinks=true,urlcolor=black,linkcolor=black}
 \\setstretch{1.15}
 \\setlength{\\parskip}{0.75em}
 \\setlength{\\parindent}{0pt}
@@ -1783,24 +1946,25 @@ function buildCvLatexFromJson(j) {
   // Profile summary
   const profileText = (j.profile || j.profile_summary || j.professional_summary || "").toString().trim();
   if (profileText) {
-    body += `\\section*{PROFILE}\n\n{\\color{body}\n${e(profileText)}\\par\n}\n\n\\vspace{2pt}\n\\sectrule\n\n`;
+    body += `\\section*{PROFILE}\n\\cvbody{${e(profileText)}}\n\n\\vspace{2pt}\n\\sectrule\n\n`;
   }
 
-  // Key Competencies
+  // Key Competencies — replace bullet • with LaTeX $\,\bullet\,$
   const keyComp = j.key_competencies || (j.competencies?.length
     ? j.competencies.map(c => c.items).filter(Boolean).join(" • ")
     : "");
   if (keyComp) {
-    body += `\\section*{KEY COMPETENCIES}\n\n{\\color{body}\n${e(keyComp)}\\par\n}\n\n\\vspace{2pt}\n\\sectrule\n\n`;
+    const keyCompTex = e(keyComp).replace(/•/g, "$\\,\\bullet\\,$");
+    body += `\\section*{KEY COMPETENCIES}\n{\\color{body}\n${keyCompTex}\\par\n}\n\n\\vspace{2pt}\n\\sectrule\n\n`;
   }
 
-  // Technical Skills
+  // Technical Skills — plain \cvbody{Category: items} matching reference
   if (j.technical_skills?.length) {
-    body += `\\section*{TECHNICAL SKILLS}\n\n{\\color{body}\n`;
+    body += `\\section*{TECHNICAL SKILLS}\n`;
     j.technical_skills.forEach(s => {
-      body += `{\\color{heading}\\textbf{${e(s.category)}:}} {\\color{body}${e(s.items)}}\\par\n`;
+      body += `\\cvbody{${e(s.category)}: ${e(s.items)}}\n`;
     });
-    body += `}\n\n\\vspace{2pt}\n\\sectrule\n\n`;
+    body += `\n\\vspace{2pt}\n\\sectrule\n\n`;
   }
 
   // Education
@@ -1809,7 +1973,7 @@ function buildCvLatexFromJson(j) {
     j.education.forEach((ed, i) => {
       body += `\\cventry{${e(ed.degree)}}{${e(ed.date)}}\n`;
       body += `\\cvbody{${e(ed.institution)}}\n`;
-      if (ed.coursework) body += `{\\color{body}\\textit{Selected coursework:} ${e(ed.coursework)}}\\par\n`;
+      if (ed.coursework) body += `\\cvbody{Selected coursework: ${e(ed.coursework)}}\n`;
       body += i < j.education.length - 1 ? "\n\\vspace{2pt}\n\n" : "";
     });
     body += `\n\\vspace{2pt}\n\\sectrule\n\n`;
@@ -1828,12 +1992,12 @@ function buildCvLatexFromJson(j) {
     body += `\n\\vspace{2pt}\n\\sectrule\n\n`;
   }
 
-  // Projects
+  // Projects — strictly same structure as Work Experience
   if (j.projects?.length) {
     body += `\\section*{PROJECTS}\n`;
     j.projects.forEach((p, i) => {
       body += `\\cventry{${e(p.title)}}{${e(p.date)}}\n`;
-      if (p.tech) body += `\\cvsubtitle{${e(p.tech)}}\n`;
+      body += `\\cvsubtitle{${e(p.tech)}}\n`;
       const pDesc = p.description || (p.bullets || []).join(" ");
       if (pDesc) body += `\\cvbody{${e(pDesc)}}\n`;
       body += i < j.projects.length - 1 ? "\n\\vspace{3pt}\n\n" : "";
@@ -1841,17 +2005,18 @@ function buildCvLatexFromJson(j) {
     body += `\n\\vspace{2pt}\n\\sectrule\n\n`;
   }
 
-  // Research & Activities
+  // Research & Activities — strictly same structure as Work Experience
   if (j.research_activities?.length) {
     body += `\\section*{RESEARCH \\& ACTIVITIES}\n`;
     j.research_activities.forEach((r, i) => {
       body += `\\cventry{${e(r.title)}}{${e(r.date || "")}}\n`;
-      if (r.organization) body += `\\cvsubtitle{${e(r.organization)}}\n`;
+      body += `\\cvsubtitle{${e(r.organization)}}\n`;
       if (r.description) body += `\\cvbody{${e(r.description)}}\n`;
       body += i < j.research_activities.length - 1 ? "\n\\vspace{3pt}\n\n" : "";
     });
     body += `\n\\vspace{2pt}\n\\sectrule\n\n`;
   }
+
 
   // Certifications
   if (j.certifications?.length) {
@@ -2124,15 +2289,15 @@ function buildCvLatex(content) {
 \\usepackage{setspace}
 \\usepackage{enumitem}
 \\usepackage{xcolor}
-\\usepackage{hyperref}
+% No hyperref — portal-safe plain-text stubs (no active content in PDF)
+\\newcommand{\\href}[2]{#2}
+\\newcommand{\\url}[1]{\\texttt{#1}}
+\\newcommand{\\hypersetup}[1]{}
 \\usepackage{titlesec}
 
 \\definecolor{heading}{HTML}{111111}
 \\definecolor{body}{HTML}{333333}
 \\definecolor{lighttext}{HTML}{666666}
-\\definecolor{linkcolor}{HTML}{003366}
-
-\\hypersetup{colorlinks=true,urlcolor=linkcolor,linkcolor=linkcolor}
 
 \\setlength{\\parindent}{0pt}
 \\setlength{\\parskip}{1pt}
@@ -2223,11 +2388,12 @@ function buildClLatex(content) {
 \\usepackage{setspace}
 \\usepackage{parskip}
 \\usepackage{xcolor}
-\\usepackage{hyperref}
+% No hyperref — portal-safe plain-text stubs (no active content in PDF)
+\\newcommand{\\href}[2]{#2}
+\\newcommand{\\url}[1]{\\texttt{#1}}
+\\newcommand{\\hypersetup}[1]{}
 
 \\definecolor{lighttext}{HTML}{555555}
-\\hypersetup{colorlinks=true,urlcolor=black,linkcolor=black}
-
 \\setstretch{1.15}
 \\setlength{\\parskip}{0.75em}
 \\setlength{\\parindent}{0pt}
@@ -2518,12 +2684,12 @@ app.post("/skill-bank/suggest", async (req, res) => {
       profile.current_role ? `Current role: ${profile.current_role}` : "",
       profile.target_roles ? `Target roles: ${profile.target_roles.join(", ")}` : ""
     ].filter(Boolean).join(". ");
-    const validCategories = ["Tools","Software","Design","Digital_Marketing","Programming","SAP_Technical","SAP_Functional","Analytics","Other"];
+    const validCategories = ["SAP_Technical","Engineering_Dev","Data_Analytics","Design_UX","Creative_Media","Tools_Platforms","Domain_Professional"];
     const text = await callAI(
-      "You are a CV evidence writer. Reply with ONLY valid JSON, no markdown, no explanation. Keys: \"category\" (one of: Tools, Software, Design, Digital_Marketing, Programming, SAP_Technical, SAP_Functional, Analytics, Other) and \"evidence\" (a single practical sentence, max 20 words, no quotes, no trailing period).",
+      "You are a CV evidence writer. Reply with ONLY valid JSON, no markdown, no explanation. Keys: \"category\" (one of: SAP_Technical, Engineering_Dev, Data_Analytics, Design_UX, Creative_Media, Tools_Platforms, Domain_Professional) and \"evidence\" (a single practical sentence, max 20 words, no quotes, no trailing period).",
       `Skill/Tool: ${skill}\nLevel: ${level || "Intermediate"}\n${context ? "Candidate context: " + context : ""}\n\nReturn JSON with category and evidence.`
     );
-    let suggestion = "", category = "Tools";
+    let suggestion = "", category = "Tools_Platforms";
     try {
       const parsed = JSON.parse(text.trim());
       suggestion = (parsed.evidence || "").replace(/^"|"$/g, "").replace(/\.$/, "");
@@ -2644,6 +2810,58 @@ app.post("/humanize", async (req, res) => {
     lastAICall = Date.now();
     const result = await humanize(text, callAI);
     res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: safeError(err) });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// POST /apply-style  — rewrite pasted text in Varun's voice
+// ═══════════════════════════════════════════════════════════════
+
+app.post("/apply-style", async (req, res) => {
+  if (!aiProvider) return res.status(503).json({ success: false, error: "No AI provider configured" });
+  const { text, mode } = req.body; // mode: "cl" | "cv"
+  if (!text?.trim()) return res.status(400).json({ success: false, error: "Missing text" });
+
+  const style   = styleProfile?.style_analysis || {};
+  const tone    = style.tone_description    || "confident, assertive, specific — not generic";
+  const evStyle = style.evidence_style      || "flowing narrative prose, company names inline";
+  const phrases = (style.signature_phrases || []).slice(0, 4).join(" | ");
+  const connectors = (style.connector_words || []).filter(c => c !== "Throughout my career").join(", ");
+  const avoids  = [
+    ...(style.things_to_never_write_as_me || []),
+    ...(style.vocabulary_preferences?.avoids || []),
+    "I am writing to apply", "I am excited to apply", "I am passionate about",
+    "leverage my skills", "results-driven", "proven track record"
+  ].join(", ");
+
+  const systemPrompt = mode === "cv"
+    ? `You rewrite CV text to match this person's CV style. Rules:
+- Lead each bullet/sentence with action verb or tool name, then outcome
+- Include specific tool names and numbers from the original — do NOT remove them
+- Avoid first person ("I") — start directly with the action
+- Keep each bullet under 22 words. Drop filler ("responsible for", "worked on", "helped")
+- Tone: ${tone}
+- NEVER use: ${avoids}
+Return ONLY the rewritten text. No commentary.`
+    : `You rewrite cover letter text to match this person's exact writing style. Rules:
+- Tone: ${tone}
+- Evidence style: ${evStyle}
+${phrases ? `- Natural phrases this person uses: ${phrases}` : ""}
+${connectors ? `- Connector words to use where natural: ${connectors}` : ""}
+- NEVER use: ${avoids}
+- No bold, no bullet points in the letter body. First person throughout.
+- Name employers inline: "At SAP IX Studio..." / "At SAP Non-Commercial Licensing..."
+- Keep ALL facts, dates, company names, metrics — only change style, not content
+Return ONLY the rewritten text. No commentary.`;
+
+  try {
+    const wait = AI_MIN_GAP_MS - (Date.now() - lastAICall);
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
+    lastAICall = Date.now();
+    const styled = await callAI(systemPrompt, `Rewrite this in the style described above:\n\n${text.trim()}`);
+    res.json({ success: true, styled: styled.trim() });
   } catch (err) {
     res.status(500).json({ success: false, error: safeError(err) });
   }

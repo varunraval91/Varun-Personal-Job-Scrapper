@@ -11,22 +11,18 @@
 \usepackage{setspace}
 \usepackage{enumitem}
 \usepackage{xcolor}
-\usepackage{hyperref}
+% No hyperref — portal-safe plain-text stubs (no active content in PDF)
+\newcommand{\href}[2]{#2}
+\newcommand{\url}[1]{\texttt{#1}}
+\newcommand{\hypersetup}[1]{}
 \usepackage{titlesec}
 
 %---------------------------------------------------------------
-% COLORS & HYPERREF STYLE
+% COLORS
 %---------------------------------------------------------------
 \definecolor{heading}{HTML}{111111}
 \definecolor{body}{HTML}{333333}
 \definecolor{lighttext}{HTML}{666666}
-\definecolor{linkcolor}{HTML}{003366}
-
-\hypersetup{
-  colorlinks=true,
-  urlcolor=linkcolor,
-  linkcolor=linkcolor
-}
 
 %---------------------------------------------------------------
 % GLOBAL TEXT SETTINGS
