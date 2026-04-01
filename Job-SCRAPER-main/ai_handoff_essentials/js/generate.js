@@ -19,7 +19,8 @@
     domainInsights: [],
     userId: null,
     libExpanded: false,
-    selectors: {}      // reqId → { we, projects, aiPickWE, aiPickProjects, pinnedWE, pinnedProjects, loading }
+    selectors: {},      // reqId → { we, projects, certifications, aiPickWE, aiPickProjects, aiPickCerts, pinnedWE, pinnedProjects, pinnedCerts, loading }
+    bankToolIndex: null  // cached map: tool-name-lower → true (for tool chip matching)
   };
 
   const $ = (id) => document.getElementById(id);
@@ -432,9 +433,9 @@
     // Top-right action area
     let topAction = "";
     const sel = genState.selectors[key];
-    const hasPins = sel && (sel.pinnedWE?.length || sel.pinnedProjects?.length);
+    const hasPins = sel && (sel.pinnedWE?.length || sel.pinnedProjects?.length || sel.pinnedCerts?.length);
     const customBtnCls = hasPins ? "btn btn-sm gqi-custom-btn gqi-custom-active" : "btn btn-sm gqi-custom-btn";
-    const customBtnTip = hasPins ? `${(sel.pinnedWE||[]).length} WE + ${(sel.pinnedProjects||[]).length} projects selected` : "Customize CV selection";
+    const customBtnTip = hasPins ? `${(sel.pinnedWE||[]).length} WE + ${(sel.pinnedProjects||[]).length} projects + ${(sel.pinnedCerts||[]).length} certs selected` : "Customize CV selection";
     const customBtn = `<button type="button" class="${customBtnCls}" data-gen-selector="${esc(key)}" title="${customBtnTip}">⚙ CV</button>`;
     if (gen.state === "idle") {
       topAction = `${customBtn}<button type="button" class="btn btn-primary btn-sm gen-start-btn" data-idx="${i}">Generate</button>`;
@@ -522,6 +523,7 @@
                 <button type="button" class="btn btn-sm gen-copy-btn"   data-target="gqi-cl-${safe}" title="Copy to clipboard">&#x2398;</button>
                 <button type="button" class="btn btn-sm gen-fullview"   data-target="gqi-cl-${safe}" data-label="Cover Letter">&#x26F6;</button>
                 <button type="button" class="btn btn-sm gen-clear-write" data-target="gqi-cl-${safe}" title="Clear &amp; write your own">&#x270E;</button>
+                <button type="button" class="btn btn-sm gen-cl-bold" data-target="gqi-cl-${safe}" title="Bold selected word (**word**)"><strong>B</strong></button>
               </div>
             </div>
             <textarea class="gqi-result-textarea" id="gqi-cl-${safe}" rows="20">${esc(gen.clContent || "")}</textarea>
@@ -550,6 +552,7 @@
     return `<div class="gen-queue-item" data-gqi="${esc(key)}" data-qi="${i}">
       <div class="gqi-top">
         <div class="gen-queue-info">
+          <span class="gqi-task-num">Task #${i + 1}</span>
           <span class="gen-queue-title">${job.url ? `<a href="${esc(job.url)}" target="_blank" rel="noopener" class="gqi-title-link">${esc(job.title)}</a>` : esc(job.title)} ${scoreBadge}${titleMatchBadge}</span>
           <span class="gen-queue-meta">${esc(job.location)} &middot; ${esc(job.reqId)}</span>
           ${skillTags ? `<div class="gen-queue-skills">${skillTags}</div>` : ""}
@@ -591,11 +594,37 @@
       btn.addEventListener("click", () => analyzeQueueItem(parseInt(btn.dataset.idx, 10)));
     });
     el.querySelectorAll("[data-gen-selector]").forEach(btn => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         const key = btn.dataset.genSelector;
         const job = genState.queue.find(j => getGenKey(j) === key);
         if (!job) return;
-        const jdText = (job.jdData && job.jdData.jdText) || job.jobDescription || job.fullText || "";
+        let jdText = (job.jdData && job.jdData.jdText) || job.jobDescription || job.fullText || "";
+
+        // If JD not yet fetched, pull it now before opening selector
+        if (!jdText && job.url) {
+          btn.textContent = "Loading JD…";
+          btn.disabled = true;
+          try {
+            const res  = await fetch("/fetch-jd", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ url: job.url })
+            });
+            const data = await res.json();
+            if (data.success && data.jd?.fullText) {
+              jdText = data.jd.fullText;
+              if (!job.jdData) job.jdData = {};
+              job.jdData.jdText = jdText;
+            }
+          } catch (_) {}
+          btn.textContent = "CV Selector";
+          btn.disabled = false;
+        }
+
+        if (!jdText) {
+          showToast("Open the job URL or click Analyze first to load the job description.");
+          return;
+        }
         openCvSelector(key, jdText, el);
       });
     });
@@ -764,36 +793,15 @@
       const jdText = jdData.jd.fullText || "";
       const jdSections = jdData.jd.sections || {};
 
-      // Build a requirements-only text slice for Sonnet (What you bring / profile / requirements),
-      // falling back to the full JD text when we cannot detect a dedicated section.
-      let reqText = "";
-      try {
-        const reqChunks = [];
-        for (const [label, content] of Object.entries(jdSections)) {
-          const lower = (label || "").toLowerCase();
-          if (
-            lower.includes("what you bring") ||
-            lower.includes("your profile") ||
-            lower.includes("requirements") ||
-            lower.includes("qualifications")
-          ) {
-            if (content) reqChunks.push(content);
-          }
-        }
-        reqText = reqChunks.join("\n\n").trim();
-      } catch {
-        reqText = "";
-      }
-      if (!reqText) reqText = jdText;
-
-      // Ask backend to build a compact UX summary (Snapshot + What They Want)
+      // Ask backend to build a compact UX summary — always send full JD text so the AI
+      // has context for both "what you'll do" and "what you bring" sections.
       let jdSummary = null;
       try {
         const sumRes = await fetch("/jd-summary", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            jdText: reqText,
+            jdText: jdText,
             title: jdData.jd.title,
             location: jdData.jd.location,
             requisitionId: jdData.jd.requisitionId,
@@ -909,6 +917,7 @@
     const aiSkills = (summary?.skills || []).slice(0, 7);
     const aiTools  = (summary?.tools  || []).slice(0, 8);
     const matchedSkillNames = chunks.map(c => (c.metadata?.skill_name || "").toLowerCase());
+    const toolIndex = genState.bankToolIndex || {};
 
     const skillsHtml = aiSkills.map(s =>
       `<span class="gqi-chip gqi-chip-skill">${esc(s)}</span>`
@@ -918,9 +927,9 @@
       const isOptional = t.endsWith("+");
       const name = isOptional ? t.slice(0, -1) : t;
       const tl = name.toLowerCase();
-      const inBank = matchedSkillNames.some(n => n.includes(tl) || tl.includes(n));
+      const inBank = matchedSkillNames.some(n => n.includes(tl) || tl.includes(n)) || !!toolIndex[tl];
       const cls = inBank ? "gqi-chip gqi-chip-tool-match" : "gqi-chip gqi-chip-tool-gap";
-      const tip = inBank ? "✓ In your skill bank" : "⚠ Not in skill bank";
+      const tip = inBank ? "✓ In your skill bank" : "⚠ Not in skill bank — click to tag";
       return `<span class="${cls}${isOptional ? " gqi-chip-optional" : ""}" title="${tip}">${esc(name)}${isOptional ? `<sup class="gqi-opt-mark">opt</sup>` : ""}</span>`;
     }).join("");
 
@@ -1006,16 +1015,10 @@
   // CV SELECTOR DRAWER
   // ═══════════════════════════════════════════════════════════════
   async function openCvSelector(key, jdText, itemEl) {
-    let sel = genState.selectors[key];
-
-    // If we already have data, just (re)render the drawer
-    if (sel && !sel.loading && sel.we) {
-      renderSelectorDrawer(key, sel, itemEl);
-      return;
-    }
+    const prevSel = genState.selectors[key] || null;
 
     // Show loading state
-    genState.selectors[key] = { loading: true };
+    genState.selectors[key] = { ...(prevSel || {}), loading: true };
     updateJobUI(key);
 
     try {
@@ -1027,14 +1030,35 @@
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Selector load failed");
 
+      const we           = data.work_experience || [];
+      const projects     = data.projects || [];
+      const certifications = data.certifications || [];
+      const research     = data.research || [];
+      const weIds        = new Set(we.map(w => w.id || w.work_id));
+      const projectIds   = new Set(projects.map(p => p.id || p.project_id));
+      const certIds = new Set(certifications.map(c => c.id));
+      const researchIds = new Set(research.map(r => r.id));
+
+      // Preserve previous manual selections when still valid; otherwise use fresh AI picks
+      const preservedWE = (prevSel?.pinnedWE || []).filter(id => weIds.has(id));
+      const preservedProjects = (prevSel?.pinnedProjects || []).filter(id => projectIds.has(id));
+      const preservedResearch = (prevSel?.pinnedResearch || []).filter(id => researchIds.has(id));
+      const aiPickCerts = (data.aiPickCerts || []).filter(id => certIds.has(id));
+      const certDefaults = aiPickCerts.length ? aiPickCerts : certifications.map(c => c.id);
+
       genState.selectors[key] = {
         loading: false,
-        we: data.work_experience || [],
-        projects: data.projects || [],
+        we,
+        projects,
+        certifications,
+        research,
         aiPickWE: data.aiPickWE || [],
         aiPickProjects: data.aiPickProjects || [],
-        pinnedWE: [...(data.aiPickWE || [])],
-        pinnedProjects: [...(data.aiPickProjects || [])]
+        aiPickCerts: certDefaults,
+        pinnedWE: preservedWE.length ? preservedWE : [...(data.aiPickWE || [])],
+        pinnedProjects: preservedProjects.length ? preservedProjects : [...(data.aiPickProjects || [])],
+        pinnedCerts: [],
+        pinnedResearch: preservedResearch.length ? preservedResearch : research.map(r => r.id)
       };
     } catch (err) {
       genState.selectors[key] = null;
@@ -1050,117 +1074,559 @@
   }
 
   function renderSelectorDrawer(key, sel, itemEl) {
-    // Remove any existing selector modal
     document.querySelectorAll(".gqi-selector-modal").forEach(m => m.remove());
 
-    function makeItem(entry, type) {
-      const isPinned = type === "we"
-        ? sel.pinnedWE.includes(entry.id)
-        : sel.pinnedProjects.includes(entry.id);
-      const isAi = type === "we"
-        ? sel.aiPickWE.includes(entry.id)
-        : sel.aiPickProjects.includes(entry.id);
-      const pct = entry.score || 0;
-      const scoreColor = pct >= 60 ? "#10b981" : pct >= 35 ? "#f59e0b" : "#94a3b8";
-      const label = type === "we"
-        ? `<span class="gqi-sel-title">${esc(entry.title)}</span><span class="gqi-sel-meta">${esc(entry.company || "")}${entry.period ? " · " + esc(entry.period) : ""}</span>`
-        : `<span class="gqi-sel-title">${esc(entry.name)}</span><span class="gqi-sel-meta">${esc(entry.tech || "")}</span>`;
-      return `<label class="gqi-sel-item${isPinned ? " gqi-sel-checked" : ""}">
-        <input type="checkbox" class="gqi-sel-cb" data-sel-type="${type}" data-sel-id="${esc(entry.id)}" ${isPinned ? "checked" : ""}>
-        <span class="gqi-sel-score" style="color:${scoreColor}">${pct}%</span>
-        ${isAi ? `<span class="gqi-sel-ai-badge" title="AI recommended">✦</span>` : `<span class="gqi-sel-ai-badge gqi-sel-ai-empty"></span>`}
-        <span class="gqi-sel-label">${label}</span>
-      </label>`;
-    }
+    // ── Section config ───────────────────────────────────────────
+    const SECTIONS = {
+      we: {
+        label: "Work Experience", emoji: "💼", accent: "#6c63ff",
+        getItems: () => sel.we,
+        getPinned: () => genState.selectors[key].pinnedWE || [],
+        setPinned: v => { genState.selectors[key].pinnedWE = v; },
+        getAiPick: () => genState.selectors[key].aiPickWE || [],
+        getTitle: e => e.title  || e.job_title  || "",
+        getSub:   e => `${e.company || ""}${e.period ? " · " + e.period : ""}`,
+        getDesc: null,
+        getTags: null
+      },
+      projects: {
+        label: "Projects", emoji: "📁", accent: "#10b981",
+        getItems: () => sel.projects,
+        getPinned: () => genState.selectors[key].pinnedProjects || [],
+        setPinned: v => { genState.selectors[key].pinnedProjects = v; },
+        getAiPick: () => genState.selectors[key].aiPickProjects || [],
+        getTitle: e => e.name  || e.project_name || "",
+        getSub:   e => e.tech  || "",
+        getDesc:  e => e.description || "",
+        getTags:  e => (e.tech || "").split(/[,;]/).map(t => t.trim()).filter(Boolean)
+      },
+      certs: {
+        label: "Certifications", emoji: "📜", accent: "#7e839e",
+        getItems: () => sel.certifications || [],
+        getPinned: () => genState.selectors[key].pinnedCerts || [],
+        setPinned: v => { genState.selectors[key].pinnedCerts = v; },
+        getAiPick: () => [],
+        getTitle: e => e.name || "",
+        getSub: e => `${e.provider || ""}${e.date ? " · " + e.date : ""}`,
+        getDesc: null,
+        getTags: null
+      },
+      research: {
+        label: "Research", emoji: "🔬", accent: "#4fc3f7",
+        getItems: () => sel.research || [],
+        getPinned: () => genState.selectors[key].pinnedResearch || [],
+        setPinned: v => { genState.selectors[key].pinnedResearch = v; },
+        getAiPick: () => [],
+        getTitle: e => e.title || "",
+        getSub: e => e.kind === "paper"
+          ? `${e.institution || ""}${e.date ? " · " + e.date : ""}`
+          : `${e.context || ""}${e.period ? " · " + e.period : ""}`,
+        getDesc: e => e.description || "",
+        getTags: null
+      }
+    };
 
-    const weHtml = sel.we.map(e => makeItem(e, "we")).join("");
-    const prHtml = sel.projects.map(e => makeItem(e, "projects")).join("");
+    // ── UI state ─────────────────────────────────────────────────
+    let activeTab = "we";
+    let searchQuery = "";
+    let filterMode = "all";
+    let projectFilter = "all"; // "all" | "sap_technical" | "sap_media" | "creative_media"
 
+    // ── Build modal skeleton ─────────────────────────────────────
     const modal = document.createElement("div");
     modal.className = "gqi-selector-modal";
     modal.setAttribute("data-sel-key", key);
     modal.innerHTML = `
-      <div class="gqi-sel-modal-backdrop"></div>
-      <div class="gqi-selector-drawer">
+      <div class="gqi-sel-backdrop"></div>
+      <div class="gqi-selector-drawer" role="dialog" aria-modal="true" aria-labelledby="gqi-sel-dlg-title">
         <div class="gqi-sel-hdr">
-          <span class="gqi-sel-hdr-title">⚙ CV Selector</span>
-          <span class="gqi-sel-hdr-hint">✦ = AI recommended</span>
+          <span class="gqi-sel-hdr-title" id="gqi-sel-dlg-title">⚙ CV Selector</span>
+          <span class="gqi-sel-ai-legend"><span class="gqi-sel-ai-pill">✦ AI</span> Recommended</span>
           <div class="gqi-sel-hdr-actions">
-            <button type="button" class="btn btn-sm gqi-sel-reset-btn">Reset to AI picks</button>
-            <button type="button" class="btn btn-sm gqi-sel-close-btn">✕</button>
+            <button type="button" class="gqi-sel-reset-btn" aria-label="Reset to AI picks">↺ Reset</button>
+            <button type="button" class="gqi-sel-close-btn" aria-label="Close">✕</button>
           </div>
         </div>
-        <div class="gqi-sel-body">
-          <div class="gqi-sel-section">
-            <div class="gqi-sel-section-hdr">💼 Work Experience <span class="gqi-sel-count" data-count-we></span></div>
-            <div class="gqi-sel-list we-list">${weHtml}</div>
-          </div>
-          <div class="gqi-sel-section">
-            <div class="gqi-sel-section-hdr">📁 Projects <span class="gqi-sel-count" data-count-pr></span></div>
-            <div class="gqi-sel-list pr-list">${prHtml}</div>
-          </div>
+        <div class="gqi-sel-tabs" role="tablist" aria-label="CV sections">
+          ${Object.entries(SECTIONS).map(([t, s]) =>
+            `<button class="gqi-sel-tab${t === "we" ? " gqi-tab-active" : ""}" data-tab="${t}" role="tab" aria-selected="${t === "we"}" style="--tab-accent:${s.accent}">
+              ${s.emoji} ${s.label} <span class="gqi-sel-tab-badge" data-tab-badge="${t}">0</span>
+            </button>`
+          ).join("")}
         </div>
+        <div class="gqi-proj-subfilter" role="tablist" aria-label="Project category filter" style="display:none">
+          <button class="gqi-pf-btn gqi-pf-active" data-pf="all">📁 All Projects <span class="gqi-pf-count" data-pf-count="all">0</span></button>
+          <button class="gqi-pf-btn" data-pf="sap_technical">⚙️ SAP & Technical <span class="gqi-pf-count" data-pf-count="sap_technical">0</span></button>
+          <button class="gqi-pf-btn" data-pf="sap_media">🎬 SAP Media <span class="gqi-pf-count" data-pf-count="sap_media">0</span></button>
+          <button class="gqi-pf-btn" data-pf="creative_media">🎨 Creative Media <span class="gqi-pf-count" data-pf-count="creative_media">0</span></button>
+        </div>
+        <div class="gqi-sel-search-row">
+          <div class="gqi-sel-search-wrap">
+            <span class="gqi-sel-search-icon">⌕</span>
+            <input type="text" class="gqi-sel-search-input" placeholder="Search Work Experience..." aria-label="Search items">
+            <button type="button" class="gqi-sel-search-clear" aria-label="Clear search" style="display:none">✕</button>
+          </div>
+          <select class="gqi-sel-filter-select" aria-label="Filter items">
+            <option value="all">All Items</option>
+            <option value="ai">✦ AI Recommended</option>
+            <option value="selected">Selected</option>
+            <option value="unselected">Not Selected</option>
+          </select>
+        </div>
+        <div class="gqi-sel-chips-row" aria-label="Selected items">
+          <span class="gqi-sel-chips-label">Selected:</span>
+          <div class="gqi-sel-chips-list"><span class="gqi-chips-empty">Nothing selected yet</span></div>
+        </div>
+        <div class="gqi-sel-list-panel" role="tabpanel" aria-live="polite"></div>
         <div class="gqi-sel-footer">
-          <span class="gqi-sel-summary" data-sel-summary></span>
-          <button type="button" class="btn btn-primary btn-sm gqi-sel-confirm-btn">Confirm Selection</button>
+          <div class="gqi-sel-footer-counts">
+            ${Object.entries(SECTIONS).map(([t, s]) =>
+              `<span class="gqi-sel-footer-chip gqi-footer-chip-zero" data-footer-chip="${t}" style="--chip-accent:${s.accent}">${s.emoji} ${s.label}: <strong data-footer-num="${t}">0</strong></span>`
+            ).join("")}
+          </div>
+          <button type="button" class="gqi-sel-confirm-btn" aria-label="Confirm CV selection" disabled>Confirm Selection</button>
         </div>
       </div>`;
 
     document.body.appendChild(modal);
-    const drawer = modal.querySelector(".gqi-selector-drawer");
-    const backdrop = modal.querySelector(".gqi-sel-modal-backdrop");
+    const drawer    = modal.querySelector(".gqi-selector-drawer");
+    const backdrop  = modal.querySelector(".gqi-sel-backdrop");
+    const searchIn  = drawer.querySelector(".gqi-sel-search-input");
+    const searchClr = drawer.querySelector(".gqi-sel-search-clear");
+    const filterSel = drawer.querySelector(".gqi-sel-filter-select");
+    const chipsRow       = drawer.querySelector(".gqi-sel-chips-row");
+    const chipsList      = drawer.querySelector(".gqi-sel-chips-list");
+    const listPanel      = drawer.querySelector(".gqi-sel-list-panel");
+    const confirmBtn     = drawer.querySelector(".gqi-sel-confirm-btn");
+    const subfilterRow   = drawer.querySelector(".gqi-proj-subfilter");
 
-    function refreshCounts() {
-      const s = genState.selectors[key];
-      drawer.querySelector("[data-count-we]").textContent = `(${s.pinnedWE.length} selected)`;
-      drawer.querySelector("[data-count-pr]").textContent = `(${s.pinnedProjects.length} selected)`;
-      drawer.querySelector("[data-sel-summary]").textContent =
-        `${s.pinnedWE.length} work exp + ${s.pinnedProjects.length} projects selected`;
+    const rootTheme = document.documentElement.getAttribute("data-theme");
+    if (rootTheme === "dark" || rootTheme === "light") {
+      drawer.setAttribute("data-theme", rootTheme);
     }
-    refreshCounts();
 
-    // Checkbox toggle
-    drawer.querySelectorAll(".gqi-sel-cb").forEach(cb => {
-      cb.addEventListener("change", () => {
-        const s = genState.selectors[key];
-        const id = cb.dataset.selId;
-        const type = cb.dataset.selType;
-        const arr = type === "we" ? s.pinnedWE : s.pinnedProjects;
-        if (cb.checked) { if (!arr.includes(id)) arr.push(id); }
-        else { const idx = arr.indexOf(id); if (idx !== -1) arr.splice(idx, 1); }
-        cb.closest(".gqi-sel-item").classList.toggle("gqi-sel-checked", cb.checked);
-        refreshCounts();
+    // ── Helpers ──────────────────────────────────────────────────
+    function getPinned(t)   { return SECTIONS[t].getPinned(); }
+    function setPinned(t,v) { SECTIONS[t].setPinned(v); }
+    function selCount(t)    { return getPinned(t).length; }
+    function totalSel()     { return Object.keys(SECTIONS).reduce((n,t) => n + selCount(t), 0); }
+    function projectBucket(item) {
+      if (!item?.id) return "sap_technical";
+      if (item.id.startsWith("PJ")) return "sap_technical";
+      if (!item.id.startsWith("MPJ")) return "sap_technical";
+      const n = parseInt(item.id.replace("MPJ", ""), 10);
+      if (!Number.isFinite(n)) return "sap_technical";
+      return n <= 11 ? "sap_media" : "creative_media";
+    }
+    function projectAccent(bucket) {
+      if (bucket === "sap_media") return "#2563eb";
+      if (bucket === "creative_media") return "#d97706";
+      return "#6c63ff";
+    }
+    function projectGroupLabel(bucket) {
+      if (bucket === "sap_media") return "🎬 SAP Media Projects";
+      if (bucket === "creative_media") return "🎨 Creative Media Projects";
+      return "⚙️ SAP & Technical Projects";
+    }
+    function formatSubCategory(raw) {
+      if (!raw) return "";
+      return String(raw).replace(/_/g, " ");
+    }
+    function refreshProjectFilterCounts() {
+      const projects = SECTIONS.projects.getItems();
+      const sapTechnical = projects.filter(p => projectBucket(p) === "sap_technical").length;
+      const sapMedia = projects.filter(p => projectBucket(p) === "sap_media").length;
+      const creativeMedia = projects.filter(p => projectBucket(p) === "creative_media").length;
+      const total = projects.length;
+      const setCount = (key, value) => {
+        const el = drawer.querySelector(`[data-pf-count="${key}"]`);
+        if (el) el.textContent = String(value);
+      };
+      setCount("all", total);
+      setCount("sap_technical", sapTechnical);
+      setCount("sap_media", sapMedia);
+      setCount("creative_media", creativeMedia);
+    }
+
+    // ── Refresh counters / footer / confirm state ────────────────
+    function refreshAll() {
+      Object.keys(SECTIONS).forEach(t => {
+        const n = selCount(t);
+        const badge = drawer.querySelector(`[data-tab-badge="${t}"]`);
+        if (badge) badge.textContent = n;
+        const num = drawer.querySelector(`[data-footer-num="${t}"]`);
+        if (num) num.textContent = n;
+        const chip = drawer.querySelector(`[data-footer-chip="${t}"]`);
+        if (chip) chip.classList.toggle("gqi-footer-chip-zero", n === 0);
       });
-    });
+      confirmBtn.disabled = totalSel() === 0;
+      refreshProjectFilterCounts();
+      renderChips();
+    }
 
-    // Reset
+    // ── Chips row ────────────────────────────────────────────────
+    function renderChips() {
+      const sec    = SECTIONS[activeTab];
+      const pinned = getPinned(activeTab);
+      const items  = sec.getItems();
+      const accent = sec.accent;
+      if (!pinned.length) { chipsList.innerHTML = `<span class="gqi-chips-empty">Nothing selected yet</span>`; return; }
+      chipsList.innerHTML = pinned.map(id => {
+        const item  = items.find(i => i.id === id);
+        const raw   = item ? sec.getTitle(item) : id;
+        const label = raw.length > 22 ? raw.slice(0, 20) + "…" : raw;
+        return `<span class="gqi-sel-chip" style="border-color:${accent}55;color:${accent}">${esc(label)}<button type="button" class="gqi-sel-chip-x" data-remove-id="${esc(id)}" aria-label="Remove">✕</button></span>`;
+      }).join("");
+      chipsList.querySelectorAll(".gqi-sel-chip-x").forEach(btn => {
+        btn.addEventListener("click", e => {
+          e.stopPropagation();
+          const arr = getPinned(activeTab).filter(x => x !== btn.dataset.removeId);
+          setPinned(activeTab, arr);
+          refreshAll(); renderList();
+        });
+      });
+    }
+
+    // ── Item list ────────────────────────────────────────────────
+    function renderList() {
+      const sec    = SECTIONS[activeTab];
+      const items  = sec.getItems();
+      const pinned = new Set(getPinned(activeTab));
+      const aiPick = new Set(sec.getAiPick());
+      const accent = sec.accent;
+      const q      = searchQuery.toLowerCase().trim();
+
+      let filtered = items.filter(item => {
+        const t = sec.getTitle(item).toLowerCase();
+        const s = sec.getSub(item).toLowerCase();
+        if (q && !t.includes(q) && !s.includes(q)) return false;
+        if (filterMode === "ai")         return aiPick.has(item.id);
+        if (filterMode === "selected")   return pinned.has(item.id);
+        if (filterMode === "unselected") return !pinned.has(item.id);
+        // Projects sub-filter
+        if (activeTab === "projects" && projectFilter !== "all") {
+          return projectBucket(item) === projectFilter;
+        }
+        return true;
+      });
+
+      // Sort: selected → AI → score
+      filtered.sort((a, b) => {
+        const ds = (pinned.has(b.id) ? 2 : 0) - (pinned.has(a.id) ? 2 : 0);
+        if (ds !== 0) return ds;
+        const da = (aiPick.has(b.id) ? 1 : 0) - (aiPick.has(a.id) ? 1 : 0);
+        if (da !== 0) return da;
+        return (b.score || 0) - (a.score || 0);
+      });
+
+      if (!filtered.length) {
+        listPanel.innerHTML = `<div class="gqi-sel-empty">No items match your search.${q ? ` <button type="button" class="gqi-sel-empty-clear">Clear</button>` : ""}</div>`;
+        listPanel.querySelector(".gqi-sel-empty-clear")?.addEventListener("click", () => {
+          searchQuery = ""; searchIn.value = ""; searchClr.style.display = "none";
+          renderList();
+        });
+        return;
+      }
+
+      const renderItem = (item) => {
+        const isSel  = pinned.has(item.id);
+        const isAi   = aiPick.has(item.id);
+        const score  = item.score || 0;
+        const title  = sec.getTitle(item);
+        const sub    = sec.getSub(item);
+        const desc   = sec.getDesc ? sec.getDesc(item) : "";
+        const rawTags = sec.getTags ? sec.getTags(item) : [];
+        const tags   = rawTags.slice(0, 3);
+        const extra  = rawTags.length > 3 ? rawTags.length - 3 : 0;
+        const bucket = activeTab === "projects" ? projectBucket(item) : "sap_technical";
+        const itemAccent = activeTab === "projects" ? projectAccent(bucket) : accent;
+        const barColor = score >= 70 ? itemAccent : score >= 40 ? itemAccent + "99" : "#252840";
+        const subBadge = activeTab === "projects" && !item.id.startsWith("PJ")
+          ? `<span class="gqi-sel-sub-badge" style="border-color:${itemAccent}4d;background:${itemAccent}1a;color:${itemAccent}">${esc(formatSubCategory(item.sub_category || "Media"))}</span>`
+          : "";
+
+        const tagHtml = tags.length
+          ? `<div class="gqi-sel-tags">${tags.map(t => `<span class="gqi-sel-tag" style="border-color:${itemAccent}4d;background:${itemAccent}1a;color:${itemAccent}">${esc(t)}</span>`).join("")}${extra ? `<span class="gqi-sel-tag" style="border-color:${itemAccent}4d;background:${itemAccent}1a;color:${itemAccent}">+${extra}</span>` : ""}</div>`
+          : "";
+
+        return `<div class="gqi-sel-item${isSel ? " gqi-item-sel" : ""}" data-item-id="${esc(item.id)}" role="checkbox" aria-checked="${isSel}" tabindex="0" draggable="true"
+            style="${isSel ? `--item-accent:${itemAccent};border-left-color:${itemAccent}` : ""}">
+          <span class="gqi-sel-chk${isSel ? " gqi-chk-on" : ""}" style="${isSel ? `border-color:${itemAccent};background:${itemAccent}22` : ""}">
+            ${isSel ? `<svg viewBox="0 0 10 8" fill="none" width="10" height="8"><polyline points="1,4 4,7 9,1" stroke="${itemAccent}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ""}
+          </span>
+          <div class="gqi-sel-item-body">
+            <div class="gqi-sel-item-hrow">
+              <span class="gqi-sel-item-title${isSel ? " gqi-title-sel" : ""}">${esc(title)}</span>
+              ${subBadge}
+              ${isAi ? `<span class="gqi-sel-ai-badge">✦ AI</span>` : ""}
+              <div class="gqi-sel-rel">
+                <div class="gqi-sel-bar-track"><div class="gqi-sel-bar-fill" style="width:${score}%;background:${barColor}"></div></div>
+                <span class="gqi-sel-bar-pct">${score}%</span>
+              </div>
+              <button type="button" class="gqi-sel-edit-btn" data-edit-id="${esc(item.id)}" title="Edit">✏</button>
+            </div>
+            ${sub  ? `<span class="gqi-sel-item-sub">${esc(sub)}</span>` : ""}
+            ${desc ? `<span class="gqi-sel-item-desc">${esc(desc.length > 120 ? desc.slice(0, 117) + "…" : desc)}</span>` : ""}
+            ${tagHtml}
+          </div>
+        </div>`;
+      };
+
+      if (activeTab === "projects" && projectFilter === "all") {
+        const groupKeys = ["sap_technical", "sap_media", "creative_media"];
+        const grouped = groupKeys.map(key => {
+          const groupItems = filtered.filter(item => projectBucket(item) === key).sort((a, b) => {
+            const ds = (pinned.has(b.id) ? 2 : 0) - (pinned.has(a.id) ? 2 : 0);
+            if (ds !== 0) return ds;
+            const da = (aiPick.has(b.id) ? 1 : 0) - (aiPick.has(a.id) ? 1 : 0);
+            if (da !== 0) return da;
+            return (b.score || 0) - (a.score || 0);
+          });
+          return { key, items: groupItems };
+        }).filter(g => g.items.length);
+
+        listPanel.innerHTML = grouped.map(g => {
+          const accentColor = projectAccent(g.key);
+          const header = `<div class="gqi-sel-group-header" style="color:${accentColor};border-color:${accentColor}55">${projectGroupLabel(g.key)} (${g.items.length})</div>`;
+          return header + g.items.map(renderItem).join("");
+        }).join("");
+      } else {
+        listPanel.innerHTML = filtered.map(renderItem).join("");
+      }
+
+      listPanel.querySelectorAll(".gqi-sel-item").forEach(el => {
+        const toggle = () => {
+          const id  = el.dataset.itemId;
+          const arr = getPinned(activeTab);
+          const idx = arr.indexOf(id);
+          if (idx !== -1) arr.splice(idx, 1); else arr.push(id);
+          setPinned(activeTab, [...arr]);
+          refreshAll(); renderList();
+        };
+        el.addEventListener("click", e => { if (e.target.closest(".gqi-sel-edit-btn")) return; toggle(); });
+        el.addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(); } });
+      });
+
+      listPanel.querySelectorAll(".gqi-sel-edit-btn").forEach(btn => {
+        btn.addEventListener("click", e => { e.stopPropagation(); openEditForm(btn.dataset.editId); });
+      });
+
+      // ── Drag-to-reorder ──────────────────────────────────────
+      let dragSrcId = null;
+      listPanel.querySelectorAll(".gqi-sel-item").forEach(el => {
+        el.addEventListener("dragstart", e => {
+          dragSrcId = el.dataset.itemId;
+          el.classList.add("gqi-item-dragging");
+          e.dataTransfer.effectAllowed = "move";
+        });
+        el.addEventListener("dragend", () => {
+          el.classList.remove("gqi-item-dragging");
+          listPanel.querySelectorAll(".gqi-item-dragover").forEach(x => x.classList.remove("gqi-item-dragover"));
+        });
+        el.addEventListener("dragover", e => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          if (el.dataset.itemId !== dragSrcId) {
+            listPanel.querySelectorAll(".gqi-item-dragover").forEach(x => x.classList.remove("gqi-item-dragover"));
+            el.classList.add("gqi-item-dragover");
+          }
+        });
+        el.addEventListener("drop", e => {
+          e.preventDefault();
+          el.classList.remove("gqi-item-dragover");
+          if (!dragSrcId || dragSrcId === el.dataset.itemId) return;
+          const items = sec.getItems();
+          const srcIdx = items.findIndex(i => i.id === dragSrcId);
+          const dstIdx = items.findIndex(i => i.id === el.dataset.itemId);
+          if (srcIdx === -1 || dstIdx === -1) return;
+          const [moved] = items.splice(srcIdx, 1);
+          items.splice(dstIdx, 0, moved);
+          dragSrcId = null;
+          renderList();
+          fetch("/reorder-bank-items", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: activeTab, orderedIds: items.map(i => i.id) })
+          }).then(r => r.json()).then(d => {
+            showToast(d.success ? "Order saved" : ("Reorder failed: " + d.error), d.success ? "success" : "error");
+          }).catch(() => showToast("Reorder failed", "error"));
+        });
+      });
+    }
+
+    // ── Inline edit form ─────────────────────────────────────────
+    function openEditForm(itemId) {
+      const sec   = SECTIONS[activeTab];
+      const items = sec.getItems();
+      const item  = items.find(i => i.id === itemId);
+      if (!item) return;
+      drawer.querySelector(".gqi-sel-edit-form")?.remove();
+
+      let fields = [];
+      if (activeTab === "we") {
+        fields = [
+          { key: "title",       label: "Title",           value: item.title       || "" },
+          { key: "company",     label: "Company / Team",  value: item.company     || "" },
+          { key: "period",      label: "Period",          value: item.period      || "" },
+          { key: "description", label: "Description",     value: item.description || (Array.isArray(item.bullets) ? item.bullets.join("\n") : ""), multi: true }
+        ];
+      } else if (activeTab === "projects") {
+        fields = [
+          { key: "name",        label: "Project Name",    value: item.name        || "" },
+          { key: "tech",        label: "Technologies",    value: item.tech        || "" },
+          { key: "description", label: "Description",     value: item.description || "", multi: true }
+        ];
+      } else if (activeTab === "certs") {
+        fields = [
+          { key: "name",        label: "Name",            value: item.name        || "" },
+          { key: "provider",    label: "Provider",        value: item.provider    || "" },
+          { key: "date",        label: "Date",            value: item.date        || "" },
+          { key: "description", label: "Description",     value: item.description || "", multi: true }
+        ];
+      } else if (activeTab === "research") {
+        fields = [
+          { key: "title",       label: "Title",           value: item.title       || "" },
+          { key: "_org",        label: "Institution / Context", value: item.institution || item.context || "" },
+          { key: "_period",     label: "Period / Date",   value: item.period      || item.date || "" },
+          { key: "description", label: "Description",     value: item.description || "", multi: true }
+        ];
+      }
+
+      const form = document.createElement("div");
+      form.className = "gqi-sel-edit-form";
+      form.innerHTML = `
+        <div class="gqi-edit-form-title">Edit: ${esc(sec.getTitle(item))}</div>
+        ${fields.map(f => `<div class="gqi-edit-field">
+          <label class="gqi-edit-label">${f.label}</label>
+          ${f.multi
+            ? `<textarea class="gqi-edit-input" data-field="${f.key}" rows="3">${esc(f.value)}</textarea>`
+            : `<input class="gqi-edit-input" data-field="${f.key}" type="text" value="${esc(f.value)}">`}
+        </div>`).join("")}
+        <div class="gqi-edit-actions">
+          <button type="button" class="gqi-edit-save-btn">Save</button>
+          <button type="button" class="gqi-edit-cancel-btn">Cancel</button>
+        </div>`;
+
+      const itemEl = listPanel.querySelector(`[data-item-id="${itemId}"]`);
+      itemEl?.after(form);
+      form.querySelector(".gqi-edit-input")?.focus();
+
+      form.querySelector(".gqi-edit-cancel-btn").addEventListener("click", () => form.remove());
+      form.querySelector(".gqi-edit-save-btn").addEventListener("click", async () => {
+        const fields = {};
+        form.querySelectorAll(".gqi-edit-input").forEach(inp => {
+          const f = inp.dataset.field, v = inp.value;
+          if (f === "_org") {
+            const key = "institution" in item ? "institution" : "context";
+            item[key] = v; fields[key] = v;
+          } else if (f === "_period") {
+            const key = "period" in item ? "period" : "date";
+            item[key] = v; fields[key] = v;
+          } else if (f === "description" && Array.isArray(item.bullets)) {
+            item.bullets = v.split("\n").map(l => l.replace(/^-\s*/, "").trim()).filter(Boolean);
+            item.description = v;
+            fields.bullets = item.bullets; fields.description = v;
+          } else {
+            item[f] = v; fields[f] = v;
+          }
+        });
+        form.remove();
+        renderList();
+        try {
+          const r = await fetch("/update-bank-item", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type: activeTab, id: itemId, fields })
+          });
+          const d = await r.json();
+          showToast(d.success ? "Saved permanently" : ("Save failed: " + d.error), d.success ? "success" : "error");
+        } catch (e) {
+          showToast("Save failed: " + e.message, "error");
+        }
+      });
+    }
+
+    // ── Tab switching ────────────────────────────────────────────
+    function switchTab(t) {
+      activeTab = t; searchQuery = ""; filterMode = "all"; projectFilter = "all";
+      searchIn.value = ""; searchClr.style.display = "none";
+      filterSel.value = "all";
+      searchIn.placeholder = `Search ${SECTIONS[t].label}...`;
+      drawer.querySelectorAll(".gqi-sel-tab").forEach(btn => {
+        const on = btn.dataset.tab === t;
+        btn.classList.toggle("gqi-tab-active", on);
+        btn.setAttribute("aria-selected", on);
+      });
+      // Show sub-filter row only on Projects tab
+      subfilterRow.style.display = t === "projects" ? "flex" : "none";
+      // Reset sub-filter button active state
+      subfilterRow.querySelectorAll(".gqi-pf-btn").forEach(b =>
+        b.classList.toggle("gqi-pf-active", b.dataset.pf === "all")
+      );
+      // Fade-in animation on content change
+      listPanel.classList.remove("gqi-list-animating");
+      void listPanel.offsetWidth; // force reflow
+      listPanel.classList.add("gqi-list-animating");
+      renderList(); renderChips();
+      requestAnimationFrame(() => searchIn.focus());
+    }
+
+    // ── Sub-filter (Projects) event bindings ─────────────────────
+    subfilterRow.querySelectorAll(".gqi-pf-btn").forEach(btn =>
+      btn.addEventListener("click", () => {
+        projectFilter = btn.dataset.pf;
+        subfilterRow.querySelectorAll(".gqi-pf-btn").forEach(b =>
+          b.classList.toggle("gqi-pf-active", b === btn)
+        );
+        listPanel.classList.remove("gqi-list-animating");
+        void listPanel.offsetWidth;
+        listPanel.classList.add("gqi-list-animating");
+        renderList();
+      })
+    );
+
+    // ── Event bindings ───────────────────────────────────────────
+    drawer.querySelectorAll(".gqi-sel-tab").forEach(btn =>
+      btn.addEventListener("click", () => switchTab(btn.dataset.tab))
+    );
+
+    searchIn.addEventListener("input", () => {
+      searchQuery = searchIn.value;
+      searchClr.style.display = searchQuery ? "flex" : "none";
+      renderList();
+    });
+    searchClr.addEventListener("click", () => {
+      searchQuery = ""; searchIn.value = ""; searchClr.style.display = "none";
+      renderList();
+    });
+    filterSel.addEventListener("change", () => { filterMode = filterSel.value; renderList(); });
+
     drawer.querySelector(".gqi-sel-reset-btn").addEventListener("click", () => {
       const s = genState.selectors[key];
-      s.pinnedWE = [...s.aiPickWE];
-      s.pinnedProjects = [...s.aiPickProjects];
-      drawer.querySelectorAll(".gqi-sel-cb").forEach(cb => {
-        const arr = cb.dataset.selType === "we" ? s.pinnedWE : s.pinnedProjects;
-        cb.checked = arr.includes(cb.dataset.selId);
-        cb.closest(".gqi-sel-item").classList.toggle("gqi-sel-checked", cb.checked);
-      });
-      refreshCounts();
+      s.pinnedWE       = [...(s.aiPickWE || [])];
+      s.pinnedProjects = [...(s.aiPickProjects || [])];
+      s.pinnedCerts    = [];
+      s.pinnedResearch = (s.research || []).map(r => r.id);
+      refreshAll(); renderList();
     });
 
-    // Close
-    drawer.querySelector(".gqi-sel-close-btn").addEventListener("click", () => {
-      modal.remove();
-      updateJobUI(key);
-    });
-    backdrop.addEventListener("click", () => {
-      modal.remove();
-      updateJobUI(key);
-    });
+    const closeModal = () => { document.removeEventListener("keydown", onEsc); modal.remove(); updateJobUI(key); };
+    const onEsc = e => { if (e.key === "Escape") closeModal(); };
+    document.addEventListener("keydown", onEsc);
+    drawer.querySelector(".gqi-sel-close-btn").addEventListener("click", closeModal);
+    backdrop.addEventListener("click", closeModal);
 
-    // Confirm
-    drawer.querySelector(".gqi-sel-confirm-btn").addEventListener("click", () => {
-      modal.remove();
-      updateJobUI(key);
+    confirmBtn.addEventListener("click", () => {
+      closeModal();
       showToast("CV selection saved — click Generate to use it", "success");
+    });
+
+    // ── Initial render + entrance animation ─────────────────────
+    refreshAll();
+    renderList();
+    requestAnimationFrame(() => {
+      drawer.classList.add("gqi-drawer-in");
+      searchIn.focus();
     });
   }
 
@@ -1298,8 +1764,12 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           jobDescription: jdText, documentType: "cv",
+          jobTitle: job.title || null,
+          jobReqId: job.reqId || null,
           pinnedWeIds: selState.pinnedWE?.length ? selState.pinnedWE : null,
-          pinnedProjectIds: selState.pinnedProjects?.length ? selState.pinnedProjects : null
+          pinnedProjectIds: selState.pinnedProjects?.length ? selState.pinnedProjects : null,
+          pinnedCertIds: selState.pinnedCerts?.length ? selState.pinnedCerts : null,
+          pinnedResearchIds: selState.pinnedResearch?.length ? selState.pinnedResearch : null
         })
       });
       const cvData = await cvRes.json();
@@ -1316,7 +1786,15 @@
       const clRes = await fetch("/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobDescription: jdText, documentType: "cl" })
+        body: JSON.stringify({
+          jobDescription: jdText, documentType: "cl",
+          jobTitle: job.title || null,
+          jobReqId: job.reqId || null,
+          pinnedWeIds: selState.pinnedWE?.length ? selState.pinnedWE : null,
+          pinnedProjectIds: selState.pinnedProjects?.length ? selState.pinnedProjects : null,
+          pinnedCertIds: selState.pinnedCerts?.length ? selState.pinnedCerts : null,
+          pinnedResearchIds: selState.pinnedResearch?.length ? selState.pinnedResearch : null
+        })
       });
       const clData = await clRes.json();
       if (!clData.success) throw new Error(clData.error || "Cover letter generation failed");
@@ -1614,16 +2092,168 @@
     }
   }
 
+  function parseDisplayToCvJson(text) {
+    if (!text) return null;
+    try {
+      const lines = text.split('\n');
+      const SECTIONS = ['PROFILE SUMMARY','PROFILE','KEY COMPETENCIES','TECHNICAL SKILLS','EDUCATION','WORK EXPERIENCE','PROJECTS','RESEARCH & ACTIVITIES','CERTIFICATIONS'];
+      const sectionMap = {};
+      for (let i = 0; i < lines.length; i++) {
+        const t = lines[i].trim();
+        if (SECTIONS.includes(t)) sectionMap[t] = i;
+      }
+      const allStarts = Object.values(sectionMap).filter(v => !isNaN(v));
+      const firstSection = allStarts.length ? Math.min(...allStarts) : lines.length;
+      const headerLines = lines.slice(0, firstSection).filter(l => l.trim());
+      const j = {};
+      if (headerLines[0]) j.name = headerLines[0].trim();
+      let hIdx = 1;
+      if (headerLines[hIdx] && !/^(Phone:|Email:|LinkedIn:|GitHub:|Languages:)/i.test(headerLines[hIdx])) {
+        j.location = headerLines[hIdx].trim(); hIdx++;
+      }
+      for (let k = hIdx; k < headerLines.length; k++) {
+        headerLines[k].split('|').map(p => p.trim()).forEach(part => {
+          if (part.startsWith('Phone:')) j.phone = part.slice(6).trim();
+          if (part.startsWith('Email:')) j.email = part.slice(6).trim();
+          if (part.startsWith('LinkedIn:')) j.linkedin = part.slice(9).trim();
+          if (part.startsWith('GitHub:')) j.github = part.slice(7).trim();
+          if (part.startsWith('Languages:')) j.languages = part.slice(10).trim();
+        });
+      }
+      function getSectionLines(name) {
+        if (sectionMap[name] === undefined) return [];
+        const start = sectionMap[name] + 1;
+        const nextStarts = SECTIONS.filter(s => s !== name && sectionMap[s] !== undefined && sectionMap[s] > sectionMap[name]).map(s => sectionMap[s]);
+        const end = nextStarts.length > 0 ? Math.min(...nextStarts) : lines.length;
+        return lines.slice(start, end);
+      }
+      function parseEntries(name) {
+        const slines = getSectionLines(name);
+        const entries = [], current = [];
+        for (const line of slines) {
+          if (line.trim() === '') { if (current.length) { entries.push([...current]); current.length = 0; } }
+          else current.push(line);
+        }
+        if (current.length) entries.push([...current]);
+        return entries;
+      }
+      function parseTitleDate(line) {
+        const m = line.match(/^(.+?)\s{3,}(.+)$/);
+        return m ? { title: m[1].trim(), date: m[2].trim() } : { title: line.trim(), date: '' };
+      }
+      const profLines = (getSectionLines('PROFILE SUMMARY').length ? getSectionLines('PROFILE SUMMARY') : getSectionLines('PROFILE')).filter(l => l.trim());
+      if (profLines.length) j.profile = profLines.join(' ').trim();
+      const kcLines = getSectionLines('KEY COMPETENCIES').filter(l => l.trim());
+      if (kcLines.length) j.key_competencies = kcLines.join(' ').trim();
+      const techLines = getSectionLines('TECHNICAL SKILLS').filter(l => l.trim());
+      if (techLines.length) j.technical_skills = techLines.map(line => {
+        const ci = line.indexOf(':');
+        return ci > 0 ? { category: line.slice(0, ci).trim(), items: line.slice(ci + 1).trim() } : { category: line.trim(), items: '' };
+      });
+      const eduEntries = parseEntries('EDUCATION');
+      if (eduEntries.length) j.education = eduEntries.map(entry => {
+        const { title: degree, date } = parseTitleDate(entry[0] || '');
+        const institution = entry[1]?.trim() || '';
+        const cwLine = entry.find(l => l.trim().startsWith('Selected coursework:'));
+        return { degree, date, institution, coursework: cwLine ? cwLine.replace('Selected coursework:', '').trim() : '' };
+      });
+      const weEntries = parseEntries('WORK EXPERIENCE');
+      if (weEntries.length) j.experience = weEntries.map(entry => {
+        const { title, date } = parseTitleDate(entry[0] || '');
+        const company = entry[1]?.trim() || '';
+        const descLines = entry.slice(2);
+        if (descLines.some(l => l.trim().startsWith('- '))) return { title, date, company, bullets: descLines.filter(l => l.trim().startsWith('- ')).map(l => l.replace(/^-\s*/, '')) };
+        return { title, date, company, description: descLines.join(' ').trim() };
+      });
+      const projEntries = parseEntries('PROJECTS');
+      if (projEntries.length) j.projects = projEntries.map(entry => {
+        const { title, date } = parseTitleDate(entry[0] || '');
+        let tech = '', descLines = [];
+        if (entry.length > 1) {
+          const second = entry[1]?.trim() || '';
+          if (!second.startsWith('- ') && !parseTitleDate(second).date) { tech = second; descLines = entry.slice(2); }
+          else descLines = entry.slice(1);
+        }
+        if (descLines.some(l => l.trim().startsWith('- '))) return { title, date, tech, bullets: descLines.filter(l => l.trim().startsWith('- ')).map(l => l.replace(/^-\s*/, '')) };
+        return { title, date, tech, description: descLines.join(' ').trim() };
+      });
+      const resEntries = parseEntries('RESEARCH & ACTIVITIES');
+      if (resEntries.length) j.research_activities = resEntries.map(entry => {
+        const { title, date } = parseTitleDate(entry[0]?.trim() || '');
+        const organization = entry[1]?.trim() || '';
+        const description = entry.slice(2).join(' ').trim();
+        return { title, date, organization, description };
+      });
+      const certEntries = parseEntries('CERTIFICATIONS');
+      if (certEntries.length) j.certifications = certEntries.map(entry => {
+        const { title: name, date } = parseTitleDate(entry[0] || '');
+        return { name, date, description: entry.slice(1).join(' ').trim() };
+      });
+      return j;
+    } catch (e) { console.warn('parseDisplayToCvJson failed:', e); return null; }
+  }
+
+  function parseDisplayToClJson(text, existingJson) {
+    if (!text) return null;
+    try {
+      const lines = text.split('\n');
+      const j = existingJson ? { ...existingJson } : {};
+      const headerLine = lines[0]?.trim() || '';
+      if (headerLine.includes('Position:') || headerLine.includes('Req ID:') || headerLine.includes('Location:')) {
+        headerLine.split('|').map(p => p.trim()).forEach(part => {
+          if (part.startsWith('Position:')) j.position_title = part.slice(9).trim();
+          if (part.startsWith('Req ID:')) j.req_id = part.slice(7).trim();
+          if (part.startsWith('Location:')) j.location = part.slice(9).trim();
+        });
+      }
+      let inBody = false;
+      const paragraphs = [];
+      let currentPara = [];
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed === 'Dear Hiring Manager,') { inBody = true; continue; }
+        if (!inBody) continue;
+        if (trimmed.startsWith('Thank you very much')) break;
+        if (trimmed === '') {
+          if (currentPara.length) { paragraphs.push(currentPara.join(' ')); currentPara = []; }
+        } else { currentPara.push(trimmed); }
+      }
+      if (currentPara.length) paragraphs.push(currentPara.join(' '));
+      if (paragraphs.length) j.paragraphs = paragraphs;
+      return j;
+    } catch (e) { console.warn('parseDisplayToClJson failed:', e); return null; }
+  }
+
   async function exportPdfForJob(type, reqId) {
     const gen  = genState.generations[reqId];
     const i    = genState.queue.findIndex(j => getGenKey(j) === reqId);
     const job  = i >= 0 ? genState.queue[i] : null;
     if (!gen) { showToast("No generation found", "error"); return; }
     const safe = safeId(reqId);
-    const content     = type === "cv"
+    const content = type === "cv"
       ? (document.getElementById("gqi-cv-" + safe)?.value || gen.cvContent)
       : (document.getElementById("gqi-cl-" + safe)?.value || gen.clContent);
-    const contentJson = type === "cv" ? gen.cvJson : gen.clJson;
+    const originalContent = type === "cv" ? gen.cvContent : gen.clContent;
+    const isEdited = content !== originalContent;
+    let contentJson;
+    if (!isEdited) {
+      // Unedited: use original structured JSON for clean template formatting
+      contentJson = type === "cv" ? gen.cvJson : gen.clJson;
+    } else {
+      // Edited: try to parse display text back to JSON for template formatting
+      const parsed = type === "cv" ? parseDisplayToCvJson(content) : parseDisplayToClJson(content, null);
+      // If parse produced a meaningful JSON, use it; otherwise null → server uses text parser
+      // NEVER fall back to gen.cvJson/gen.clJson when edited (that would export original text)
+      if (type === "cl") {
+        // CL: require at least one body paragraph, otherwise text parser handles raw content
+        contentJson = (parsed && parsed.paragraphs?.length > 0) ? parsed : null;
+      } else {
+        // CV: require at least one real section (not just name/location header fields)
+        const CV_SECTIONS = ["profile","key_competencies","technical_skills","education","experience","projects","research_activities","certifications"];
+        const hasSection = parsed && CV_SECTIONS.some(k => parsed[k]?.length > 0);
+        contentJson = hasSection ? parsed : null;
+      }
+    }
     if (!content && !contentJson) { showToast("No content to export", "error"); return; }
     const filename = `Varun_Raval_${type === "cv" ? "CV" : "CL"}_${(job?.reqId || "doc")}`;
     try {
@@ -1917,6 +2547,22 @@
       textarea.style.fontSize = Math.max(10, Math.min(24, current + delta)) + "px";
     });
 
+    // CL Bold button — wraps selection with **...**
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(".gen-cl-bold");
+      if (!btn) return;
+      const ta = $(btn.dataset.target);
+      if (!ta) return;
+      const start = ta.selectionStart, end = ta.selectionEnd;
+      const sel = ta.value.slice(start, end);
+      const replacement = sel.length ? `**${sel}**` : `****`;
+      ta.value = ta.value.slice(0, start) + replacement + ta.value.slice(end);
+      // Place cursor: inside the stars if no selection, after closing ** if selection
+      const newPos = sel.length ? start + replacement.length : start + 2;
+      ta.setSelectionRange(newPos, newPos);
+      ta.focus();
+    });
+
     // Inline copy buttons
     document.addEventListener("click", (e) => {
       const btn = e.target.closest(".gen-copy-btn");
@@ -1943,8 +2589,10 @@
       if (!modal || !modalTa) return;
       modalTa.value = textarea.value;
       modalTa._sourceId = btn.dataset.target;
+      modalTa._docType = (btn.dataset.label || "").toLowerCase().includes("cover") ? "cl" : "cv";
       if (title) title.textContent = "Edit " + (btn.dataset.label || "Document");
       modal.classList.remove("hidden");
+      updateA4Preview();
     });
     $("gen-fullview-close")?.addEventListener("click", () => {
       const modal = $("gen-fullview-modal");
@@ -1952,6 +2600,64 @@
       if (!modal || !modalTa) return;
       if (modalTa._sourceId) { const src = $(modalTa._sourceId); if (src) src.value = modalTa.value; }
       modal.classList.add("hidden");
+    });
+
+    // A4 preview toggle
+    $("gen-fv-toggle-preview")?.addEventListener("click", () => {
+      const pane = $("gen-fv-preview-pane");
+      const btn  = $("gen-fv-toggle-preview");
+      if (!pane) return;
+      const hidden = pane.classList.toggle("hidden");
+      btn?.classList.toggle("gen-fv-active", !hidden);
+    });
+
+    // Swap preview/editor sides
+    $("gen-fv-swap")?.addEventListener("click", () => {
+      const body = document.querySelector(".gen-fv-body");
+      const btn  = $("gen-fv-swap");
+      if (!body) return;
+      const swapped = body.classList.toggle("swapped");
+      if (btn) btn.classList.toggle("gen-fv-active", swapped);
+    });
+
+    // Drag-to-resize between editor and preview panes
+    const resizer    = $("gen-fv-resizer");
+    const editorPane = $("gen-fv-editor-pane");
+    const fvBody     = $("gen-fv-body");
+    if (resizer && editorPane && fvBody) {
+      let dragging = false, startX = 0, startW = 0;
+      resizer.addEventListener("mousedown", e => {
+        dragging = true;
+        startX = e.clientX;
+        startW = editorPane.getBoundingClientRect().width;
+        resizer.classList.add("dragging");
+        document.body.style.cursor = "col-resize";
+        document.body.style.userSelect = "none";
+        e.preventDefault();
+      });
+      document.addEventListener("mousemove", e => {
+        if (!dragging) return;
+        const body = fvBody;
+        const swapped = body.classList.contains("swapped");
+        const delta = swapped ? startX - e.clientX : e.clientX - startX;
+        const totalW = fvBody.getBoundingClientRect().width;
+        const newW = Math.min(Math.max(startW + delta, 240), totalW - 240);
+        editorPane.style.width = newW + "px";
+      });
+      document.addEventListener("mouseup", () => {
+        if (!dragging) return;
+        dragging = false;
+        resizer.classList.remove("dragging");
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      });
+    }
+
+    // Live A4 preview update (debounced)
+    let _fvPreviewTimer = null;
+    $("gen-fullview-textarea")?.addEventListener("input", () => {
+      clearTimeout(_fvPreviewTimer);
+      _fvPreviewTimer = setTimeout(updateA4Preview, 300);
     });
     $("gen-fullview-copy")?.addEventListener("click", (e) => {
       const modalTa = $("gen-fullview-textarea");
@@ -2007,14 +2713,16 @@
   // ═══════════════════════════════════════════════════════════════
   // QUICK-ADD / DELETE TOOL CHIP INTERACTIONS
   // ═══════════════════════════════════════════════════════════════
-  let _qaTargetChip = null;
-  let _qaToolName   = null;
+  let _qaTargetChip    = null;
+  let _qaToolName      = null;
+  let _qaSearchResults = [];
+  let _qaIsToolMode    = false; // true = tag existing skills; false = add new skill
 
   function positionQuickAdd(chipEl) {
     const dlg  = document.getElementById("gqi-quick-add");
     if (!dlg) return;
     const rect = chipEl.getBoundingClientRect();
-    const dlgW = 300, dlgH = 280;
+    const dlgW = 420, dlgH = 520;
     let top  = rect.bottom + 8;
     let left = rect.left;
     if (left + dlgW > window.innerWidth - 8)  left  = window.innerWidth  - dlgW - 8;
@@ -2023,20 +2731,333 @@
     dlg.style.left = Math.max(8, left) + "px";
   }
 
-  function showQuickAdd(toolName, chipEl) {
-    _qaTargetChip = chipEl;
-    _qaToolName   = toolName;
+  function showQuickAdd(toolName, chipEl, isToolMode) {
+    _qaTargetChip    = chipEl;
+    _qaToolName      = toolName;
+    _qaSearchResults = [];
+    _qaIsToolMode    = !!isToolMode;
     const dlg = document.getElementById("gqi-quick-add");
     if (!dlg) return;
+
+    // Adjust title and visible sections based on mode
+    const titleEl = dlg.querySelector(".gqi-qa-title");
+    if (titleEl) titleEl.innerHTML = _qaIsToolMode ? "&#x1F3F7; Tag Skills with Tool" : "&#x2795; Add to Skill Bank";
     document.getElementById("gqi-qa-tool-name").textContent = toolName;
+
+    // In tool mode, hide add-skill fields (category, level, evidence, actions)
+    // Show only search bar + results with Tag buttons
+    const addFields = dlg.querySelector(".gqi-qa-add-fields");
+    if (addFields) addFields.style.display = _qaIsToolMode ? "none" : "";
+    const toolActions = dlg.querySelector(".gqi-qa-tool-actions");
+    if (toolActions) toolActions.style.display = _qaIsToolMode ? "" : "none";
+
     const evidenceEl = document.getElementById("gqi-qa-evidence");
-    evidenceEl.value = "";
-    evidenceEl.placeholder = "Generating suggestion…";
+    if (evidenceEl) {
+      evidenceEl.value = "";
+      evidenceEl.placeholder = _qaIsToolMode ? "" : "Select results below or click Generate…";
+    }
     document.getElementById("gqi-qa-level").value = "Intermediate";
+    // Pre-fill search bar and auto-search
+    const searchInput = document.getElementById("gqi-qa-search");
+    if (searchInput) searchInput.value = toolName;
+    const resultsEl = document.getElementById("gqi-qa-results");
+    if (resultsEl) resultsEl.innerHTML = "";
     dlg.classList.remove("hidden");
     positionQuickAdd(chipEl);
-    // Auto-fetch AI suggestion immediately on open
-    fetchEvidenceSuggestion();
+    // Auto-search skill bank for the keyword
+    searchSkillBank(toolName);
+  }
+
+  // ── Skill bank search ──
+  async function searchSkillBank(query) {
+    const resultsEl = document.getElementById("gqi-qa-results");
+    if (!resultsEl || !query.trim()) return;
+    resultsEl.innerHTML = '<div class="gqi-qa-results-loading">Searching…</div>';
+    try {
+      const res  = await fetch("/skill-bank/search?q=" + encodeURIComponent(query.trim()));
+      const data = await res.json();
+      if (data.success && data.results.length > 0) {
+        _qaSearchResults = data.results;
+        renderQAResults(data.results);
+      } else {
+        _qaSearchResults = [];
+        if (_qaIsToolMode) {
+          // Tool-tag mode: offer inline Generate & Add instead of dead text
+          resultsEl.innerHTML = `
+            <div class="gqi-qa-results-empty" style="padding:10px 0;">
+              <div style="margin-bottom:10px;color:var(--text-muted,#888);">Not in skill bank yet.</div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <select id="gqi-qa-inline-level" style="padding:4px 8px;border-radius:6px;border:1px solid #ccc;font-size:13px;">
+                  <option value="Beginner">Beginner</option>
+                  <option value="Intermediate" selected>Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                </select>
+                <button type="button" id="gqi-qa-inline-gen-btn" class="btn btn-sm" style="background:var(--gqi-accent,#5b4fcf);color:#fff;padding:4px 12px;">⚡ Generate &amp; Add</button>
+              </div>
+            </div>`;
+          document.getElementById("gqi-qa-inline-gen-btn")?.addEventListener("click", generateAndAddSkill);
+        } else {
+          resultsEl.innerHTML = '<div class="gqi-qa-results-empty">No matches — click <strong>⚡ Generate</strong> to create evidence</div>';
+        }
+      }
+    } catch {
+      _qaSearchResults = [];
+      resultsEl.innerHTML = '<div class="gqi-qa-results-empty">Search failed</div>';
+    }
+  }
+
+  function renderQAResults(results) {
+    const el = document.getElementById("gqi-qa-results");
+    if (!el) return;
+
+    if (_qaIsToolMode) {
+      // Tool-tag mode: show Tag button per skill
+      el.innerHTML = `<div class="gqi-qa-results-header">${results.length} skill${results.length !== 1 ? "s" : ""} to tag with "${esc(_qaToolName)}"</div>` +
+        results.map((r, i) => {
+          const alreadyTagged = (r.tools || []).some(t => t.toLowerCase() === _qaToolName.toLowerCase());
+          const existingTags = (r.tools || []).map(t => `<span class="gqi-qa-tool-pill">${esc(t)}</span>`).join(" ");
+          return `
+        <div class="gqi-qa-result-item gqi-qa-result-taggable" data-idx="${i}">
+          <div class="gqi-qa-result-info">
+            <div class="gqi-qa-result-name">${esc(r.skill)} <span class="gqi-qa-result-meta">${esc(r.level)} · ${esc(r.category.replace(/_/g, " "))}</span></div>
+            <div class="gqi-qa-result-evidence">${esc(r.evidence)}</div>
+            ${existingTags ? `<div class="gqi-qa-result-tools">${existingTags}</div>` : ""}
+          </div>
+          <button class="gqi-qa-tag-btn${alreadyTagged ? " tagged" : ""}" data-idx="${i}" ${alreadyTagged ? "disabled" : ""}>${alreadyTagged ? "✓ Tagged" : "🏷 Tag"}</button>
+        </div>`;
+        }).join("");
+      el.querySelectorAll(".gqi-qa-tag-btn:not(.tagged)").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          tagSkillWithTool(parseInt(btn.dataset.idx));
+        });
+      });
+    } else {
+      // Add-skill mode: show checkboxes (existing behavior)
+      el.innerHTML = `<div class="gqi-qa-results-header">${results.length} match${results.length !== 1 ? "es" : ""} found</div>` +
+        results.map((r, i) => {
+          const existingTags = (r.tools || []).map(t => `<span class="gqi-qa-tool-pill">${esc(t)}</span>`).join(" ");
+          return `
+        <label class="gqi-qa-result-item">
+          <input type="checkbox" class="gqi-qa-result-cb" data-idx="${i}" />
+          <div class="gqi-qa-result-info">
+            <div class="gqi-qa-result-name">${esc(r.skill)} <span class="gqi-qa-result-meta">${esc(r.level)} · ${esc(r.category.replace(/_/g, " "))}</span></div>
+            <div class="gqi-qa-result-evidence">${esc(r.evidence)}</div>
+            ${existingTags ? `<div class="gqi-qa-result-tools">${existingTags}</div>` : ""}
+          </div>
+        </label>`;
+        }).join("");
+      el.querySelectorAll(".gqi-qa-result-cb").forEach(cb => {
+        cb.addEventListener("change", onQAResultSelectionChange);
+      });
+    }
+  }
+
+  // Tag an existing skill with the tool keyword
+  async function tagSkillWithTool(idx) {
+    const skill = _qaSearchResults[idx];
+    if (!skill) return;
+    const btn = document.querySelector(`.gqi-qa-tag-btn[data-idx="${idx}"]`);
+    if (btn) { btn.textContent = "Tagging…"; btn.disabled = true; }
+    try {
+      const res = await fetch("/skill-bank/add-tool", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: skill.id, tool: _qaToolName })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      // Update local result with new tools
+      skill.tools = data.chunk.tools || [];
+      if (btn) { btn.textContent = "✓ Tagged"; btn.classList.add("tagged"); }
+      // Flip chip to match style
+      if (_qaTargetChip) {
+        _qaTargetChip.classList.replace("gqi-chip-tool-gap", "gqi-chip-tool-match");
+        _qaTargetChip.style.textDecoration = "";
+        _qaTargetChip.style.opacity = "";
+        _qaTargetChip.title = "✓ In your skill bank";
+      }
+      showToast(`✓ Tagged "${skill.skill}" with tool "${_qaToolName}"`);
+      // Refresh tool index cache
+      loadBankToolIndex();
+      // Refresh result item to show the new pill
+      const item = btn.closest(".gqi-qa-result-taggable");
+      const toolsDiv = item?.querySelector(".gqi-qa-result-tools");
+      if (toolsDiv) {
+        toolsDiv.innerHTML = skill.tools.map(t => `<span class="gqi-qa-tool-pill">${esc(t)}</span>`).join(" ");
+      } else if (item) {
+        const info = item.querySelector(".gqi-qa-result-info");
+        if (info) info.insertAdjacentHTML("beforeend", `<div class="gqi-qa-result-tools">${skill.tools.map(t => `<span class="gqi-qa-tool-pill">${esc(t)}</span>`).join(" ")}</div>`);
+      }
+    } catch (err) {
+      showToast("Tag failed: " + err.message, "error");
+      if (btn) { btn.textContent = "🏷 Tag"; btn.disabled = false; }
+    }
+  }
+
+  // Called when user clicks "⚡ Generate & Add" in tool-tag mode with no search results.
+  // Generates evidence via /skill-bank/suggest, shows an editable confirm form,
+  // then saves the new skill + immediately tags it with the tool name.
+  async function generateAndAddSkill() {
+    const resultsEl = document.getElementById("gqi-qa-results");
+    const genBtn    = document.getElementById("gqi-qa-inline-gen-btn");
+    const level     = document.getElementById("gqi-qa-inline-level")?.value || "Intermediate";
+    if (!_qaToolName || !resultsEl) return;
+
+    if (genBtn) { genBtn.textContent = "⚡ Generating…"; genBtn.disabled = true; }
+
+    try {
+      const suggestRes  = await fetch("/skill-bank/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skill: _qaToolName, level })
+      });
+      const suggestData = await suggestRes.json();
+      if (!suggestData.success) throw new Error(suggestData.error || "Generate failed");
+
+      const category = suggestData.category || "Tools";
+      const evidence = suggestData.suggestion || "";
+
+      // Show editable confirm form
+      resultsEl.innerHTML = `
+        <div style="padding:8px 0;">
+          <div style="font-size:12px;color:var(--text-muted,#888);margin-bottom:6px;">
+            New skill · <strong>${esc(_qaToolName)}</strong> · ${esc(level)} · ${esc(category)}
+          </div>
+          <textarea id="gqi-qa-inline-evidence" rows="3"
+            style="width:100%;box-sizing:border-box;padding:6px 8px;border-radius:6px;border:1px solid #ccc;font-size:13px;resize:vertical;">${esc(evidence)}</textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button type="button" id="gqi-qa-inline-save-btn" class="btn btn-sm"
+              style="background:var(--gqi-accent,#5b4fcf);color:#fff;padding:4px 14px;">💾 Save &amp; Tag</button>
+            <button type="button" id="gqi-qa-inline-back-btn" class="btn btn-sm">↩ Back</button>
+          </div>
+        </div>`;
+
+      document.getElementById("gqi-qa-inline-back-btn")?.addEventListener("click", () => {
+        searchSkillBank(_qaToolName);
+      });
+
+      document.getElementById("gqi-qa-inline-save-btn")?.addEventListener("click", async () => {
+        const finalEvidence = document.getElementById("gqi-qa-inline-evidence")?.value?.trim();
+        if (!finalEvidence) return;
+        const saveBtn = document.getElementById("gqi-qa-inline-save-btn");
+        if (saveBtn) { saveBtn.textContent = "Saving…"; saveBtn.disabled = true; }
+
+        try {
+          // 1. Add skill to bank
+          const addRes  = await fetch("/skill-bank/add", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ category, skill: _qaToolName, level, evidence: finalEvidence })
+          });
+          const addData = await addRes.json();
+          if (!addData.success) throw new Error(addData.error);
+
+          // 2. Tag the new skill with the tool name (the chip keyword)
+          const tagRes  = await fetch("/skill-bank/add-tool", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: addData.chunk.id, tool: _qaToolName })
+          });
+          const tagData = await tagRes.json();
+          if (!tagData.success) throw new Error(tagData.error);
+
+          // Flip chip to matched style
+          if (_qaTargetChip) {
+            _qaTargetChip.classList.replace("gqi-chip-tool-gap", "gqi-chip-tool-match");
+            _qaTargetChip.style.textDecoration = "";
+            _qaTargetChip.style.opacity        = "";
+            _qaTargetChip.title                = "✓ In your skill bank";
+            _qaTargetChip.dataset.skillId      = addData.chunk.id;
+          }
+          showToast(`✓ "${_qaToolName}" added to skill bank and tagged`);
+          loadBankToolIndex();
+          hideQuickAdd();
+        } catch (err) {
+          showToast("Save failed: " + err.message, "error");
+          if (saveBtn) { saveBtn.textContent = "💾 Save & Tag"; saveBtn.disabled = false; }
+        }
+      });
+
+    } catch (err) {
+      showToast("Generate failed: " + err.message, "error");
+      // Restore the generate button
+      searchSkillBank(_qaToolName);
+    }
+  }
+
+  function onQAResultSelectionChange() {
+    const checked = document.querySelectorAll(".gqi-qa-result-cb:checked");
+    const evidenceEl = document.getElementById("gqi-qa-evidence");
+    if (!evidenceEl) return;
+    if (checked.length === 0) {
+      evidenceEl.value = "";
+      evidenceEl.placeholder = "Select results above or click Generate…";
+      return;
+    }
+    const parts = [];
+    checked.forEach(cb => {
+      const idx = parseInt(cb.dataset.idx);
+      if (_qaSearchResults[idx]) parts.push(_qaSearchResults[idx].evidence);
+    });
+    evidenceEl.value = parts.join(" | ");
+    // Apply first match's category
+    const firstIdx = parseInt(checked[0].dataset.idx);
+    if (_qaSearchResults[firstIdx]) {
+      const catEl = document.getElementById("gqi-qa-category");
+      if (catEl) catEl.value = _qaSearchResults[firstIdx].category;
+    }
+  }
+
+  async function generateQAEvidence() {
+    const evidenceEl = document.getElementById("gqi-qa-evidence");
+    const genBtn     = document.getElementById("gqi-qa-generate");
+    if (!evidenceEl || !_qaToolName) return;
+    if (genBtn) { genBtn.textContent = "⚡ Generating…"; genBtn.disabled = true; }
+    try {
+      const checked = document.querySelectorAll(".gqi-qa-result-cb:checked");
+      const selectedEvidence = [];
+      checked.forEach(cb => {
+        const idx = parseInt(cb.dataset.idx);
+        if (_qaSearchResults[idx]) selectedEvidence.push(_qaSearchResults[idx].evidence);
+      });
+      const level = document.getElementById("gqi-qa-level")?.value || "Intermediate";
+
+      if (selectedEvidence.length > 0) {
+        // Synthesize from selected evidence
+        const res  = await fetch("/skill-bank/synthesize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ keyword: _qaToolName, evidence: selectedEvidence, level })
+        });
+        const data = await res.json();
+        if (data.success) {
+          evidenceEl.value = data.evidence;
+        } else {
+          throw new Error(data.error || "Synthesis failed");
+        }
+      } else {
+        // No selections → generate from scratch
+        const res  = await fetch("/skill-bank/suggest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ skill: _qaToolName, level })
+        });
+        const data = await res.json();
+        if (data.success && data.suggestion) {
+          evidenceEl.value = data.suggestion;
+          const catEl = document.getElementById("gqi-qa-category");
+          if (catEl && data.category) catEl.value = data.category;
+        }
+      }
+      // Flash to indicate new content
+      evidenceEl.style.borderColor = "var(--gqi-pct-high)";
+      setTimeout(() => { evidenceEl.style.borderColor = ""; }, 800);
+    } catch (err) {
+      showToast("Generate failed: " + err.message, "error");
+    } finally {
+      if (genBtn) { genBtn.textContent = "⚡ Generate"; genBtn.disabled = false; }
+    }
   }
 
   async function fetchEvidenceSuggestion() {
@@ -2166,14 +3187,25 @@
   function initChipInteractions() {
     const listEl = document.getElementById("gen-queue-list");
     if (!listEl) return;
+
+    // Single click: TOOLS chips → tool-tag mode; SKILLS chips → add mode
+    listEl.addEventListener("click", (e) => {
+      const chip = e.target.closest(".gqi-chip");
+      if (!chip) return;
+      const name = chip.childNodes[0]?.textContent?.trim() || chip.textContent.replace("opt", "").trim();
+      if (chip.classList.contains("gqi-chip-tool-gap") || chip.classList.contains("gqi-chip-tool-match")) {
+        showQuickAdd(name, chip, true);  // tool-tag mode
+      } else if (chip.classList.contains("gqi-chip-skill")) {
+        showQuickAdd(name, chip, false); // add-skill mode
+      }
+    });
+
+    // Double-click match chip: delete from bank
     listEl.addEventListener("dblclick", (e) => {
       const chip = e.target.closest(".gqi-chip");
       if (!chip) return;
-      // Extract tool name (strip the "opt" superscript text)
       const name = chip.childNodes[0]?.textContent?.trim() || chip.textContent.replace("opt", "").trim();
-      if (chip.classList.contains("gqi-chip-tool-gap")) {
-        showQuickAdd(name, chip);
-      } else if (chip.classList.contains("gqi-chip-tool-match")) {
+      if (chip.classList.contains("gqi-chip-tool-match")) {
         deleteFromBank(name, chip);
       }
     });
@@ -2209,10 +3241,18 @@
     document.getElementById("gqi-qa-add")?.addEventListener("click", submitQuickAdd);
     document.getElementById("gqi-qa-cancel")?.addEventListener("click", hideQuickAdd);
     document.getElementById("gqi-qa-close")?.addEventListener("click", hideQuickAdd);
+    document.getElementById("gqi-qa-tool-cancel")?.addEventListener("click", hideQuickAdd);
     document.getElementById("gqi-qa-suggest-btn")?.addEventListener("click", fetchEvidenceSuggestion);
     document.getElementById("gqi-qa-rephrase")?.addEventListener("click", rephraseEvidence);
-    // Re-suggest when level changes
-    document.getElementById("gqi-qa-level")?.addEventListener("change", fetchEvidenceSuggestion);
+    document.getElementById("gqi-qa-generate")?.addEventListener("click", generateQAEvidence);
+    // Search bar: search on Enter or button click
+    document.getElementById("gqi-qa-search")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); searchSkillBank(e.target.value); }
+    });
+    document.getElementById("gqi-qa-search-btn")?.addEventListener("click", () => {
+      const q = document.getElementById("gqi-qa-search")?.value;
+      if (q) searchSkillBank(q);
+    });
     document.getElementById("gqi-qa-evidence")?.addEventListener("keydown", (e) => {
       if (e.key === "Escape") hideQuickAdd();
     });
@@ -2228,11 +3268,314 @@
   // ═══════════════════════════════════════════════════════════════
   // INIT
   // ═══════════════════════════════════════════════════════════════
+  async function loadBankToolIndex() {
+    try {
+      const res = await fetch("/skill-bank");
+      const data = await res.json();
+      if (data.success) {
+        const idx = {};
+        for (const s of (data.skill_chunks || [])) {
+          // Index skill name
+          idx[s.skill.toLowerCase()] = true;
+          // Index tool tags
+          for (const t of (s.tools || [])) idx[t.toLowerCase()] = true;
+        }
+        genState.bankToolIndex = idx;
+      }
+    } catch { /* silent — tool index is optional enhancement */ }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ✨ POLISH DRAWER
+  // ═══════════════════════════════════════════════════════════════
+
+  function initPolishDrawer() {
+    const popup     = document.getElementById("polish-popup");
+    const header    = document.getElementById("polish-popup-header");
+    const closeBtn  = document.getElementById("polish-drawer-close");
+    const openBtn   = document.getElementById("polishNavBtn");
+    const resetBtn  = document.getElementById("polish-reset-size");
+    const runBtn    = document.getElementById("polish-run-btn");
+    const copyBtn   = document.getElementById("polish-copy-btn");
+    const inputTa   = document.getElementById("polish-input");
+    const outputTa  = document.getElementById("polish-output");
+    const inputWc   = document.getElementById("polish-input-wc");
+    const status    = document.getElementById("polish-status");
+    const outputSec = document.getElementById("polish-output-section");
+    const wcDiff    = document.getElementById("polish-wc-diff");
+    let   activeMode = "cl";
+
+    if (!popup) return;
+
+    openBtn?.addEventListener("click", () => popup.classList.toggle("hidden"));
+    document.getElementById("polish-fab")?.addEventListener("click", () => popup.classList.toggle("hidden"));
+    closeBtn?.addEventListener("click", () => popup.classList.add("hidden"));
+
+    // Reset size & position
+    resetBtn?.addEventListener("click", () => {
+      popup.style.width = ""; popup.style.height = "";
+      popup.style.top = ""; popup.style.left = "";
+      popup.style.bottom = ""; popup.style.right = "";
+    });
+
+    // Drag-to-move via header
+    if (header) {
+      let dragging = false, startX = 0, startY = 0, origLeft = 0, origTop = 0;
+      header.addEventListener("mousedown", (e) => {
+        if (e.target.closest("button, input, select")) return;
+        dragging = true;
+        const rect = popup.getBoundingClientRect();
+        popup.style.top    = rect.top  + "px";
+        popup.style.left   = rect.left + "px";
+        popup.style.bottom = "auto";
+        popup.style.right  = "auto";
+        startX = e.clientX; startY = e.clientY;
+        origLeft = rect.left; origTop = rect.top;
+        e.preventDefault();
+      });
+      document.addEventListener("mousemove", (e) => {
+        if (!dragging) return;
+        popup.style.left = Math.max(0, origLeft + (e.clientX - startX)) + "px";
+        popup.style.top  = Math.max(0, origTop  + (e.clientY - startY)) + "px";
+      });
+      document.addEventListener("mouseup", () => { dragging = false; });
+    }
+
+    // Mode toggle
+    document.querySelectorAll(".polish-mode-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".polish-mode-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        activeMode = btn.dataset.mode;
+      });
+    });
+
+    // Live word count on input
+    function countWords(str) { return str.trim() ? str.trim().split(/\s+/).length : 0; }
+    inputTa?.addEventListener("input", () => {
+      const n = countWords(inputTa.value);
+      if (inputWc) inputWc.textContent = `${n} word${n !== 1 ? "s" : ""}`;
+    });
+
+    // Run: apply style then humanize
+    runBtn?.addEventListener("click", async () => {
+      const raw = inputTa?.value?.trim();
+      if (!raw) { inputTa?.focus(); return; }
+
+      runBtn.disabled = true;
+      runBtn.textContent = "⚡ Applying style…";
+      outputSec?.classList.add("hidden");
+      status?.classList.remove("hidden");
+      if (status) status.textContent = "Pass 1 — applying Varun's writing style…";
+
+      try {
+        // Pass 1: style
+        const styleRes  = await fetch("/apply-style", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: raw, mode: activeMode })
+        });
+        const styleData = await styleRes.json();
+        if (!styleData.success) throw new Error(styleData.error || "Style pass failed");
+
+        if (status) status.textContent = "Pass 2 — removing AI patterns…";
+        runBtn.textContent = "⚡ Humanizing…";
+
+        // Pass 2: humanize
+        const humanRes  = await fetch("/humanize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: styleData.styled })
+        });
+        const humanData = await humanRes.json();
+        if (!humanData.success) throw new Error(humanData.error || "Humanize pass failed");
+
+        const finalText = (humanData.humanized || styleData.styled).trim();
+        if (outputTa) outputTa.value = finalText;
+
+        const inWords  = countWords(raw);
+        const outWords = countWords(finalText);
+        const diff     = outWords - inWords;
+        if (wcDiff) wcDiff.textContent = `${inWords}w → ${outWords}w${diff !== 0 ? ` (${diff > 0 ? "+" : ""}${diff})` : ""}`;
+
+        outputSec?.classList.remove("hidden");
+        status?.classList.add("hidden");
+        showToast("✨ Polished");
+      } catch (err) {
+        status?.classList.add("hidden");
+        showToast("Polish failed: " + err.message, "error");
+      } finally {
+        runBtn.disabled  = false;
+        runBtn.textContent = "✨ Apply Style + Humanize";
+      }
+    });
+
+    // Copy button
+    copyBtn?.addEventListener("click", () => {
+      const text = outputTa?.value;
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.textContent = "✓ Copied";
+        setTimeout(() => { copyBtn.textContent = "⎘ Copy"; }, 1500);
+      });
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // A4 LIVE PREVIEW RENDERER
+  // ═══════════════════════════════════════════════════════════════
+
+  function updateA4Preview() {
+    const ta   = $("gen-fullview-textarea");
+    const page = $("gen-fv-a4-page");
+    if (!ta || !page) return;
+    const docType = ta._docType || "cv";
+    page.innerHTML = docType === "cl" ? renderClA4(ta.value) : renderCvA4(ta.value);
+  }
+
+  // ── Shared LaTeX strip helper ───────────────────────────────
+  function stripTex(s) {
+    return (s || '')
+      .replace(/\\href\{[^}]*\}\{([^}]*)\}/g, '$1')
+      .replace(/\\url\{([^}]*)\}/g, '$1')
+      .replace(/\\textbf\{([^}]*)\}/g, '$1')
+      .replace(/\\textit\{([^}]*)\}/g, '$1')
+      .replace(/\\textsc\{([^}]*)\}/g, '$1')
+      .replace(/\\color\{[^}]*\}/g, '')
+      .replace(/\\small\b|\\large\b|\\Huge\b|\\bfseries\b|\\itshape\b/g, '')
+      .replace(/\\nobreakdash/g, '-')
+      .replace(/\\enspace\b/g, ' ')
+      .replace(/\\quad\b/g, '  ')
+      .replace(/\\textbar\{\}/g, '|')
+      .replace(/\\textbackslash\{\}/g, '\\')
+      .replace(/\\&/g, '&').replace(/\\%/g, '%').replace(/\\#/g, '#')
+      .replace(/\\_/g, '_').replace(/\\par\b/g, '')
+      .replace(/\\vspace\{[^}]*\}|\\sectrule\b|\\pagestyle\{[^}]*\}/g, '')
+      .replace(/\{|\}/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  // ── Extract body after \begin{document} ────────────────────
+  function extractDocBody(text) {
+    let body = text;
+    const di = body.indexOf('\\begin{document}');
+    if (di !== -1) body = body.slice(di + '\\begin{document}'.length);
+    const ei = body.indexOf('\\end{document}');
+    if (ei !== -1) body = body.slice(0, ei);
+    return body;
+  }
+
+  function renderCvA4(text) {
+    if (!text?.trim()) return `<p class="fv-empty">Start typing to see preview…</p>`;
+    const h = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const body = extractDocBody(text);
+    let html = '';
+
+    // ── Name ──
+    const nameM = /\\name\{([^}]+)\}/.exec(body);
+    if (nameM) {
+      html += `<div class="fv-contact">`;
+      html += `<div class="fv-name">${h(stripTex(nameM[1]))}</div>`;
+      // Contact block: {\small\n...\n}
+      const smallM = /\{\\small\n([\s\S]*?)\n\}/.exec(body);
+      if (smallM) {
+        smallM[1].split('\\par').forEach(part => {
+          const t = stripTex(part);
+          if (t) html += `<div class="fv-contact-line">${h(t)}</div>`;
+        });
+      }
+      html += `</div><hr class="fv-rule">`;
+    }
+
+    // ── Sections: split on \section*{...} ──
+    const secRe = /\\section\*\{([^}]+)\}/g;
+    const secs = [];
+    let sm;
+    while ((sm = secRe.exec(body)) !== null) {
+      secs.push({ name: sm[1], matchStart: sm.index, contentStart: sm.index + sm[0].length });
+    }
+
+    secs.forEach((sec, idx) => {
+      const contentEnd = idx + 1 < secs.length ? secs[idx + 1].matchStart : body.length;
+      const secBody = body.slice(sec.contentStart, contentEnd);
+
+      html += `<div class="fv-section">`;
+      html += `<div class="fv-section-hdr">${h(sec.name)}</div>`;
+
+      if (/\\cventry\{/.test(secBody)) {
+        // Entry-based section (Education, Work Experience, Projects…)
+        const eRe = /\\cventry\{([^}]*)\}\{([^}]*)\}|\\cvsubtitle\{([^}]*)\}|\\cvbody\{([^}]*)\}/g;
+        let em;
+        while ((em = eRe.exec(secBody)) !== null) {
+          if (em[1] !== undefined) {
+            html += `<div class="fv-entry-row">` +
+              `<span class="fv-entry-title">${h(stripTex(em[1]))}</span>` +
+              `<span class="fv-entry-date">${h(stripTex(em[2]))}</span></div>`;
+          } else if (em[3] !== undefined) {
+            html += `<div class="fv-subtitle">${h(stripTex(em[3]))}</div>`;
+          } else if (em[4] !== undefined) {
+            html += `<div class="fv-cvbody">${h(stripTex(em[4]))}</div>`;
+          }
+        }
+      } else {
+        // Plain-text section (Profile, Key Competencies, Technical Skills)
+        const cleaned = secBody
+          .replace(/\\vspace\{[^}]*\}|\\sectrule\b/g, '')
+          .split('\n')
+          .map(l => stripTex(l))
+          .filter(Boolean)
+          .join(' ');
+        if (cleaned) html += `<div class="fv-cvbody">${h(cleaned)}</div>`;
+      }
+
+      html += `</div>`;
+    });
+
+    return html || `<p class="fv-empty">Start typing to see preview…</p>`;
+  }
+
+  function renderClA4(text) {
+    if (!text?.trim()) return `<p class="fv-empty">Start typing to see preview…</p>`;
+    const h = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    let body = extractDocBody(text);
+    let html = '';
+
+    // Extract \begin{center}...\end{center} blocks (title + position info)
+    const centerBlocks = [];
+    body = body.replace(/\\begin\{center\}([\s\S]*?)\\end\{center\}/g, (_, c) => {
+      centerBlocks.push(c.trim());
+      return '\n';
+    });
+    if (centerBlocks[0]) html += `<div class="fv-cl-title">${h(stripTex(centerBlocks[0]))}</div>`;
+    if (centerBlocks[1]) html += `<div class="fv-cl-meta">${h(stripTex(centerBlocks[1]))}</div>`;
+
+    // Remaining body → paragraphs
+    body = body.replace(/\\vspace\{[^}]*\}/g, '\n');
+    body.split(/\n{2,}/).map(p => p.trim()).filter(Boolean).forEach(para => {
+      const t = stripTex(para);
+      if (!t) return;
+      if (/^best regards/i.test(t) || /^varun\s+raval$/i.test(t)) {
+        html += `<div class="fv-cl-sign">${h(t)}</div>`;
+      } else if (para.includes('raval.varun@') || para.includes('linkedin.com') || para.includes('github.com')) {
+        html += `<div class="fv-cl-footer">${h(t)}</div>`;
+      } else if (/i am open to/i.test(t)) {
+        html += `<div class="fv-cl-footer">${h(t)}</div>`;
+      } else {
+        html += `<p class="fv-cl-para">${h(t)}</p>`;
+      }
+    });
+
+    return html || `<p class="fv-empty">Start typing to see preview…</p>`;
+  }
+
   function init() {
     bindEvents();
     renderQueue();
     loadRagStatus();
     initChipInteractions();
+    loadBankToolIndex();
+    initPolishDrawer();
   }
 
   window.GenerateModule = { addToQueue, init };

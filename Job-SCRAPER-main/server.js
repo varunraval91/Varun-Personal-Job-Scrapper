@@ -146,12 +146,16 @@ const AI_MIN_GAP_MS = aiProvider === "groq" ? 2000 : aiProvider === "claude" ? 1
 // VECTOR STORE + STYLE PROFILE
 // ═══════════════════════════════════════════════════════════════
 
+function loadBank() {
+  return JSON.parse(fs.readFileSync(path.join(__dirname, "data", "skill_data_bank.json"), "utf-8"));
+}
+
 let vectorReady = false;
 let styleProfile = null;
 let skillBank = null;
 
 try {
-  skillBank = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "skill_data_bank.json"), "utf-8"));
+  skillBank = loadBank();
   const stylePath = path.join(__dirname, "data", "writing_style_profile.json");
   if (fs.existsSync(stylePath)) {
     styleProfile = JSON.parse(fs.readFileSync(stylePath, "utf-8"));
@@ -163,15 +167,17 @@ try {
   const vsPath = path.join(__dirname, "data", "vector_store.json");
   if (fs.existsSync(vsPath)) {
     vectorReady = true;
-    console.log(`[OK] Vector store ready: ${skillBank.skill_chunks.length} skills, ${skillBank.projects.length} technical projects, ${(skillBank.media_projects?.sap_media_projects?.length||0)+(skillBank.media_projects?.creative_media_projects?.length||0)} media projects`);
+    const nSkills = (skillBank.user_skills || []).length;
+    const nProj   = (skillBank.user_projects || []).length;
+    console.log(`[OK] Vector store ready (v${skillBank.version || "3.x"}): ${nSkills} skills, ${nProj} projects`);
   } else {
-    console.warn("[!!] Vector store not initialized — run setup first");
+    console.warn("[!!] Vector store not initialized — call POST /rebuild-vector-store");
   }
 } catch (err) {
   console.warn(`[!!] Vector store failed: ${err.message} — RAG features disabled`);
 }
 
-const { retrieveContext, addSkillToVector, updateSkillInVector } = vectorReady ? require("./src/rag_engine") : { retrieveContext: null, addSkillToVector: null, updateSkillInVector: null };
+const { retrieveContext, rebuildVectorStore, addSkillToVector, updateSkillInVector } = vectorReady ? require("./src/rag_engine") : { retrieveContext: null, rebuildVectorStore: null, addSkillToVector: null, updateSkillInVector: null };
 const skillBankManager = vectorReady ? require("./src/skill_bank_manager") : null;
 const { humanize } = vectorReady ? require("./src/humanizer") : { humanize: null };
 
@@ -828,7 +834,6 @@ RULES (non-negotiable):
 - Each paragraph: 3-5 sentences. Total word count 350-450 (fits 1 page).
 - DO NOT include the closing "Thank you..." sentence — it is added automatically.
 - Return ONLY valid JSON. No markdown fences, no explanation, no extra text.
-
 JSON SCHEMA:
 {
   "position_title": "<Job Title from JD>",
@@ -949,7 +954,7 @@ ${certText ? `\n=== SELECTED CERTIFICATIONS ===\n${certText}\n` : ""}${researchT
 5. Structure: Opening hook → 3 focused evidence paragraphs → Closing with availability.
 6. Length: 240-320 words. Keep sentences crisp.
 7. Reference the specific team/product mentioned in the job posting.
-8. Use **double asterisks** around key technical terms (SAP modules, tool names, product names) — 2-3 per paragraph max. No other markdown.
+8. Do NOT use markdown or **bold** markers.
 9. If job requires fluent German and candidate has B1, be honest about it.
 10. HARD STOP — closing block: Do NOT write "Thank you", "Best regards", "Sincerely", email addresses, LinkedIn/GitHub links, or availability footer text in ANY paragraph. These are appended automatically. Paragraph 5 must end with a forward-looking contribution statement or direct availability sentence — never a sign-off. Output containing any closing phrase is invalid.
 11. If user-selected entries exist, prioritize them when they strengthen JD alignment; otherwise use stronger matched evidence.
@@ -1119,21 +1124,13 @@ app.post("/cv-selector-data", async (req, res) => {
   if (!jdText) return res.status(400).json({ success: false, error: "Missing jdText" });
 
   try {
-    // Read latest bank from disk so selector reflects recent edits immediately
+    // Always read fresh from disk so selector reflects latest Skill Bank edits
     let bank = skillBank || {};
-    try {
-      bank = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "skill_data_bank.json"), "utf-8"));
-      skillBank = bank;
-    } catch (_) {}
+    try { bank = loadBank(); skillBank = bank; } catch (_) {}
 
-    const allWE = bank.work_experience || [];
-    // Flatten media projects (sap_media + creative_media) into the project pool
-    const mediaProjRaw = [
-      ...(bank.media_projects?.sap_media_projects || []),
-      ...(bank.media_projects?.creative_media_projects || [])
-    ].map(p => ({ ...p, name: p.name || p.title }));  // media projects use 'title' — normalise to 'name' (prefer saved name over title)
-    const allProjects = [...(bank.projects || []), ...mediaProjRaw];
-    const allCerts = (bank.certifications_registry || []).map(c => ({ id: c.id, name: c.name, provider: c.provider || "", date: c.date || c.date_range || "" }));
+    const allWE       = bank.user_work_experience || [];
+    const allProjects = bank.user_projects || [];
+    const allCerts    = (bank.user_certifications || []).map(c => ({ id: c.cert_id, name: c.title, provider: c.provider || "", date: c.date || "" }));
 
     // Research papers + activities for selector
     const researchPapers = (bank.research_papers || []).map(rp => ({
@@ -1166,29 +1163,28 @@ app.post("/cv-selector-data", async (req, res) => {
     }
 
     const scoredWE = allWE.map(we => ({
-      id: we.id,
-      title: we.title,
-      company: we.company,
-      period: we.period,
-      location: we.location || "",
+      id:         we.work_id,
+      title:      we.job_title,
+      company:    we.company,
+      period:     we.period,
+      location:   we.location || "",
       skills_used: we.skills_used || [],
-      bullets: we.bullets || [],
-      description: we.description || (we.bullets || []).join(" "),
-      score: scoreItem([we.title, we.company, (we.bullets || []).join(" "), (we.skills_used || []).join(" ")])
+      responsibilities: we.responsibilities || [],
+      score: scoreItem([we.job_title, we.company, (we.responsibilities || []).join(" "), (we.skills_used || []).join(" ")])
     })).sort((a, b) => b.score - a.score);
 
     const scoredProjects = allProjects.map(p => ({
-      id: p.id,
-      name: p.name,
-      tech: p.tech,
-      date: p.date,
-      description: p.description || "",
+      id:           p.project_id,
+      name:         p.project_name,
+      tech:         p.tech,
+      date:         p.date,
+      description:  p.description || "",
       sub_category: p.sub_category || null,
-      score: scoreItem([p.name, p.tech, p.description || ""])
+      score: scoreItem([p.project_name, p.tech, p.description || ""])
     })).sort((a, b) => b.score - a.score);
 
     // Auto-tick top 3 WE + top 3 SAP Technical projects only (PJ prefix)
-    const topWeIds = scoredWE.slice(0, 3).map(w => w.id);
+    const topWeIds      = scoredWE.slice(0, 3).map(w => w.id);
     const sapTechProjects = scoredProjects.filter(p => p.id.startsWith("PJ"));
     const topProjectIds = sapTechProjects.slice(0, 3).map(p => p.id);
 
@@ -1202,89 +1198,6 @@ app.post("/cv-selector-data", async (req, res) => {
       aiPickProjects: topProjectIds,
       aiPickCerts: allCerts.map(c => c.id)
     });
-  } catch (err) {
-    return res.status(500).json({ success: false, error: safeError(err) });
-  }
-});
-
-// ═══════════════════════════════════════════════════════════════
-// POST /update-bank-item  — Permanently edit an item in skill_data_bank.json
-// ═══════════════════════════════════════════════════════════════
-app.post("/update-bank-item", (req, res) => {
-  const { type, id, fields } = req.body || {};
-  if (!type || !id || !fields) return res.status(400).json({ success: false, error: "Missing type, id or fields" });
-  const bankPath = path.join(__dirname, "data", "skill_data_bank.json");
-  try {
-    const bank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
-
-    function applyFields(item, isMediaProject) {
-      Object.entries(fields).forEach(([k, v]) => {
-        item[k] = v;
-        // media projects store display name as 'title' — keep in sync
-        if (k === "name" && isMediaProject) item.title = v;
-      });
-    }
-    function findAndUpdate(arr, isMediaProject) {
-      const item = (arr || []).find(x => x.id === id);
-      if (item) { applyFields(item, isMediaProject); return true; }
-      return false;
-    }
-
-    let found = false;
-    if (type === "we")       found = findAndUpdate(bank.work_experience);
-    if (type === "projects") {
-      found = findAndUpdate(bank.projects, false);
-      if (!found) found = findAndUpdate(bank.media_projects?.sap_media_projects, true);
-      if (!found) found = findAndUpdate(bank.media_projects?.creative_media_projects, true);
-    }
-    if (type === "certs")    found = findAndUpdate(bank.certifications_registry);
-    if (type === "research") {
-      found = findAndUpdate(bank.research_papers);
-      if (!found) found = findAndUpdate(bank.research_activities);
-    }
-
-    if (!found) return res.status(404).json({ success: false, error: "Item not found" });
-
-    fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2), "utf-8");
-    skillBank = bank; // refresh in-memory cache
-    return res.json({ success: true });
-  } catch (err) {
-    return res.status(500).json({ success: false, error: safeError(err) });
-  }
-});
-
-// ═══════════════════════════════════════════════════════════════
-// POST /reorder-bank-items  — Save user-defined order to bank
-// ═══════════════════════════════════════════════════════════════
-app.post("/reorder-bank-items", (req, res) => {
-  const { type, orderedIds } = req.body || {};
-  if (!type || !Array.isArray(orderedIds)) return res.status(400).json({ success: false, error: "Missing type or orderedIds" });
-  const bankPath = path.join(__dirname, "data", "skill_data_bank.json");
-  try {
-    const bank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
-    function reorder(arr) {
-      if (!arr?.length) return arr;
-      const map = new Map(arr.map(x => [x.id, x]));
-      const ordered = orderedIds.map(id => map.get(id)).filter(Boolean);
-      const rest = arr.filter(x => !orderedIds.includes(x.id));
-      return [...ordered, ...rest];
-    }
-    if (type === "we") bank.work_experience = reorder(bank.work_experience);
-    if (type === "projects") {
-      bank.projects = reorder(bank.projects);
-      if (bank.media_projects) {
-        bank.media_projects.sap_media_projects    = reorder(bank.media_projects.sap_media_projects);
-        bank.media_projects.creative_media_projects = reorder(bank.media_projects.creative_media_projects);
-      }
-    }
-    if (type === "certs")    bank.certifications_registry = reorder(bank.certifications_registry);
-    if (type === "research") {
-      bank.research_papers     = reorder(bank.research_papers);
-      bank.research_activities = reorder(bank.research_activities);
-    }
-    fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2), "utf-8");
-    skillBank = bank;
-    return res.json({ success: true });
   } catch (err) {
     return res.status(500).json({ success: false, error: safeError(err) });
   }
@@ -1364,12 +1277,9 @@ app.post("/generate", async (req, res) => {
   lastAICall = Date.now();
 
   try {
-    // Always resolve pins against latest bank from disk (selector endpoint also does this)
+    // Always read fresh so pinned lookups use latest Skill Bank edits
     let latestBank = skillBank || {};
-    try {
-      latestBank = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "skill_data_bank.json"), "utf-8"));
-      skillBank = latestBank;
-    } catch (_) {}
+    try { latestBank = loadBank(); skillBank = latestBank; } catch (_) {}
 
     let systemPrompt;
     let userPrompt;
@@ -1390,60 +1300,37 @@ app.post("/generate", async (req, res) => {
 
     // ── RAG-based generation (primary path) ──
     if (vectorReady && retrieveContext) {
-      ragContext = await retrieveContext(jobDescription, { topSkills: 12, topProjects: 3, topWork: 2 });
+      ragContext = await retrieveContext(jobDescription, { topSkills: 12, topProjects: 3, topWork: 2 }, latestBank);
       console.log(`  RAG: ${ragContext.skills.length} skills, ${ragContext.projects.length} projects, ${ragContext.work.length} work`);
 
       // If user pinned specific WE/Project IDs, inject them from skill_data_bank
       if (pinnedWEList.length || pinnedProjectList.length) {
         const bank = latestBank;
-        const mediaProjects = [
-          ...(bank.media_projects?.sap_media_projects || []),
-          ...(bank.media_projects?.creative_media_projects || [])
-        ].map(p => ({
-          id: p.id,
-          name: p.name || p.title || "",
-          tech: p.tech || (Array.isArray(p.tech_tools) ? p.tech_tools.join(", ") : ""),
-          description: p.description || (Array.isArray(p.responsibilities) ? p.responsibilities.join(" ") : "")
-        }));
-        const projectPool = [...(bank.projects || []), ...mediaProjects];
-        const projectById = new Map(projectPool.map(p => [p.id, p]));
-        const workById = new Map((bank.work_experience || []).map(w => [w.id, w]));
+        const projectById = new Map((bank.user_projects || []).map(p => [p.project_id, p]));
+        const workById    = new Map((bank.user_work_experience || []).map(w => [w.work_id, w]));
+
+        const toWorkCtx = w => ({
+          id:       w.work_id,
+          document: `${w.job_title} at ${w.company} (${w.period}): ${(w.responsibilities||[]).join(' ')}`,
+          metadata: { title: w.job_title, company: w.company, period: w.period, skills_used: w.skills_used || [] }
+        });
+        const toProjCtx = p => ({
+          id:       p.project_id,
+          document: `${p.project_name} (${p.tech}): ${p.description || ""}`,
+          metadata: { name: p.project_name, tech: p.tech }
+        });
 
         if (documentType === "cv") {
-          // CV: full replacement (existing behavior)
-          if (pinnedWEList.length) {
-            const pinned = pinnedWEList.map(id => workById.get(id)).filter(Boolean);
-            ragContext.work = pinned.map(w => ({
-              id: w.id,
-              document: `${w.title} at ${w.company} (${w.period}): ${(w.bullets||[]).join(' ')}`,
-              metadata: { title: w.title, company: w.company, period: w.period, skills_used: w.skills_used || [] }
-            }));
-          }
-          if (pinnedProjectList.length) {
-            const pinned = pinnedProjectList.map(id => projectById.get(id)).filter(Boolean);
-            ragContext.projects = pinned.map(p => ({
-              id: p.id,
-              document: p.description || p.name,
-              metadata: { name: p.name, tech: p.tech }
-            }));
-          }
+          if (pinnedWEList.length)      ragContext.work     = pinnedWEList.map(id => workById.get(id)).filter(Boolean).map(toWorkCtx);
+          if (pinnedProjectList.length) ragContext.projects = pinnedProjectList.map(id => projectById.get(id)).filter(Boolean).map(toProjCtx);
         } else {
-          // CL: merge pinned at the front, then fill with RAG picks (deduplicated)
           if (pinnedWEList.length) {
-            const pinned = pinnedWEList.map(id => workById.get(id)).filter(Boolean).map(w => ({
-              id: w.id,
-              document: `${w.title} at ${w.company} (${w.period}): ${(w.bullets||[]).join(' ')}`,
-              metadata: { title: w.title, company: w.company, period: w.period, skills_used: w.skills_used || [] }
-            }));
+            const pinned   = pinnedWEList.map(id => workById.get(id)).filter(Boolean).map(toWorkCtx);
             const ragExtra = ragContext.work.filter(w => !pinnedWEList.includes(w.id));
             ragContext.work = [...pinned, ...ragExtra];
           }
           if (pinnedProjectList.length) {
-            const pinned = pinnedProjectList.map(id => projectById.get(id)).filter(Boolean).map(p => ({
-              id: p.id,
-              document: `${p.name} (${p.tech}): ${p.description}`,
-              metadata: { name: p.name, tech: p.tech }
-            }));
+            const pinned   = pinnedProjectList.map(id => projectById.get(id)).filter(Boolean).map(toProjCtx);
             const ragExtra = ragContext.projects.filter(p => !pinnedProjectList.includes(p.id));
             ragContext.projects = [...pinned, ...ragExtra];
           }
@@ -1455,15 +1342,14 @@ app.post("/generate", async (req, res) => {
       }
 
       // Resolve selected certifications
-      const bank2 = latestBank;
-      const allCerts = bank2.certifications_registry || [];
+      const allCerts = (latestBank.user_certifications || []).map(c => ({ ...c, id: c.cert_id, name: c.title }));
       const selectedCerts = pinnedCertList.length
-        ? allCerts.filter(c => pinnedCertList.includes(c.id))
+        ? allCerts.filter(c => pinnedCertList.includes(c.cert_id))
         : allCerts;
 
       // Resolve selected research papers + activities
-      const allRP = bank2.research_papers || [];
-      const allRA = bank2.research_activities || [];
+      const allRP = latestBank.research_papers || [];
+      const allRA = latestBank.research_activities || [];
       const allResearch = [...allRP, ...allRA];
       const selectedResearch = pinnedResearchList.length
         ? allResearch.filter(r => pinnedResearchList.includes(r.id))
@@ -1517,21 +1403,11 @@ app.post("/generate", async (req, res) => {
 
         if (pinnedProjectList.length && Array.isArray(contentJson.projects)) {
           const bankNow = latestBank;
-          const mediaNow = [
-            ...(bankNow.media_projects?.sap_media_projects || []),
-            ...(bankNow.media_projects?.creative_media_projects || [])
-          ].map(p => ({
-            id: p.id,
-            name: p.name || p.title || "",
-            tech: p.tech || (Array.isArray(p.tech_tools) ? p.tech_tools.join(", ") : ""),
-            description: p.description || (Array.isArray(p.responsibilities) ? p.responsibilities.join(" ") : "")
-          }));
-          const projectPoolNow = [...(bankNow.projects || []), ...mediaNow];
-          const byIdNow = new Map(projectPoolNow.map(p => [p.id, p]));
+          const byIdNow = new Map((bankNow.user_projects || []).map(p => [p.project_id, p]));
           const resolvedPinnedCvProjects = pinnedProjectList.map(id => byIdNow.get(id)).filter(Boolean).map(p => ({
-            id: p.id,
-            document: p.description || p.name,
-            metadata: { name: p.name, tech: p.tech }
+            id:       p.project_id,
+            document: p.description || p.project_name,
+            metadata: { name: p.project_name, tech: p.tech }
           }));
           if (resolvedPinnedCvProjects.length) {
             const existingProjects = contentJson.projects;
@@ -1750,8 +1626,6 @@ function runGhostscript(inputPdf, outputPdf) {
         "-dQUIET",
         "-dBATCH",
         "-dFastWebView=false",
-        "-dCompatibilityLevel=1.4",
-        "-dPDFSETTINGS=/printer",
         `-sOutputFile=${outputPdf}`,
         inputPdf
       ],
@@ -1876,8 +1750,7 @@ function jsonToDisplayCl(j) {
 // JSON → LaTeX BUILDERS (clean template injection — no parsing)
 // ═══════════════════════════════════════════════════════════════
 
-const LATEX_CV_PREAMBLE = `\\pdfminorversion=4
-\\documentclass[11pt,a4paper]{article}
+const LATEX_CV_PREAMBLE = `\\documentclass[11pt,a4paper]{article}
 
 %---------------------------------------------------------------
 % BASIC PACKAGES
@@ -1943,8 +1816,7 @@ const LATEX_CV_PREAMBLE = `\\pdfminorversion=4
 
 `;
 
-const LATEX_CL_PREAMBLE = `\\pdfminorversion=4
-\\documentclass[11pt,a4paper]{article}
+const LATEX_CL_PREAMBLE = `\\documentclass[11pt,a4paper]{article}
 \\usepackage[top=2.5cm,bottom=2.5cm,left=2.8cm,right=2.8cm]{geometry}
 \\usepackage[T1]{fontenc}
 \\usepackage[utf8]{inputenc}
@@ -2325,8 +2197,7 @@ function buildCvLatex(content) {
     }
   }
 
-  return `\\pdfminorversion=4
-\\documentclass[11pt,a4paper]{article}
+  return `\\documentclass[11pt,a4paper]{article}
 \\usepackage[margin=1.8cm]{geometry}
 \\usepackage[T1]{fontenc}
 \\usepackage[utf8]{inputenc}
@@ -2425,8 +2296,7 @@ function buildClLatex(content) {
     }
   }
 
-  return `\\pdfminorversion=4
-\\documentclass[11pt,a4paper]{article}
+  return `\\documentclass[11pt,a4paper]{article}
 \\usepackage[top=2.5cm,bottom=2.5cm,left=2.8cm,right=2.8cm]{geometry}
 \\usepackage[T1]{fontenc}
 \\usepackage[utf8]{inputenc}
@@ -2563,6 +2433,23 @@ app.post("/index-library", async (req, res) => {
 app.get("/library-index", (req, res) => res.json({ success: true, documents: libraryIndex }));
 
 // ═══════════════════════════════════════════════════════════════
+// POST /rebuild-vector-store  — rebuild from current skill_data_bank.json
+// ═══════════════════════════════════════════════════════════════
+
+app.post("/rebuild-vector-store", async (req, res) => {
+  if (!rebuildVectorStore) return res.status(503).json({ success: false, error: "RAG engine not loaded" });
+  try {
+    const bank   = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "skill_data_bank.json"), "utf-8"));
+    skillBank    = bank;
+    const counts = await rebuildVectorStore(bank);
+    vectorReady  = true;
+    res.json({ success: true, message: "Vector store rebuilt", counts });
+  } catch (err) {
+    res.status(500).json({ success: false, error: safeError(err) });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
 // GET /health
 // ═══════════════════════════════════════════════════════════════
 
@@ -2572,7 +2459,7 @@ app.get("/health", (req, res) => res.json({
   model: aiProvider === "claude" ? CLAUDE_MODEL : aiProvider === "groq" ? GROQ_MODEL : aiProvider === "gemini" ? GEMINI_MODEL : "none",
   browserUp: sharedBrowser?.isConnected() || false,
   vectorStore: vectorReady,
-  skillChunks: skillBank?.skill_chunks?.length || 0,
+  skillChunks: (skillBank?.user_skills || []).length,
   styleProfile: styleProfile ? `${styleProfile.total_samples} samples` : "not loaded",
   // Note: libraryDocs removed — PDFs are no longer used in the generation pipeline
 }));
@@ -2586,13 +2473,131 @@ app.get("/skill-bank", (req, res) => {
   res.json({
     success: true,
     profile: skillBank.profile,
-    skill_chunks: skillBank.skill_chunks,
-    projects: skillBank.projects,
-    work_experience: skillBank.work_experience,
-    education: skillBank.education,
-    certifications: skillBank.certifications,
+    user_skills:          skillBank.user_skills || [],
+    user_projects:        skillBank.user_projects || [],
+    user_work_experience: skillBank.user_work_experience || [],
+    education:            skillBank.education || [],
+    certifications:       skillBank.user_certifications || [],
+    research_papers: skillBank.research_papers || [],
+    research_activities: skillBank.research_activities || [],
     vectorReady
   });
+});
+
+// ── Edit project ──
+app.post("/skill-bank/update-project", async (req, res) => {
+  const { project_id, project_name, tech, date, description, impact } = req.body;
+  if (!project_id) return res.status(400).json({ success: false, error: "Missing project_id" });
+  try {
+    const bankPath = path.join(__dirname, "data", "skill_data_bank.json");
+    const bank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
+    const projects = bank.user_projects || bank.projects || [];
+    const proj = projects.find(p => (p.project_id || p.id) === project_id);
+    if (!proj) return res.status(404).json({ success: false, error: `Project ${project_id} not found` });
+    if (project_name !== undefined) { proj.project_name = project_name; if (proj.name !== undefined) proj.name = project_name; }
+    if (tech        !== undefined) proj.tech        = tech;
+    if (date        !== undefined) proj.date        = date;
+    if (description !== undefined) proj.description = description;
+    if (impact      !== undefined) proj.impact      = impact;
+    // Regenerate vector_text for this project so RAG picks up the change
+    proj.vector_text = `${proj.project_name||proj.name} ${proj.tech||""} ${proj.description||""} ${proj.impact||""}`.replace(/\s+/g," ").trim();
+    fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2));
+    skillBank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
+    if (rebuildVectorStore) { await rebuildVectorStore(skillBank); vectorReady = true; }
+    res.json({ success: true, project: proj, vectorRebuilt: !!rebuildVectorStore });
+  } catch (err) {
+    res.status(500).json({ success: false, error: safeError(err) });
+  }
+});
+
+// ── Edit work experience ──
+app.post("/skill-bank/update-work", async (req, res) => {
+  const { work_id, job_title, company, period, location, skills_used, responsibilities } = req.body;
+  if (!work_id) return res.status(400).json({ success: false, error: "Missing work_id" });
+  try {
+    const bankPath = path.join(__dirname, "data", "skill_data_bank.json");
+    const bank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
+    const workList = bank.user_work_experience || [];
+    const entry = workList.find(w => (w.work_id || w.id) === work_id);
+    if (!entry) return res.status(404).json({ success: false, error: `Work entry ${work_id} not found` });
+    if (job_title      !== undefined) { entry.job_title = job_title; if (entry.title !== undefined) entry.title = job_title; }
+    if (company        !== undefined) entry.company        = company;
+    if (period         !== undefined) entry.period         = period;
+    if (location       !== undefined) entry.location       = location;
+    if (skills_used    !== undefined) entry.skills_used    = Array.isArray(skills_used) ? skills_used : skills_used.split(",").map(s => s.trim()).filter(Boolean);
+    if (responsibilities !== undefined) { entry.responsibilities = Array.isArray(responsibilities) ? responsibilities : responsibilities.split("\n").map(s => s.trim()).filter(Boolean); if (entry.bullets !== undefined) entry.bullets = entry.responsibilities; }
+    // Regenerate vector_text for this work entry
+    entry.vector_text = `${entry.job_title||entry.title} ${entry.company} ${(entry.responsibilities||entry.bullets||[]).join(" ")} ${(entry.skills_used||[]).join(" ")}`.replace(/\s+/g," ").trim();
+    fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2));
+    skillBank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
+    if (rebuildVectorStore) { await rebuildVectorStore(skillBank); vectorReady = true; }
+    res.json({ success: true, entry, vectorRebuilt: !!rebuildVectorStore });
+  } catch (err) {
+    res.status(500).json({ success: false, error: safeError(err) });
+  }
+});
+
+// ── Edit certification ──
+app.post("/skill-bank/update-cert", (req, res) => {
+  const { cert_id, title, provider, date, duration } = req.body;
+  if (!cert_id) return res.status(400).json({ success: false, error: "Missing cert_id" });
+  try {
+    const bankPath = path.join(__dirname, "data", "skill_data_bank.json");
+    const bank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
+    const list = bank.user_certifications || [];
+    const entry = list.find(c => (c.cert_id || c.id) === cert_id);
+    if (!entry) return res.status(404).json({ success: false, error: `Cert ${cert_id} not found` });
+    if (title    !== undefined) entry.title    = title;
+    if (provider !== undefined) entry.provider = provider;
+    if (date     !== undefined) entry.date     = date;
+    if (duration !== undefined) entry.duration = duration;
+    fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2));
+    skillBank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
+    res.json({ success: true, entry });
+  } catch (err) { res.status(500).json({ success: false, error: safeError(err) }); }
+});
+
+// ── Edit research paper or activity ──
+app.post("/skill-bank/update-research", (req, res) => {
+  const { id, title, description, institution, context, period, date, references, key_finding } = req.body;
+  if (!id) return res.status(400).json({ success: false, error: "Missing id" });
+  try {
+    const bankPath = path.join(__dirname, "data", "skill_data_bank.json");
+    const bank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
+    const entry = (bank.research_papers || []).find(r => r.id === id)
+               || (bank.research_activities || []).find(r => r.id === id);
+    if (!entry) return res.status(404).json({ success: false, error: `Research ${id} not found` });
+    if (title       !== undefined) entry.title       = title;
+    if (description !== undefined) entry.description = description;
+    if (institution !== undefined) entry.institution = institution;
+    if (context     !== undefined) entry.context     = context;
+    if (period      !== undefined) entry.period      = period;
+    if (date        !== undefined) entry.date        = date;
+    if (references  !== undefined) entry.references  = references;
+    if (key_finding !== undefined) entry.key_finding = key_finding;
+    fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2));
+    skillBank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
+    res.json({ success: true, entry });
+  } catch (err) { res.status(500).json({ success: false, error: safeError(err) }); }
+});
+
+// ── Edit education entry ──
+app.post("/skill-bank/update-education", (req, res) => {
+  const { degree, institution, period, status, relevance, key_modules } = req.body;
+  if (!degree || !institution) return res.status(400).json({ success: false, error: "Missing degree or institution" });
+  try {
+    const bankPath = path.join(__dirname, "data", "skill_data_bank.json");
+    const bank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
+    const entry = (bank.education || []).find(e => e.degree === degree && e.institution === institution);
+    if (!entry) return res.status(404).json({ success: false, error: `Education entry not found` });
+    if (period      !== undefined) entry.period      = period;
+    if (status      !== undefined) entry.status      = status;
+    if (relevance   !== undefined) entry.relevance   = relevance;
+    if (key_modules !== undefined) entry.key_modules = Array.isArray(key_modules) ? key_modules : key_modules.split("\n").map(s => s.trim()).filter(Boolean);
+    fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2));
+    skillBank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
+    res.json({ success: true, entry });
+  } catch (err) { res.status(500).json({ success: false, error: safeError(err) }); }
 });
 
 app.post("/skill-bank/add", async (req, res) => {
@@ -2601,9 +2606,9 @@ app.post("/skill-bank/add", async (req, res) => {
   if (!category || !skill || !level || !evidence) return res.status(400).json({ success: false, error: "Missing required fields: category, skill, level, evidence" });
   try {
     const chunk = await skillBankManager.addSkill({ category, skill, level, evidence, phase });
-    // Reload skillBank in memory
     skillBank = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "skill_data_bank.json"), "utf-8"));
-    res.json({ success: true, chunk });
+    if (rebuildVectorStore) { await rebuildVectorStore(skillBank); vectorReady = true; }
+    res.json({ success: true, chunk, vectorRebuilt: !!rebuildVectorStore });
   } catch (err) {
     res.status(500).json({ success: false, error: safeError(err) });
   }
@@ -2611,16 +2616,17 @@ app.post("/skill-bank/add", async (req, res) => {
 
 app.post("/skill-bank/update", async (req, res) => {
   if (!skillBankManager) return res.status(503).json({ success: false, error: "Skill bank not available" });
-  const { id, level, evidence, tools } = req.body;
+  const { id, level, evidence, description, tools } = req.body;
   if (!id) return res.status(400).json({ success: false, error: "Missing skill id" });
   try {
     const updates = {};
-    if (level) updates.level = level;
-    if (evidence) updates.evidence = evidence;
-    if (tools) updates.tools = tools;
+    if (level)                    updates.level       = level;
+    if (description || evidence)  updates.description = description || evidence;
+    if (tools)                    updates.tools       = tools;
     const chunk = await skillBankManager.updateSkill(id, updates);
     skillBank = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "skill_data_bank.json"), "utf-8"));
-    res.json({ success: true, chunk });
+    if (rebuildVectorStore) { await rebuildVectorStore(skillBank); vectorReady = true; }
+    res.json({ success: true, chunk, vectorRebuilt: !!rebuildVectorStore });
   } catch (err) {
     res.status(500).json({ success: false, error: safeError(err) });
   }
@@ -2633,7 +2639,7 @@ app.post("/skill-bank/add-tool", async (req, res) => {
   if (!id || !tool) return res.status(400).json({ success: false, error: "Missing id or tool" });
   try {
     const bank = skillBankManager.loadBank();
-    const chunk = bank.skill_chunks.find(c => c.id === id);
+    const chunk = (bank.user_skills || []).find(s => s.skill_id === id);
     if (!chunk) return res.status(404).json({ success: false, error: `Skill ${id} not found` });
     if (!chunk.tools) chunk.tools = [];
     const toolName = tool.trim();
@@ -2667,15 +2673,15 @@ app.get("/skill-bank/search", (req, res) => {
   const q = (req.query.q || "").trim().toLowerCase();
   if (!q) return res.json({ success: true, results: [] });
   const tokens = q.split(/\s+/).filter(Boolean);
-  const results = (skillBank.skill_chunks || []).filter(s => {
-    const name = (s.skill || "").toLowerCase();
-    const ev = (s.evidence || "").toLowerCase();
-    const cat = (s.category || "").toLowerCase();
+  const results = (skillBank.user_skills || []).filter(s => {
+    const name = (s.skill_name || "").toLowerCase();
+    const ev   = (s.description || "").toLowerCase();
+    const cat  = (s.category || "").toLowerCase();
     const toolTags = (s.tools || []).join(" ").toLowerCase();
     const hay = name + " " + ev + " " + cat + " " + toolTags;
     return tokens.every(t => hay.includes(t)) || name.includes(q) || q.includes(name);
   }).map(s => ({
-    id: s.id, skill: s.skill, category: s.category, level: s.level, evidence: s.evidence, type: s.type, tools: s.tools || []
+    id: s.skill_id, skill: s.skill_name, category: s.category, level: s.level, evidence: s.description, type: s.type, tools: s.tools || []
   })).slice(0, 15);
   res.json({ success: true, results });
 });

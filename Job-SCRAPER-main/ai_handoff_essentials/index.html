@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="css/styles.css?v=7" />
   <link rel="stylesheet" href="css/redesign.css?v=11" />
   <link rel="stylesheet" href="css/auth-screen-styles.css" />
-  <link rel="stylesheet" href="css/automator.css?v=19" />
+  <link rel="stylesheet" href="css/automator.css?v=22" />
   <link rel="stylesheet" href="css/skill-bank.css" />
 </head>
 <body>
@@ -97,8 +97,6 @@
   <div id="modal-backdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-box" id="modal-box"></div>
   </div>
-  <button id="scroll-to-top-btn" class="scroll-to-top-btn hidden" aria-label="Scroll to top" title="Back to top">↑</button>
-
   <!-- ═══════════════════════════════════════ -->
   <!-- MAIN APP LAYOUT                         -->
   <!-- ═══════════════════════════════════════ -->
@@ -129,6 +127,9 @@
         <a href="#" id="skillBankNavBtn" class="nav-item" data-view="skillbank" title="Skill Bank">
           <span class="nav-icon">🧠</span> <span class="nav-label">Skill Bank</span>
         </a>
+        <button type="button" class="nav-item" id="polishNavBtn" title="Polish Text — apply style + humanize">
+          <span class="nav-icon">✨</span> <span class="nav-label">Polish</span>
+        </button>
         <button type="button" class="nav-item sb-icon" id="analyticsBtn" aria-label="Analytics" title="Analytics">
           <span class="nav-icon">📊</span> <span class="nav-label">Analytics</span>
         </button>
@@ -185,7 +186,7 @@
           <div class="auto-filters">
             <div class="auto-filter-group">
               <label>Keyword <span class="search-info-tip" title="Searches SAP's job portal (jobs.sap.com) only. Results depend on SAP's search relevance.">&#9432;</span></label>
-              <input type="text" id="scrape-keyword" placeholder="e.g. BTP, Analytics Cloud" value="BTP" />
+              <input type="text" id="scrape-keyword" placeholder="e.g. BTP, Analytics Cloud" value="" />
             </div>
             <div class="auto-filter-group">
               <label>Location</label>
@@ -246,7 +247,15 @@
                   <th>Keyword</th>
                   <th>Req ID</th>
                   <th>Location</th>
-                  <th>Posted</th>
+                  <th>
+                    <button type="button" id="scrape-posted-sort-btn" class="scrape-column-sort" aria-label="Sort by posted date" title="Sort by posted date">
+                      <span>Posted</span>
+                      <span class="scrape-column-sort-arrows" aria-hidden="true">
+                        <span class="scrape-column-sort-up">▲</span>
+                        <span class="scrape-column-sort-down">▼</span>
+                      </span>
+                    </button>
+                  </th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -416,6 +425,15 @@
                 <option value="fit-desc">Fit Rating ↓</option>
               </select>
             </div>
+            <div class="outlook-controls" style="display:flex;gap:6px;margin-left:auto;">
+              <button type="button" id="outlook-connect-btn" class="chip" style="background:#0078d4;color:#fff;border:none;cursor:pointer;font-size:12px;" title="Connect university Outlook to scan for rejection emails">
+                📧 Connect Outlook
+              </button>
+              <button type="button" id="outlook-sync-btn" class="chip" style="background:#22c55e;color:#fff;border:none;cursor:pointer;font-size:12px;display:none;" title="Scan inbox for rejection emails">
+                🔄 Sync Rejections
+              </button>
+              <span id="outlook-status" style="font-size:11px;color:#888;align-self:center;"></span>
+            </div>
           </div>
           <div class="active-filter-bar" id="active-filter-bar" hidden>
             <span id="active-filter-label"></span>
@@ -524,6 +542,9 @@
           <h2 class="sb-title">Skill Data Bank</h2>
           <div class="sb-header-stats">
             <span class="sb-stat" id="sb-total-count">0 skills</span>
+            <span class="sb-stat" id="sb-proj-count">0 projects</span>
+            <span class="sb-stat" id="sb-work-count">0 work</span>
+            <span class="sb-stat" id="sb-certs-count">0 certs</span>
             <span class="sb-stat" id="sb-categories-count">0 categories</span>
             <span class="sb-stat" id="sb-vector-status">Vector: --</span>
           </div>
@@ -531,7 +552,12 @@
 
         <!-- Tab bar -->
         <div class="sb-tabs">
-          <button class="sb-tab active" data-sb-tab="skills">Skills</button>
+          <button class="sb-tab active" data-sb-tab="skills">Skills <span class="sb-tab-count" id="sb-tab-count-skills"></span></button>
+          <button class="sb-tab" data-sb-tab="projects">Projects <span class="sb-tab-count" id="sb-tab-count-projects"></span></button>
+          <button class="sb-tab" data-sb-tab="work">Work <span class="sb-tab-count" id="sb-tab-count-work"></span></button>
+          <button class="sb-tab" data-sb-tab="certs">Certifications <span class="sb-tab-count" id="sb-tab-count-certs"></span></button>
+          <button class="sb-tab" data-sb-tab="research">Research <span class="sb-tab-count" id="sb-tab-count-research"></span></button>
+          <button class="sb-tab" data-sb-tab="education">Education <span class="sb-tab-count" id="sb-tab-count-edu"></span></button>
           <button class="sb-tab" data-sb-tab="add">Add Skill</button>
           <button class="sb-tab" data-sb-tab="match">Test Match</button>
           <button class="sb-tab" data-sb-tab="stats">Stats</button>
@@ -556,9 +582,87 @@
           <div class="sb-table-wrap">
             <table class="sb-table">
               <thead>
-                <tr><th>ID</th><th>Skill</th><th>Category</th><th>Level</th><th>Evidence</th><th>Actions</th></tr>
+                <tr><th>ID</th><th>Skill</th><th>Category</th><th>Level</th><th>Tools</th><th>Evidence</th><th>Actions</th></tr>
               </thead>
               <tbody id="sb-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Projects Tab -->
+        <div class="sb-panel" id="sb-panel-projects" style="display:none">
+          <div class="sb-filters">
+            <input type="text" id="sb-proj-search" class="sb-input" placeholder="Search projects..." />
+            <select id="sb-proj-cat-filter" class="sb-select">
+              <option value="">All Types</option>
+              <option value="SAP_Technical">SAP Technical</option>
+              <option value="UX_App_Design">UX &amp; App Design</option>
+              <option value="SAP_Client_Film">SAP Client Film</option>
+              <option value="SAP_Video_Series">SAP Video Series</option>
+              <option value="SAP_Event_Production">SAP Event Production</option>
+              <option value="SAP_Studio_Production">SAP Studio Production</option>
+            </select>
+          </div>
+          <div class="sb-table-wrap">
+            <table class="sb-table">
+              <thead>
+                <tr><th>ID</th><th>Project Name</th><th>Tech / Tools</th><th>Date</th><th>Description</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="sb-proj-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Work Experience Tab -->
+        <div class="sb-panel" id="sb-panel-work" style="display:none">
+          <div class="sb-filters">
+            <input type="text" id="sb-work-search" class="sb-input" placeholder="Search work experience..." />
+          </div>
+          <div class="sb-table-wrap">
+            <table class="sb-table">
+              <thead>
+                <tr><th>ID</th><th>Job Title</th><th>Company</th><th>Period</th><th>Skills Used</th><th>Responsibilities</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="sb-work-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Certifications Tab -->
+        <div class="sb-panel" id="sb-panel-certs" style="display:none">
+          <div class="sb-filters">
+            <input type="text" id="sb-certs-search" class="sb-input" placeholder="Search certifications..." />
+          </div>
+          <div class="sb-table-wrap">
+            <table class="sb-table">
+              <thead>
+                <tr><th>ID</th><th>Title</th><th>Provider</th><th>Date</th><th>Duration</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="sb-certs-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Research Tab -->
+        <div class="sb-panel" id="sb-panel-research" style="display:none">
+          <div class="sb-table-wrap">
+            <table class="sb-table">
+              <thead>
+                <tr><th>ID</th><th>Type</th><th>Title</th><th>Institution / Context</th><th>Date</th><th>Description</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="sb-research-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Education Tab -->
+        <div class="sb-panel" id="sb-panel-education" style="display:none">
+          <div class="sb-table-wrap">
+            <table class="sb-table">
+              <thead>
+                <tr><th>Degree</th><th>Institution</th><th>Period</th><th>Status</th><th>Key Modules</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="sb-edu-table-body"></tbody>
             </table>
           </div>
         </div>
@@ -632,13 +736,24 @@
       <div class="gen-fullview-header">
         <h2 id="gen-fullview-title">Edit</h2>
         <div style="display:flex;gap:8px;align-items:center;">
+          <button type="button" class="btn btn-sm gen-fv-active" id="gen-fv-toggle-preview" title="Toggle A4 preview">⊞ A4 Preview</button>
+          <button type="button" class="btn btn-sm" id="gen-fv-swap" title="Swap preview and editor sides">&#x21C6; Swap</button>
           <button type="button" class="btn btn-sm" id="gen-fullview-font-minus" title="Decrease font">A-</button>
           <button type="button" class="btn btn-sm" id="gen-fullview-font-plus" title="Increase font">A+</button>
           <button type="button" class="btn btn-sm" id="gen-fullview-copy">&#x2398; Copy</button>
           <button type="button" class="btn btn-sm" id="gen-fullview-close">&#10005; Close</button>
         </div>
       </div>
-      <textarea id="gen-fullview-textarea"></textarea>
+      <div class="gen-fv-body" id="gen-fv-body">
+        <div class="gen-fv-editor-pane" id="gen-fv-editor-pane">
+          <textarea id="gen-fullview-textarea"></textarea>
+        </div>
+        <div class="gen-fv-resizer" id="gen-fv-resizer" title="Drag to resize"></div>
+        <div class="gen-fv-preview-pane" id="gen-fv-preview-pane">
+          <div class="gen-fv-preview-label">Approximate preview — final look rendered by LaTeX on export</div>
+          <div class="gen-fv-a4-page" id="gen-fv-a4-page"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -649,6 +764,17 @@
       <button type="button" class="gqi-qa-close" id="gqi-qa-close">&#x2715;</button>
     </div>
     <div class="gqi-qa-tool-name" id="gqi-qa-tool-name"></div>
+    <div class="gqi-qa-search-section">
+      <div class="gqi-qa-field">
+        <label class="gqi-qa-label">Search Skill Bank</label>
+        <div class="gqi-qa-search-wrap">
+          <input type="text" id="gqi-qa-search" class="gqi-qa-input" placeholder="Search keyword…" />
+          <button type="button" id="gqi-qa-search-btn" class="gqi-qa-search-go" title="Search">🔍</button>
+        </div>
+      </div>
+      <div id="gqi-qa-results" class="gqi-qa-results"></div>
+    </div>
+    <div class="gqi-qa-add-fields">
     <div class="gqi-qa-field">
       <label class="gqi-qa-label">Category</label>
       <select id="gqi-qa-category" class="gqi-qa-select">
@@ -681,13 +807,65 @@
     </div>
     <div class="gqi-qa-actions">
       <button type="button" class="btn btn-sm" id="gqi-qa-cancel">Cancel</button>
+      <button type="button" class="btn btn-sm gqi-qa-generate-btn" id="gqi-qa-generate">&#x26A1; Generate</button>
       <button type="button" class="btn btn-sm gqi-qa-rephrase-btn" id="gqi-qa-rephrase">&#x2728; Rephrase</button>
       <button type="button" class="btn btn-sm btn-primary" id="gqi-qa-add">Add to Bank ✓</button>
     </div>
+    </div><!-- /.gqi-qa-add-fields -->
+    <div class="gqi-qa-tool-actions" style="display:none">
+      <div class="gqi-qa-actions">
+        <button type="button" class="btn btn-sm" id="gqi-qa-tool-cancel">Cancel</button>
+        <span class="gqi-qa-tool-hint">Click 🏷 Tag to link tool with skills</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✨ Polish Drawer -->
+  <!-- Polish Popup (draggable, resizable) -->
+  <div id="polish-popup" class="polish-popup hidden">
+    <div class="polish-popup-header" id="polish-popup-header">
+      <span class="polish-popup-title">✨ Polish Text</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <div class="polish-mode-toggle">
+          <button type="button" class="polish-mode-btn active" data-mode="cl">CL</button>
+          <button type="button" class="polish-mode-btn" data-mode="cv">CV</button>
+        </div>
+        <button type="button" class="btn btn-sm" id="polish-reset-size" title="Reset size &amp; position">⟲</button>
+        <button type="button" class="btn btn-sm" id="polish-drawer-close" title="Close">✕</button>
+      </div>
+    </div>
+    <div class="polish-popup-body">
+      <div class="polish-section">
+        <div class="polish-label-row">
+          <label class="polish-label">Paste your text</label>
+          <span class="polish-wc" id="polish-input-wc">0 words</span>
+        </div>
+        <textarea id="polish-input" class="polish-textarea" rows="8"
+          placeholder="Paste any draft — rough paragraph, notes, copied text…"></textarea>
+      </div>
+      <button type="button" id="polish-run-btn" class="btn btn-primary polish-run-btn">
+        ✨ Apply Style + Humanize
+      </button>
+      <div id="polish-status" class="polish-status hidden"></div>
+      <div id="polish-output-section" class="polish-output-section hidden">
+        <div class="polish-output-header">
+          <label class="polish-label">Result</label>
+          <span id="polish-wc-diff" class="polish-wc-diff"></span>
+        </div>
+        <textarea id="polish-output" class="polish-textarea" rows="8" readonly></textarea>
+        <button type="button" id="polish-copy-btn" class="btn btn-sm polish-copy-btn">⎘ Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Action Buttons (row, bottom-right) -->
+  <div class="fab-column">
+    <button id="scroll-to-top-btn" class="scroll-to-top-btn hidden" aria-label="Scroll to top" title="Back to top">↑</button>
+    <button type="button" id="scratchpad-fab" class="scratchpad-fab" title="Open scratchpad">&#x1F4DD;</button>
+    <button type="button" id="polish-fab" class="polish-fab" title="Polish Text">&#x2728;</button>
   </div>
 
   <!-- Scratchpad Popup -->
-  <button type="button" id="scratchpad-fab" class="scratchpad-fab" title="Open scratchpad">&#x1F4DD;</button>
   <div id="scratchpad-popup" class="scratchpad-popup hidden">
     <div class="scratchpad-header">
       <span class="scratchpad-title">&#x1F4DD; Scratchpad</span>
@@ -720,7 +898,7 @@
 
   <!-- App logic (cache-busted to ensure latest JS is loaded) -->
   <script src="js/app.js?v=12"></script>
-  <script src="js/generate.js?v=12"></script>
+  <script src="js/generate.js?v=22"></script>
   <script src="js/skill-bank.js?v=2"></script>
 
   <!-- Full-view applications overlay -->

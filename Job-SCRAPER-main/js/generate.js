@@ -594,11 +594,37 @@
       btn.addEventListener("click", () => analyzeQueueItem(parseInt(btn.dataset.idx, 10)));
     });
     el.querySelectorAll("[data-gen-selector]").forEach(btn => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         const key = btn.dataset.genSelector;
         const job = genState.queue.find(j => getGenKey(j) === key);
         if (!job) return;
-        const jdText = (job.jdData && job.jdData.jdText) || job.jobDescription || job.fullText || "";
+        let jdText = (job.jdData && job.jdData.jdText) || job.jobDescription || job.fullText || "";
+
+        // If JD not yet fetched, pull it now before opening selector
+        if (!jdText && job.url) {
+          btn.textContent = "Loading JD…";
+          btn.disabled = true;
+          try {
+            const res  = await fetch("/fetch-jd", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ url: job.url })
+            });
+            const data = await res.json();
+            if (data.success && data.jd?.fullText) {
+              jdText = data.jd.fullText;
+              if (!job.jdData) job.jdData = {};
+              job.jdData.jdText = jdText;
+            }
+          } catch (_) {}
+          btn.textContent = "CV Selector";
+          btn.disabled = false;
+        }
+
+        if (!jdText) {
+          showToast("Open the job URL or click Analyze first to load the job description.");
+          return;
+        }
         openCvSelector(key, jdText, el);
       });
     });
@@ -1004,12 +1030,12 @@
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Selector load failed");
 
-      const we = data.work_experience || [];
-      const projects = data.projects || [];
+      const we           = data.work_experience || [];
+      const projects     = data.projects || [];
       const certifications = data.certifications || [];
-      const research = data.research || [];
-      const weIds = new Set(we.map(w => w.id));
-      const projectIds = new Set(projects.map(p => p.id));
+      const research     = data.research || [];
+      const weIds        = new Set(we.map(w => w.id || w.work_id));
+      const projectIds   = new Set(projects.map(p => p.id || p.project_id));
       const certIds = new Set(certifications.map(c => c.id));
       const researchIds = new Set(research.map(r => r.id));
 
@@ -1058,8 +1084,8 @@
         getPinned: () => genState.selectors[key].pinnedWE || [],
         setPinned: v => { genState.selectors[key].pinnedWE = v; },
         getAiPick: () => genState.selectors[key].aiPickWE || [],
-        getTitle: e => e.title || "",
-        getSub: e => `${e.company || ""}${e.period ? " · " + e.period : ""}`,
+        getTitle: e => e.title  || e.job_title  || "",
+        getSub:   e => `${e.company || ""}${e.period ? " · " + e.period : ""}`,
         getDesc: null,
         getTags: null
       },
@@ -1069,10 +1095,10 @@
         getPinned: () => genState.selectors[key].pinnedProjects || [],
         setPinned: v => { genState.selectors[key].pinnedProjects = v; },
         getAiPick: () => genState.selectors[key].aiPickProjects || [],
-        getTitle: e => e.name || "",
-        getSub: e => e.tech || "",
-        getDesc: e => e.description || "",
-        getTags: e => (e.tech || "").split(/[,;]/).map(t => t.trim()).filter(Boolean)
+        getTitle: e => e.name  || e.project_name || "",
+        getSub:   e => e.tech  || "",
+        getDesc:  e => e.description || "",
+        getTags:  e => (e.tech || "").split(/[,;]/).map(t => t.trim()).filter(Boolean)
       },
       certs: {
         label: "Certifications", emoji: "📜", accent: "#7e839e",

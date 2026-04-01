@@ -1,13 +1,20 @@
-/**
- * SKILL BANK MANAGER (CommonJS)
- * Syncs skills to both JSON file and local vector store.
- */
-
-const fs = require("fs");
+const fs   = require("fs");
 const path = require("path");
-const { addSkillToVector, updateSkillInVector } = require("./rag_engine");
+const { addSkillToVector, updateSkillInVector, resetClient } = require("./rag_engine");
 
 const DB_PATH = path.join(__dirname, "..", "data", "skill_data_bank.json");
+
+const VALID_CATEGORIES = [
+  "SAP_Technical",
+  "Engineering_Dev",
+  "Data_Analytics",
+  "Design_UX",
+  "Creative_Media",
+  "Tools_Platforms",
+  "Domain_Professional"
+];
+
+const VALID_TYPES = ["tool", "skill"];
 
 function loadBank() {
   return JSON.parse(fs.readFileSync(DB_PATH, "utf-8"));
@@ -18,141 +25,133 @@ function saveBank(bank) {
   fs.writeFileSync(DB_PATH, JSON.stringify(bank, null, 2));
 }
 
-/**
- * Add a new skill — writes to JSON AND embeds in vector store.
- */
-async function addSkill({ category, skill, level, evidence, phase }) {
-  const bank = loadBank();
-  const nextNum = bank.skill_chunks.length + 1;
-  const id = `SK${String(nextNum).padStart(3, "0")}`;
+// ── v4.0: skills live in user_skills ─────────────────────────────────────────
 
-  const newChunk = {
-    id,
-    category,
-    skill,
-    level,
-    evidence,
-    phase: phase || "SAP_Masters",
-    added_date: new Date().toISOString().split("T")[0]
-  };
-
-  bank.skill_chunks.push(newChunk);
-  saveBank(bank);
-
-  try {
-    await addSkillToVector(newChunk);
-    console.log(`Added ${id}: "${skill}" → JSON + vector store`);
-  } catch (err) {
-    console.log(`Added ${id}: "${skill}" → JSON only (vector store offline: ${err.message})`);
+async function addSkill({ category, skill, skill_name, level, evidence, description, phase, type, source_refs }) {
+  const name = skill_name || skill;
+  const desc = description || evidence;
+  if (!VALID_CATEGORIES.includes(category)) {
+    throw new Error(`Invalid category "${category}". Valid: ${VALID_CATEGORIES.join(", ")}`);
   }
-
+  if (type && !VALID_TYPES.includes(type)) {
+    throw new Error(`Invalid type "${type}". Valid: ${VALID_TYPES.join(", ")}`);
+  }
+  const bank    = loadBank();
+  const skills  = bank.user_skills || bank.skill_chunks || [];
+  const nextNum = skills.length + 1;
+  const skill_id = `SK${String(nextNum).padStart(3, "0")}`;
+  const newChunk = {
+    skill_id,
+    skill_name:  name,
+    type:        type || "skill",
+    category,
+    level,
+    description: desc,
+    phase:       phase || "SAP_Masters",
+    source_refs: source_refs || [],
+    vector_text: `${name}. Level: ${level}. ${desc} ${category}`
+  };
+  if (bank.user_skills) {
+    bank.user_skills.push(newChunk);
+    if (bank.counts) bank.counts.skills = bank.user_skills.length;
+  } else {
+    // legacy v3.2 fallback
+    bank.skill_chunks.push({ id: skill_id, skill: name, ...newChunk });
+  }
+  saveBank(bank);
+  try { await addSkillToVector(newChunk); console.log(`Added ${skill_id}: "${name}" → JSON + vector`); }
+  catch (err) { console.log(`Added ${skill_id}: "${name}" → JSON only (${err.message})`); }
   return newChunk;
 }
 
-/**
- * Update an existing skill — preserves history, syncs to vector store.
- */
 async function updateSkill(skillId, updates) {
-  const bank = loadBank();
-  const chunk = bank.skill_chunks.find(c => c.id === skillId);
+  if (updates.category && !VALID_CATEGORIES.includes(updates.category)) {
+    throw new Error(`Invalid category "${updates.category}". Valid: ${VALID_CATEGORIES.join(", ")}`);
+  }
+  const bank   = loadBank();
+  const skills = bank.user_skills || bank.skill_chunks || [];
+  const chunk  = skills.find(s => (s.skill_id || s.id) === skillId);
   if (!chunk) throw new Error(`Skill ${skillId} not found`);
 
   if (!chunk.history) chunk.history = [];
   chunk.history.push({
-    date: new Date().toISOString().split("T")[0],
-    previous_level: chunk.level,
-    previous_evidence: chunk.evidence
+    date:              new Date().toISOString().split("T")[0],
+    previous_level:    chunk.level,
+    previous_evidence: chunk.description || chunk.evidence
   });
 
-  Object.assign(chunk, updates);
+  // Accept both old and new field names in updates
+  if (updates.skill_name || updates.skill) chunk.skill_name = updates.skill_name || updates.skill;
+  if (updates.description || updates.evidence) chunk.description = updates.description || updates.evidence;
+  if (updates.level)      chunk.level      = updates.level;
+  if (updates.category)   chunk.category   = updates.category;
+  if (updates.tools)      chunk.tools      = updates.tools;
+
   chunk.last_updated = new Date().toISOString().split("T")[0];
+  // Regenerate vector_text
+  chunk.vector_text = `${chunk.skill_name || chunk.skill}. Level: ${chunk.level}. ${chunk.description || chunk.evidence} ${chunk.category}`;
+
   saveBank(bank);
-
-  try {
-    await updateSkillInVector(chunk);
-    console.log(`Updated ${skillId} → JSON + vector store`);
-  } catch (err) {
-    console.log(`Updated ${skillId} → JSON only (vector store offline: ${err.message})`);
-  }
-
+  try { await updateSkillInVector(chunk); console.log(`Updated ${skillId} → JSON + vector`); }
+  catch (err) { console.log(`Updated ${skillId} → JSON only (${err.message})`); }
   return chunk;
 }
 
-/**
- * Log a job application.
- */
+function deleteSkill(skillId) {
+  const bank   = loadBank();
+  const skills = bank.user_skills || bank.skill_chunks || [];
+  const idx    = skills.findIndex(s => (s.skill_id || s.id) === skillId);
+  if (idx === -1) throw new Error(`Skill ${skillId} not found`);
+  const removed = skills.splice(idx, 1)[0];
+  if (bank.counts) bank.counts.skills = (bank.user_skills || []).length;
+  saveBank(bank);
+  console.log(`Deleted ${skillId}: "${removed.skill_name || removed.skill}"`);
+  return removed;
+}
+
 function logApplication({ company, role, requisition_id, chunks_used, document_type, status }) {
   const bank = loadBank();
   if (!bank.application_history) bank.application_history = [];
-
   const entry = {
-    id: `APP${String(bank.application_history.length + 1).padStart(3, "0")}`,
-    date: new Date().toISOString().split("T")[0],
-    company,
-    role,
+    id:             `APP${String(bank.application_history.length + 1).padStart(3, "0")}`,
+    date:           new Date().toISOString().split("T")[0],
+    company, role,
     requisition_id: requisition_id || null,
-    chunks_used,
-    document_type,
-    status,
+    chunks_used, document_type, status,
     follow_up_date: null,
-    outcome: null
+    outcome:        null
   };
-
   bank.application_history.push(entry);
   saveBank(bank);
   return entry;
 }
 
-/**
- * Get analytics on the skill bank and applications.
- */
 function getStats() {
-  const bank = loadBank();
-  const cats = {};
-  for (const c of bank.skill_chunks) {
-    cats[c.category] = (cats[c.category] || 0) + 1;
-  }
-
-  const apps = bank.application_history || [];
+  const bank   = loadBank();
+  const skills = bank.user_skills || bank.skill_chunks || [];
+  const cats   = {};
+  for (const s of skills) cats[s.category] = (cats[s.category] || 0) + 1;
+  const apps     = bank.application_history || [];
   const byStatus = {};
   for (const a of apps) byStatus[a.status] = (byStatus[a.status] || 0) + 1;
-
   const chunkUsage = {};
-  for (const a of apps) {
-    for (const cid of (a.chunks_used || [])) {
-      chunkUsage[cid] = (chunkUsage[cid] || 0) + 1;
-    }
-  }
-  const topChunks = Object.entries(chunkUsage)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([id, count]) => {
-      const chunk = bank.skill_chunks.find(c => c.id === id);
-      return { id, skill: chunk?.skill || "unknown", used_in: count };
-    });
-
+  for (const a of apps) for (const cid of (a.chunks_used || [])) chunkUsage[cid] = (chunkUsage[cid] || 0) + 1;
+  const topChunks = Object.entries(chunkUsage).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, count]) => {
+    const s = skills.find(c => (c.skill_id || c.id) === id);
+    return { id, skill: s?.skill_name || s?.skill || "unknown", used_in: count };
+  });
   return {
-    total_skills: bank.skill_chunks.length,
-    skill_categories: cats,
-    total_projects: bank.projects.length,
+    total_skills:       skills.length,
+    skill_categories:   cats,
+    valid_categories:   VALID_CATEGORIES,
+    total_projects:     (bank.user_projects || bank.projects || []).length,
     total_applications: apps.length,
     application_status: byStatus,
-    most_used_skills: topChunks,
-    last_updated: bank.last_updated
+    most_used_skills:   topChunks,
+    last_updated:       bank.last_updated
   };
 }
 
-/**
- * Delete a skill by ID — removes from JSON and vector store.
- */
-function deleteSkill(skillId) {
-  const bank = loadBank();
-  const idx = bank.skill_chunks.findIndex(c => c.id === skillId);
-  if (idx === -1) throw new Error(`Skill ${skillId} not found`);
-  const removed = bank.skill_chunks.splice(idx, 1)[0];
-  saveBank(bank);
-  console.log(`Deleted ${skillId}: "${removed.skill}"`);
-  return removed;
-}
+function getCategories() { return VALID_CATEGORIES; }
 
-module.exports = { addSkill, updateSkill, deleteSkill, logApplication, getStats, loadBank, saveBank };
+module.exports = { addSkill, updateSkill, deleteSkill, logApplication, getStats, getCategories, loadBank, saveBank, VALID_CATEGORIES, VALID_TYPES, resetClient };

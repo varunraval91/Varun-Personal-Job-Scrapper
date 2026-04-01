@@ -542,6 +542,9 @@
           <h2 class="sb-title">Skill Data Bank</h2>
           <div class="sb-header-stats">
             <span class="sb-stat" id="sb-total-count">0 skills</span>
+            <span class="sb-stat" id="sb-proj-count">0 projects</span>
+            <span class="sb-stat" id="sb-work-count">0 work</span>
+            <span class="sb-stat" id="sb-certs-count">0 certs</span>
             <span class="sb-stat" id="sb-categories-count">0 categories</span>
             <span class="sb-stat" id="sb-vector-status">Vector: --</span>
           </div>
@@ -549,7 +552,12 @@
 
         <!-- Tab bar -->
         <div class="sb-tabs">
-          <button class="sb-tab active" data-sb-tab="skills">Skills</button>
+          <button class="sb-tab active" data-sb-tab="skills">Skills <span class="sb-tab-count" id="sb-tab-count-skills"></span></button>
+          <button class="sb-tab" data-sb-tab="projects">Projects <span class="sb-tab-count" id="sb-tab-count-projects"></span></button>
+          <button class="sb-tab" data-sb-tab="work">Work <span class="sb-tab-count" id="sb-tab-count-work"></span></button>
+          <button class="sb-tab" data-sb-tab="certs">Certifications <span class="sb-tab-count" id="sb-tab-count-certs"></span></button>
+          <button class="sb-tab" data-sb-tab="research">Research <span class="sb-tab-count" id="sb-tab-count-research"></span></button>
+          <button class="sb-tab" data-sb-tab="education">Education <span class="sb-tab-count" id="sb-tab-count-edu"></span></button>
           <button class="sb-tab" data-sb-tab="add">Add Skill</button>
           <button class="sb-tab" data-sb-tab="match">Test Match</button>
           <button class="sb-tab" data-sb-tab="stats">Stats</button>
@@ -577,6 +585,84 @@
                 <tr><th>ID</th><th>Skill</th><th>Category</th><th>Level</th><th>Tools</th><th>Evidence</th><th>Actions</th></tr>
               </thead>
               <tbody id="sb-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Projects Tab -->
+        <div class="sb-panel" id="sb-panel-projects" style="display:none">
+          <div class="sb-filters">
+            <input type="text" id="sb-proj-search" class="sb-input" placeholder="Search projects..." />
+            <select id="sb-proj-cat-filter" class="sb-select">
+              <option value="">All Types</option>
+              <option value="SAP_Technical">SAP Technical</option>
+              <option value="UX_App_Design">UX &amp; App Design</option>
+              <option value="SAP_Client_Film">SAP Client Film</option>
+              <option value="SAP_Video_Series">SAP Video Series</option>
+              <option value="SAP_Event_Production">SAP Event Production</option>
+              <option value="SAP_Studio_Production">SAP Studio Production</option>
+            </select>
+          </div>
+          <div class="sb-table-wrap">
+            <table class="sb-table">
+              <thead>
+                <tr><th>ID</th><th>Project Name</th><th>Tech / Tools</th><th>Date</th><th>Description</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="sb-proj-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Work Experience Tab -->
+        <div class="sb-panel" id="sb-panel-work" style="display:none">
+          <div class="sb-filters">
+            <input type="text" id="sb-work-search" class="sb-input" placeholder="Search work experience..." />
+          </div>
+          <div class="sb-table-wrap">
+            <table class="sb-table">
+              <thead>
+                <tr><th>ID</th><th>Job Title</th><th>Company</th><th>Period</th><th>Skills Used</th><th>Responsibilities</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="sb-work-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Certifications Tab -->
+        <div class="sb-panel" id="sb-panel-certs" style="display:none">
+          <div class="sb-filters">
+            <input type="text" id="sb-certs-search" class="sb-input" placeholder="Search certifications..." />
+          </div>
+          <div class="sb-table-wrap">
+            <table class="sb-table">
+              <thead>
+                <tr><th>ID</th><th>Title</th><th>Provider</th><th>Date</th><th>Duration</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="sb-certs-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Research Tab -->
+        <div class="sb-panel" id="sb-panel-research" style="display:none">
+          <div class="sb-table-wrap">
+            <table class="sb-table">
+              <thead>
+                <tr><th>ID</th><th>Type</th><th>Title</th><th>Institution / Context</th><th>Date</th><th>Description</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="sb-research-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Education Tab -->
+        <div class="sb-panel" id="sb-panel-education" style="display:none">
+          <div class="sb-table-wrap">
+            <table class="sb-table">
+              <thead>
+                <tr><th>Degree</th><th>Institution</th><th>Period</th><th>Status</th><th>Key Modules</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="sb-edu-table-body"></tbody>
             </table>
           </div>
         </div>
