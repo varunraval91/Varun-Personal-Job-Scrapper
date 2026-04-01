@@ -272,6 +272,28 @@
   margin-left: 2px;
 }
 
+/* ─── Keyword expansion hint ─── */
+.keyword-expansion {
+  font-size: .78rem;
+  color: var(--accent-primary, #6C63FF);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  animation: fadeIn .3s ease;
+}
+.keyword-expansion.hidden { display: none; }
+.keyword-expansion-use {
+  font-size: .72rem;
+  padding: 1px 8px;
+  background: var(--accent-primary, #6C63FF);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.keyword-expansion-use:hover { opacity: .85; }
+
 /* ═══════════════════════════════════════════════════════════════
    Generate View
    ═══════════════════════════════════════════════════════════════ */

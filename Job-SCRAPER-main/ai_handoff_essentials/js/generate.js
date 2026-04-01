@@ -192,7 +192,7 @@
     const isFluff = (b) => {
       const t = (b || "").trim();
       if (t.length > 280) return true; // long paragraph = likely culture text
-      if (/^\s*(We |At SAP|We help|We're |We win|We keep)/i.test(t)) return true;
+      if (/^\s*(We |At [A-Z]\w+[,. ]|We help|We're |We win|We keep|Join us|Be part)/i.test(t)) return true;
       if (!requirementKeywords.test(t)) return true; // no requirement-like wording
       return false;
     };
@@ -1709,8 +1709,8 @@
 
       // Server-side fetch
       if (!jdText && job.url) {
-        setStep("jd", "Fetching JD from SAP careers page…", 10);
-        addThought("Server fetch:", "No cache — fetching JD from SAP careers…");
+        setStep("jd", `Fetching JD from ${job.company || "careers"} page…`, 10);
+        addThought("Server fetch:", `No cache — fetching JD from ${job.company || "careers"} page…`);
         try {
           const res = await fetch("/fetch-jd", {
             method: "POST",
@@ -2286,11 +2286,11 @@
   // ADD EXTERNAL JOB MANUALLY
   // ═══════════════════════════════════════════════════════════════
   function addJobManual() {
-    const url = prompt("Paste SAP careers job URL:");
+    const url = prompt("Paste job URL (SAP, Infineon, Siemens, or any careers page):");
     if (!url || !url.trim()) return;
     const trimmed = url.trim();
-    // Try to extract a req ID from the URL
-    const reqMatch = trimmed.match(/(\d{5,7})/);
+    // Try to extract a req ID from the URL (5-16 digits to handle various portals)
+    const reqMatch = trimmed.match(/(\d{5,16})/);
     const reqId = reqMatch ? reqMatch[1] : "manual_" + Date.now();
     addToQueue({
       title: "External Job — " + reqId,

@@ -42,6 +42,7 @@ const RATE_LIMITS = {
   "/dach-check": { windowMs: 60000, max: 15 },
   "/humanize":     { windowMs: 60000, max: 10 },
   "/apply-style":  { windowMs: 60000, max: 15 },
+  "/search-intelligence": { windowMs: 60000, max: 20 },
 };
 
 function rateLimiter(req, res, next) {
@@ -85,6 +86,116 @@ const BASE_ACTION_TIMEOUT_MS = 60000;
 const BASE_NAV_TIMEOUT_MS = 90000;
 const SAP_BASE_URL = "https://jobs.sap.com";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+
+// ═══════════════════════════════════════════════════════════════
+// PORTAL DETECTION — identify career site platform from URL
+// ═══════════════════════════════════════════════════════════════
+
+const PORTAL_SELECTORS = {
+  successfactors: {
+    title: '[data-careersite-propertyid="title"]',
+    location: '[data-careersite-propertyid="location"], .jobLocation',
+    date: '[data-careersite-propertyid="date"]',
+    reqId: '[data-careersite-propertyid="facility"]',
+    description: '.jdp-job-description-card, .job-description, [data-careersite-propertyid="description"]',
+    fallback: 'main, .job-details, .jdp-job-description',
+    cookie: ['#truste-consent-button', '#truste-consent-required', '#truste-show-consent']
+  },
+  workday: {
+    title: '[data-automation-id="jobPostingHeader"], h2[data-automation-id="jobTitle"], [data-automation-id="jobPostingTitle"]',
+    location: '[data-automation-id="locations"], [data-automation-id="jobPostingLocation"]',
+    date: '[data-automation-id="postedOn"], [data-automation-id="jobPostingDate"]',
+    reqId: '[data-automation-id="requisitionId"]',
+    description: '[data-automation-id="jobPostingDescription"]',
+    fallback: '.job-posting-content, main, [role="main"]',
+    cookie: ['button[data-automation-id="legalNoticeAccept"]']
+  },
+  greenhouse: {
+    title: '.app-title, h1.posting-headline, h1',
+    location: '.location, .posting-categories .sort-by-commitment',
+    date: '',
+    reqId: '',
+    description: '#content .postings-content, .posting-page .content, #content',
+    fallback: '#main, .posting-page',
+    cookie: []
+  },
+  lever: {
+    title: '.posting-headline h2, .posting-header .posting-title, h2',
+    location: '.posting-categories .sort-by-team, .location',
+    date: '',
+    reqId: '',
+    description: '.posting-page .section-wrapper, .posting-content',
+    fallback: '.posting-page, main',
+    cookie: []
+  },
+  smartrecruiters: {
+    title: 'h1.job-title, .job-title h1, h1',
+    location: '.job-location, .location',
+    date: '.job-date, .posted-date',
+    reqId: '.job-id, .reference-id',
+    description: '.job-description, .job-sections',
+    fallback: '.job-details, main',
+    cookie: ['#onetrust-accept-btn-handler']
+  },
+  icims: {
+    title: '.iCIMS_Header h1, .header-title, h1',
+    location: '.iCIMS_JobHeaderLocation, .header-location',
+    date: '.iCIMS_JobHeaderField, .header-date',
+    reqId: '.iCIMS_JobHeaderID, .header-id',
+    description: '.iCIMS_JobContent, .job-description',
+    fallback: '.iCIMS_MainWrapper, main',
+    cookie: []
+  }
+};
+
+function detectPortalType(url) {
+  if (!url) return { type: "generic", company: "Unknown", domain: "" };
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    const path = u.pathname.toLowerCase();
+
+    // Extract company name from domain
+    const extractCompany = (h) => {
+      // jobs.infineon.com → Infineon, careers-bosch.icims.com → Bosch
+      const parts = h.replace(/^www\./, "").split(".");
+      for (const p of parts) {
+        const clean = p.replace(/^(jobs|careers|career|recruiting|recruit|hire)-?/i, "");
+        if (clean && !["com","org","net","de","io","co","wd1","wd2","wd3","wd4","wd5","myworkdayjobs","myworkdaysite","greenhouse","lever","smartrecruiters","icims","phenom"].includes(clean)) {
+          return clean.charAt(0).toUpperCase() + clean.slice(1);
+        }
+      }
+      return parts[0]?.charAt(0).toUpperCase() + parts[0]?.slice(1) || "Unknown";
+    };
+
+    // Platform detection by URL patterns
+    if (host.includes("jobs.sap.com") || host.includes("careers.sap.com")) {
+      return { type: "successfactors", company: "SAP", domain: host };
+    }
+    if (host.includes("myworkdayjobs.com") || host.includes("myworkdaysite.com") || host.includes("wd1.") || host.includes("wd2.") || host.includes("wd3.") || host.includes("wd4.") || host.includes("wd5.")) {
+      return { type: "workday", company: extractCompany(host), domain: host };
+    }
+    if (host.includes("greenhouse.io")) {
+      const co = path.split("/")[1] || extractCompany(host);
+      return { type: "greenhouse", company: co.charAt(0).toUpperCase() + co.slice(1), domain: host };
+    }
+    if (host.includes("lever.co")) {
+      const co = path.split("/")[1] || extractCompany(host);
+      return { type: "lever", company: co.charAt(0).toUpperCase() + co.slice(1), domain: host };
+    }
+    if (host.includes("smartrecruiters.com")) {
+      const co = path.split("/")[1] || extractCompany(host);
+      return { type: "smartrecruiters", company: co.charAt(0).toUpperCase() + co.slice(1), domain: host };
+    }
+    if (host.includes("icims.com")) {
+      return { type: "icims", company: extractCompany(host), domain: host };
+    }
+    // Some companies use SuccessFactors on their own domain (check DOM later)
+    return { type: "generic", company: extractCompany(host), domain: host };
+  } catch {
+    return { type: "generic", company: "Unknown", domain: "" };
+  }
+}
 const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-4-20250514";
@@ -276,10 +387,25 @@ function escapeHtml(str) {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-async function dismissCookieBanner(page) {
-  for (const sel of ["#truste-consent-button", "#truste-consent-required", "#truste-show-consent"]) {
+async function dismissCookieBanner(page, portalType) {
+  const portalSpecific = PORTAL_SELECTORS[portalType]?.cookie || [];
+  const common = [
+    '#truste-consent-button', '#truste-consent-required', '#truste-show-consent',
+    '#onetrust-accept-btn-handler', '#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll',
+    'button[data-cookieconsent="accept"]', '.cookie-accept', '.accept-cookies',
+    '#accept-cookies', '.cc-btn.cc-dismiss', '.consent-accept'
+  ];
+  const allSels = [...new Set([...portalSpecific, ...common])];
+  for (const sel of allSels) {
     const btn = await page.$(sel);
-    if (btn) try { await btn.click({ timeout: 1500 }); } catch {}
+    if (btn) try { await btn.click({ timeout: 1500 }); return; } catch {}
+  }
+  // Try text-based accept buttons as last resort
+  for (const txt of ["Accept All", "Accept all cookies", "Alle akzeptieren", "Akzeptieren", "Accept"]) {
+    try {
+      const btn = await page.$(`button:has-text("${txt}")`);
+      if (btn) { await btn.click({ timeout: 1500 }); return; }
+    } catch {}
   }
 }
 
@@ -446,7 +572,7 @@ function filterByPeriod(jobs, period) {
 async function scrapeOnePage(page, keyword, location, country, statusValue) {
   await page.goto("https://jobs.sap.com/search/", { waitUntil: "domcontentloaded", timeout: BASE_NAV_TIMEOUT_MS });
   // Use 'q' (keyword search) instead of 'title' (full-text) for curated, relevant results
-  await dismissCookieBanner(page);
+  await dismissCookieBanner(page, "successfactors");
   let keywordInputName = "q";
   try {
     await page.waitForSelector('input[name="q"][type="text"]', { timeout: 8000 });
@@ -513,10 +639,13 @@ async function scrapeOnePage(page, keyword, location, country, statusValue) {
 // ═══════════════════════════════════════════════════════════════
 
 app.post("/scrape", async (req, res) => {
-  const { keyword, location, country, careerStatus, period } = req.body;
-  if (!country || !careerStatus || !period) return res.status(400).json({ success: false, error: "Missing required fields." });
+  const { keyword, location, country, careerStatus, period, portal = "sap" } = req.body;
   if (!keyword && !location) return res.status(400).json({ success: false, error: "Enter a keyword or location." });
-  console.log(`Scraping: "${keyword}" in ${location || "all"}, ${country} (${careerStatus})`);
+
+  // ── SAP portal — existing optimized scraper ──
+  if (portal === "sap") {
+    if (!country || !careerStatus || !period) return res.status(400).json({ success: false, error: "Missing required fields." });
+    console.log(`Scraping SAP: "${keyword}" in ${location || "all"}, ${country} (${careerStatus})`);
   try {
     const browser = await getSharedBrowser();
     const page = await browser.newPage();
@@ -589,6 +718,165 @@ app.post("/scrape", async (req, res) => {
     console.error("Scrape error:", err.message);
     return res.status(500).json({ success: false, error: safeError(err) });
   }
+  } // end SAP portal
+  // ── Non-SAP portals — generic Google-based search ──
+  else {
+    const PORTAL_SEARCH_URLS = {
+      siemens: "https://jobs.siemens.com/careers",
+      infineon: "https://jobs.infineon.com/careers",
+      bosch: "https://www.bosch.com/careers/job-search/"
+    };
+    const portalUrl = PORTAL_SEARCH_URLS[portal];
+    if (!portalUrl) return res.status(400).json({ success: false, error: `Unknown portal: ${portal}` });
+
+    const portalNames = { siemens: "Siemens", infineon: "Infineon", bosch: "Bosch" };
+    const companyName = portalNames[portal] || portal;
+    console.log(`Scraping ${companyName}: "${keyword}" in ${location || "all"}`);
+
+    try {
+      const browser = await getSharedBrowser();
+      const page = await browser.newPage();
+      page.setDefaultTimeout(BASE_ACTION_TIMEOUT_MS);
+      page.setDefaultNavigationTimeout(BASE_NAV_TIMEOUT_MS);
+
+      // Build search URL with query params
+      const searchUrl = new URL(portalUrl);
+      if (keyword) searchUrl.searchParams.set("q", keyword);
+      if (keyword) searchUrl.searchParams.set("query", keyword);
+      if (keyword) searchUrl.searchParams.set("keywords", keyword);
+      if (location) searchUrl.searchParams.set("location", location);
+
+      await page.goto(searchUrl.toString(), { waitUntil: "domcontentloaded", timeout: BASE_NAV_TIMEOUT_MS });
+      await dismissCookieBanner(page, detectPortalType(portalUrl).type);
+      await page.waitForTimeout(3000); // wait for SPA content to load
+
+      // Try to find a search form and fill it (some portals need form interaction)
+      try {
+        const searchInput = await page.$('input[type="search"], input[name="q"], input[name="query"], input[name="keywords"], input[placeholder*="Search"], input[placeholder*="search"], input[aria-label*="Search"], input[aria-label*="search"]');
+        if (searchInput && keyword) {
+          await searchInput.fill("");
+          await searchInput.fill(keyword);
+          // Try submitting via Enter or button
+          await searchInput.press("Enter");
+          await page.waitForTimeout(3000);
+        }
+      } catch {}
+
+      // Extract job listing links from the results page
+      const jobs = await page.evaluate((company) => {
+        const results = [];
+        const seen = new Set();
+
+        // Find all links that look like job postings
+        const allLinks = document.querySelectorAll('a[href]');
+        for (const a of allLinks) {
+          const href = a.href;
+          const text = a.textContent.trim();
+          // Filter for job-like links: contain job-related path segments and have meaningful text
+          if (!text || text.length < 5 || text.length > 200) continue;
+          if (seen.has(href)) continue;
+          // Common job URL patterns
+          const isJobLink = /\/(job|position|career|opening|vacancy|requisition|posting)\b/i.test(href)
+            || /\/\d{4,}/.test(href) // numeric ID in path
+            || a.closest('[class*="job"], [class*="Job"], [class*="position"], [class*="listing"], [class*="result"], [class*="search-result"]');
+          if (!isJobLink) continue;
+          // Skip navigation/footer links
+          if (a.closest('nav, footer, header')) continue;
+          seen.add(href);
+          results.push({
+            title: text.replace(/\s+/g, " ").trim(),
+            url: href,
+            location: "",
+            rawDate: "",
+            requisitionId: "",
+            company: company
+          });
+        }
+        return results.slice(0, 50); // cap at 50
+      }, companyName);
+
+      // Try to extract location/date from nearby elements for each job
+      for (const job of jobs) {
+        try {
+          const details = await page.evaluate((url) => {
+            const link = document.querySelector(`a[href="${url}"]`);
+            if (!link) return {};
+            const parent = link.closest('[class*="job"], [class*="result"], [class*="listing"], [class*="card"], tr, li, article') || link.parentElement;
+            if (!parent) return {};
+            const locEl = parent.querySelector('[class*="location"], [class*="Location"], .job-location');
+            const dateEl = parent.querySelector('[class*="date"], [class*="Date"], time');
+            return {
+              location: locEl?.textContent?.replace(/\s+/g, " ").trim() || "",
+              rawDate: dateEl?.textContent?.trim() || dateEl?.getAttribute("datetime") || ""
+            };
+          }, job.url);
+          if (details.location) job.location = details.location;
+          if (details.rawDate) job.rawDate = details.rawDate;
+        } catch {}
+      }
+
+      await page.close();
+
+      // Add match scores if vector store available
+      const kw = (keyword || "").toLowerCase();
+      if (vectorReady && retrieveContext) {
+        for (const job of jobs) {
+          try {
+            const result = await retrieveContext(job.title, { topSkills: 5, topProjects: 0, topWork: 0 });
+            const avgRelevance = result.skills.length > 0
+              ? result.skills.reduce((sum, s) => sum + (1 - s.distance) * 100, 0) / result.skills.length
+              : 0;
+            job.matchScore = Math.round(Math.min(100, avgRelevance * 1.5));
+            job.topMatchedSkills = result.skills.slice(0, 3).map(s => s.metadata.skill_name);
+          } catch {
+            job.matchScore = 0;
+            job.topMatchedSkills = [];
+          }
+        }
+        jobs.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+      }
+
+      console.log(`Found ${jobs.length} jobs on ${companyName}`);
+      return res.json({ success: true, jobs });
+    } catch (err) {
+      console.error(`${companyName} scrape error:`, err.message);
+      return res.status(500).json({ success: false, error: safeError(err) });
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// POST /search-intelligence — AI-powered keyword expansion
+// ═══════════════════════════════════════════════════════════════
+
+app.post("/search-intelligence", async (req, res) => {
+  const { keyword, portal } = req.body;
+  if (!keyword) return res.json({ success: true, expanded: "", suggestions: [] });
+  if (!aiProvider) return res.json({ success: true, expanded: keyword, suggestions: [], isAbbreviation: false });
+
+  try {
+    const raw = await callAI(
+      `You are a job search assistant for tech careers in Germany, especially SAP ecosystem roles.
+Return STRICT JSON only, no markdown, no explanations.`,
+      `Given the search keyword "${keyword}" for ${portal || "any"} company careers portal:
+1. If it's an abbreviation, expand it (e.g. "SAC" = "SAP Analytics Cloud", "BTP" = "SAP Business Technology Platform", "ML" = "Machine Learning", "DS" = "Data Science" or "Datasphere")
+2. Suggest the best 2-3 search terms to use on a careers portal
+3. Suggest 2-3 related job titles or keywords
+
+Return JSON:
+{
+  "expanded": "<full expansion if abbreviation, else original keyword>",
+  "searchTerms": ["<best search term>", "<alternative>"],
+  "suggestions": ["<related keyword>", "<another>"],
+  "isAbbreviation": true/false
+}`
+    );
+    const jsonStr = raw.replace(/^```json?\s*/i, "").replace(/```\s*$/i, "").trim();
+    const result = JSON.parse(jsonStr);
+    return res.json({ success: true, ...result });
+  } catch {
+    return res.json({ success: true, expanded: keyword, suggestions: [], isAbbreviation: false });
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -598,49 +886,162 @@ app.post("/scrape", async (req, res) => {
 app.post("/fetch-jd", async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ success: false, error: "Missing url." });
-  console.log(`Fetching JD: ${url}`);
+  const portal = detectPortalType(url);
+  console.log(`Fetching JD: ${url} [portal: ${portal.type}, company: ${portal.company}]`);
   try {
     const browser = await getSharedBrowser();
     const page = await browser.newPage();
     page.setDefaultTimeout(BASE_ACTION_TIMEOUT_MS);
     page.setDefaultNavigationTimeout(BASE_NAV_TIMEOUT_MS);
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: BASE_NAV_TIMEOUT_MS });
-    await dismissCookieBanner(page);
-    const jd = await page.evaluate(() => {
-      const title = document.querySelector('[data-careersite-propertyid="title"]')?.textContent?.trim() || document.querySelector("h1")?.textContent?.trim() || "Unknown";
-      const locEl2 = document.querySelector('[data-careersite-propertyid="location"]') || document.querySelector(".jobLocation");
-      if (locEl2) locEl2.querySelectorAll("style, script").forEach(s => s.remove());
-      const location = locEl2?.textContent?.replace(/\s+/g, " ").trim() || "";
-      const postedDate = document.querySelector('[data-careersite-propertyid="date"]')?.textContent?.trim() || "";
-      const reqId = document.querySelector('[data-careersite-propertyid="facility"]')?.textContent?.trim() || "";
-      const textSections = [];
-      const jobContent = document.querySelector(".jdp-job-description-card, .job-description, [data-careersite-propertyid='description']");
-      if (jobContent) textSections.push(jobContent.innerText.trim());
-      if (!textSections.length) { const main = document.querySelector("main, .job-details, .jdp-job-description"); if (main) textSections.push(main.innerText.trim()); }
+    await dismissCookieBanner(page, portal.type);
 
-      // Extract structured sections from DOM headings
-      const parsedSections = {};
-      const container = jobContent || document.querySelector("main, .job-details, .jdp-job-description");
-      if (container) {
-        const headings = container.querySelectorAll("h1, h2, h3, h4, h5, strong, b");
-        headings.forEach(h => {
-          const label = h.textContent.trim();
-          if (!label || label.length > 80 || label.length < 3) return;
-          const content = [];
-          let sibling = h.tagName === "STRONG" || h.tagName === "B" ? h.parentElement?.nextElementSibling : h.nextElementSibling;
-          while (sibling && !["H1","H2","H3","H4","H5"].includes(sibling.tagName)) {
-            const txt = sibling.innerText?.trim();
-            if (txt) content.push(txt);
-            if (sibling.querySelector("h1,h2,h3,h4,h5")) break;
-            sibling = sibling.nextElementSibling;
-          }
-          if (content.length) parsedSections[label] = content.join("\n");
-        });
+    // Wait briefly for JS-rendered content (Workday and other SPAs)
+    await page.waitForTimeout(2000);
+
+    const sels = PORTAL_SELECTORS[portal.type] || {};
+    let jd;
+
+    // ── Strategy 1: Platform-specific selectors ──
+    if (portal.type !== "generic") {
+      jd = await page.evaluate((s) => {
+        const q = (sel) => { if (!sel) return null; for (const cs of sel.split(",")) { const el = document.querySelector(cs.trim()); if (el) return el; } return null; };
+        const txt = (sel) => { const el = q(sel); return el ? el.textContent.replace(/\s+/g, " ").trim() : ""; };
+
+        const titleEl = q(s.title);
+        const title = titleEl?.textContent?.trim() || document.querySelector("h1")?.textContent?.trim() || "Unknown";
+        const locEl = q(s.location);
+        if (locEl) locEl.querySelectorAll("style, script").forEach(el => el.remove());
+        const location = locEl?.textContent?.replace(/\s+/g, " ").trim() || "";
+        const postedDate = txt(s.date);
+        const requisitionId = txt(s.reqId);
+
+        const textSections = [];
+        const jobContent = q(s.description);
+        if (jobContent) textSections.push(jobContent.innerText.trim());
+        if (!textSections.length) { const fb = q(s.fallback); if (fb) textSections.push(fb.innerText.trim()); }
+
+        // Extract structured sections from DOM headings
+        const parsedSections = {};
+        const container = jobContent || q(s.fallback);
+        if (container) {
+          const headings = container.querySelectorAll("h1, h2, h3, h4, h5, strong, b");
+          headings.forEach(h => {
+            const label = h.textContent.trim();
+            if (!label || label.length > 80 || label.length < 3) return;
+            const content = [];
+            let sibling = h.tagName === "STRONG" || h.tagName === "B" ? h.parentElement?.nextElementSibling : h.nextElementSibling;
+            while (sibling && !["H1","H2","H3","H4","H5"].includes(sibling.tagName)) {
+              const t = sibling.innerText?.trim();
+              if (t) content.push(t);
+              if (sibling.querySelector("h1,h2,h3,h4,h5")) break;
+              sibling = sibling.nextElementSibling;
+            }
+            if (content.length) parsedSections[label] = content.join("\n");
+          });
+        }
+        return { title, location, postedDate, requisitionId, fullText: textSections.join("\n\n"), sections: parsedSections };
+      }, sels);
+    }
+
+    // ── Strategy 2: Generic DOM extraction (if platform selectors failed or type is generic) ──
+    if (!jd || !jd.fullText || jd.fullText.length < 150) {
+      console.log(`  Platform selectors yielded ${jd?.fullText?.length || 0} chars, trying generic DOM extraction...`);
+      const genericJd = await page.evaluate(() => {
+        const title = document.querySelector('meta[property="og:title"]')?.content
+          || document.querySelector("h1")?.textContent?.trim()
+          || document.title?.split(/[|–—-]/)[0]?.trim()
+          || "Unknown";
+
+        // Try multiple common description containers
+        const descSelectors = [
+          '.job-description', '.job-content', '.job-details', '.posting-content',
+          '.jd-description', '.vacancy-description', '.opportunity-description',
+          '[class*="jobDescription"]', '[class*="job-description"]', '[class*="jobContent"]',
+          '[id*="jobDescription"]', '[id*="job-description"]',
+          'article', '[role="main"] article', '[role="main"]', 'main', '#content'
+        ];
+        let descEl = null;
+        for (const sel of descSelectors) {
+          descEl = document.querySelector(sel);
+          if (descEl && descEl.innerText.trim().length > 100) break;
+          descEl = null;
+        }
+        const fullText = descEl?.innerText?.trim() || document.querySelector("main")?.innerText?.trim() || document.body?.innerText?.substring(0, 12000)?.trim() || "";
+
+        // Location from meta or common elements
+        const location = document.querySelector('meta[property="og:locale"]')?.content
+          || document.querySelector('.job-location, .location, [class*="location"], [class*="Location"]')?.textContent?.replace(/\s+/g, " ").trim()
+          || "";
+
+        const postedDate = document.querySelector('.job-date, .posted-date, [class*="postedDate"], [class*="posted-date"], time')?.textContent?.trim() || "";
+        const requisitionId = document.querySelector('.job-id, .reference-id, [class*="requisition"], [class*="jobId"], [class*="job-id"]')?.textContent?.replace(/[^a-zA-Z0-9-]/g, "").trim() || "";
+
+        // Structured sections from headings
+        const parsedSections = {};
+        const container = descEl || document.querySelector("main");
+        if (container) {
+          container.querySelectorAll("h1, h2, h3, h4, h5, strong, b").forEach(h => {
+            const label = h.textContent.trim();
+            if (!label || label.length > 80 || label.length < 3) return;
+            const content = [];
+            let sib = h.tagName === "STRONG" || h.tagName === "B" ? h.parentElement?.nextElementSibling : h.nextElementSibling;
+            while (sib && !["H1","H2","H3","H4","H5"].includes(sib.tagName)) {
+              const t = sib.innerText?.trim();
+              if (t) content.push(t);
+              if (sib.querySelector("h1,h2,h3,h4,h5")) break;
+              sib = sib.nextElementSibling;
+            }
+            if (content.length) parsedSections[label] = content.join("\n");
+          });
+        }
+        return { title, location, postedDate, requisitionId, fullText, sections: parsedSections };
+      });
+
+      // Merge: prefer whichever has more content
+      if (!jd || (genericJd.fullText.length > (jd.fullText?.length || 0))) {
+        jd = genericJd;
       }
-      return { title, location, postedDate, requisitionId: reqId, fullText: textSections.join("\n\n"), sections: parsedSections };
-    });
+    }
+
+    // ── Strategy 3: AI-powered extraction (last resort) ──
+    if ((!jd.fullText || jd.fullText.length < 100) && aiProvider) {
+      console.log(`  DOM extraction yielded ${jd?.fullText?.length || 0} chars, trying AI extraction...`);
+      const rawText = await page.evaluate(() => document.body?.innerText?.substring(0, 8000) || "");
+      if (rawText.length > 50) {
+        try {
+          const aiResult = await callAI(
+            `You are a job description parser. Given raw page text from a careers website, extract structured data.
+Return STRICT JSON only, no markdown, no explanations.
+Schema: { "title": "", "company": "", "location": "", "postedDate": "", "requisitionId": "", "fullText": "<the complete job description text including responsibilities, requirements, qualifications>", "sections": {} }
+If a field cannot be found, use empty string.`,
+            `RAW PAGE TEXT:\n${rawText}`
+          );
+          const parsed = JSON.parse(aiResult.replace(/^```json?\s*/i, "").replace(/```\s*$/i, "").trim());
+          jd = {
+            title: parsed.title || jd.title || "Unknown",
+            location: parsed.location || jd.location || "",
+            postedDate: parsed.postedDate || jd.postedDate || "",
+            requisitionId: parsed.requisitionId || jd.requisitionId || "",
+            fullText: parsed.fullText || jd.fullText || "",
+            sections: parsed.sections || jd.sections || {}
+          };
+          if (parsed.company) portal.company = parsed.company;
+        } catch (aiErr) {
+          console.warn("  AI extraction failed:", aiErr.message);
+        }
+      }
+    }
+
+    // Auto-detect requisition ID from URL if still empty
+    if (!jd.requisitionId) {
+      const idMatch = url.match(/[\/-](\d{5,12})(?:[?/#]|$)/);
+      if (idMatch) jd.requisitionId = idMatch[1];
+    }
+
+    jd.company = portal.company;
     await page.close();
-    console.log(`JD fetched: "${jd.title}" (${jd.fullText.length} chars)`);
+    console.log(`JD fetched: "${jd.title}" @ ${jd.company} (${jd.fullText.length} chars, strategy: ${jd.fullText.length > 150 ? 'ok' : 'thin'})`);
     return res.json({ success: true, jd });
   } catch (err) {
     console.error("Fetch JD error:", err.message);
@@ -660,7 +1061,7 @@ app.post("/jd-summary", async (req, res) => {
   }
 
   try {
-    const systemPrompt = `You are a senior career strategist summarising SAP-style job descriptions for a job search dashboard.
+    const systemPrompt = `You are a senior career strategist summarising job descriptions for a job search dashboard.
 
 You MUST return STRICT JSON only, no comments, no explanations, no markdown.
 
@@ -743,7 +1144,7 @@ Return ONLY valid JSON conforming to the schema above.`;
       const trimmed = b.trim();
       if (!trimmed) return false;
       // Drop pure branding sentences that start with "We " or company slogans
-      if (/^(We |At SAP|SAP helps|Our company)/i.test(trimmed)) return false;
+      if (/^(We |At [A-Z]\w+[,. ]|Our company|Join our|Be part of)/i.test(trimmed)) return false;
       return true;
     }) : [];
     if (cleanedMust.length) summary.must_have = cleanedMust;

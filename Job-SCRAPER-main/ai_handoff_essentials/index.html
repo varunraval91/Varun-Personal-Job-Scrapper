@@ -185,8 +185,21 @@
         <div class="auto-card">
           <div class="auto-filters">
             <div class="auto-filter-group">
-              <label>Keyword <span class="search-info-tip" title="Searches SAP's job portal (jobs.sap.com) only. Results depend on SAP's search relevance.">&#9432;</span></label>
-              <input type="text" id="scrape-keyword" placeholder="e.g. BTP, Analytics Cloud" value="" />
+              <label>Portal</label>
+              <select id="scrape-portal">
+                <option value="sap" selected>SAP</option>
+                <option value="siemens">Siemens</option>
+                <option value="infineon">Infineon</option>
+                <option value="bosch">Bosch</option>
+              </select>
+            </div>
+            <div class="auto-filter-group">
+              <label>Keyword <span class="search-info-tip" title="Searches the selected company's career portal. Use abbreviations like SAC, BTP, etc.">&#9432;</span></label>
+              <input type="text" id="scrape-keyword" placeholder="e.g. BTP, Analytics Cloud, SAC" value="" />
+              <div id="keyword-expansion" class="keyword-expansion hidden">
+                <span id="keyword-expansion-text"></span>
+                <button type="button" class="btn btn-xs keyword-expansion-use" id="keyword-expansion-use">Use</button>
+              </div>
             </div>
             <div class="auto-filter-group">
               <label>Location</label>

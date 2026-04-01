@@ -47,6 +47,22 @@
   // search view state
   const scrapeState = { jobs: [], selected: new Map() };
 
+  // Extract company name from job URL domain
+  function extractCompanyFromUrl(url) {
+    if (!url) return "";
+    try {
+      const host = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+      const parts = host.split(".");
+      for (const p of parts) {
+        const clean = p.replace(/^(jobs|careers|career|recruiting)-?/i, "");
+        if (clean && !["com","org","net","de","io","co","wd1","wd2","wd3","wd4","wd5","myworkdayjobs","myworkdaysite","greenhouse","lever","smartrecruiters","icims"].includes(clean)) {
+          return clean.charAt(0).toUpperCase() + clean.slice(1);
+        }
+      }
+      return "";
+    } catch { return ""; }
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // SAFE STORAGE
   // ═══════════════════════════════════════════════════════════════
@@ -82,7 +98,7 @@
       "company-shortcuts", "kanban-board", "scroll-to-top-btn", "filter-chips",
       "motivational-quote-container",
       // search view
-      "scrape-keyword", "scrape-location", "scrape-period", "scrape-careerStatus", "scrape-country",
+      "scrape-portal", "scrape-keyword", "scrape-location", "scrape-period", "scrape-careerStatus", "scrape-country",
       "scrape-search-btn", "scrape-spinner", "scrape-btn-text", "scrape-result-count",
       "scrape-results-body", "selected-jobs-card", "selected-count", "selected-jobs-list",
       "add-to-tracker-btn", "go-generate-btn",
@@ -770,7 +786,7 @@
       const data = await res.json();
       if (data.success && data.jd) {
         const jd = data.jd;
-        if ($("form-company")) $("form-company").value = "SAP";
+        if ($("form-company")) $("form-company").value = jd.company || extractCompanyFromUrl(url) || "";
         if ($("form-role")) $("form-role").value = jd.title || "";
         if ($("form-location")) $("form-location").value = jd.location || "";
         if ($("form-req-id")) $("form-req-id").value = jd.requisitionId || "";
@@ -1309,15 +1325,16 @@
       searchBarEl = document.createElement("div");
       searchBarEl.id = "search-progress-bar";
       searchBarEl.className = "search-progress-bar";
-      searchBarEl.innerHTML = `<div class="search-progress-fill"></div><span class="search-progress-label">Connecting to SAP careers…</span>`;
+      searchBarEl.innerHTML = `<div class="search-progress-fill"></div><span class="search-progress-label">Connecting to careers portal…</span>`;
       const card = DOM.scrapeSearchBtn?.closest(".auto-card");
       if (card) card.appendChild(searchBarEl);
     }
     searchBarEl.classList.add("active");
     const fill = searchBarEl.querySelector(".search-progress-fill");
     const label = searchBarEl.querySelector(".search-progress-label");
+    const portalName = DOM.scrapePortal?.options?.[DOM.scrapePortal.selectedIndex]?.text || "SAP";
     const steps = [
-      { pct: 15, text: "Connecting to SAP careers portal…" },
+      { pct: 15, text: `Connecting to ${portalName} careers portal…` },
       { pct: 35, text: "Launching headless browser…" },
       { pct: 50, text: "Loading search results page…" },
       { pct: 65, text: "Scraping job listings…" },
@@ -1337,7 +1354,7 @@
       const res = await fetch("/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyword, location, period, careerStatus, country })
+        body: JSON.stringify({ keyword, location, period, careerStatus, country, portal: DOM.scrapePortal?.value || "sap" })
       });
       if (!res.ok) {
         let errMsg = `Server error (${res.status})`;
@@ -1349,11 +1366,14 @@
           scrapeState.jobs = data.jobs || [];
           renderScrapeResults();
           showToast(`Found ${scrapeState.jobs.length} jobs`);
-          // Warn if keyword doesn't seem SAP-related
-          const sapKws = ["sap","btp","hana","fiori","s/4","abap","cloud","analytics","erp","concur","ariba","successfactors","signavio","hybris","commerce","datasphere","joule"];
-          const kwLower = keyword.toLowerCase();
-          if (!sapKws.some(k => kwLower.includes(k)) && scrapeState.jobs.length > 0) {
-            showToast(`Note: "${keyword}" may not be SAP-specific. This searches SAP's portal — results may vary in relevance.`, "info");
+          // Warn if keyword doesn't seem related to the selected portal
+          const selectedPortal = DOM.scrapePortal?.value || "sap";
+          if (selectedPortal === "sap") {
+            const sapKws = ["sap","btp","hana","fiori","s/4","abap","cloud","analytics","erp","concur","ariba","successfactors","signavio","hybris","commerce","datasphere","joule"];
+            const kwLower = keyword.toLowerCase();
+            if (!sapKws.some(k => kwLower.includes(k)) && scrapeState.jobs.length > 0) {
+              showToast(`Note: "${keyword}" may not be SAP-specific. This searches SAP's portal — results may vary in relevance.`, "info");
+            }
           }
         } else {
           showToast(data.error || "Search failed", "error");
@@ -1507,7 +1527,7 @@
     if (existing) { showToast("Already tracking this job", "error"); return; }
     const app = {
       id: uuid(),
-      company: "SAP",
+      company: job.company || extractCompanyFromUrl(job.url) || "Unknown",
       role: job.title || "Unknown",
       link: job.url || "",
       location: job.location || "",
@@ -1534,7 +1554,7 @@
       if (existing) return;
       const app = {
         id: uuid(),
-        company: "SAP",
+        company: job.company || extractCompanyFromUrl(job.url) || "Unknown",
         role: job.title || "Unknown",
         link: job.url || "",
         location: job.location || "",
@@ -1695,6 +1715,53 @@
     DOM.scrapeKeyword?.addEventListener("input", updateSearchBtnState);
     DOM.scrapeLocation?.addEventListener("input", updateSearchBtnState);
     updateSearchBtnState();
+
+    // ── AI keyword expansion (debounced) ──
+    let kwExpandTimer = null;
+    let lastExpandedKw = "";
+    DOM.scrapeKeyword?.addEventListener("input", () => {
+      clearTimeout(kwExpandTimer);
+      const val = DOM.scrapeKeyword.value.trim();
+      const expEl = document.getElementById("keyword-expansion");
+      const expText = document.getElementById("keyword-expansion-text");
+      if (!val || val.length < 2 || val === lastExpandedKw) {
+        if (expEl) expEl.classList.add("hidden");
+        return;
+      }
+      kwExpandTimer = setTimeout(async () => {
+        try {
+          const portal = DOM.scrapePortal?.value || "sap";
+          const res = await fetch("/search-intelligence", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ keyword: val, portal })
+          });
+          const data = await res.json();
+          if (data.success && data.isAbbreviation && data.expanded && data.expanded.toLowerCase() !== val.toLowerCase()) {
+            lastExpandedKw = val;
+            if (expText) {
+              const suggestions = (data.suggestions || []).slice(0, 2).join(", ");
+              expText.textContent = `"${val}" = ${data.expanded}${suggestions ? `. Also try: ${suggestions}` : ""}`;
+            }
+            if (expEl) expEl.classList.remove("hidden");
+            // Wire use button
+            const useBtn = document.getElementById("keyword-expansion-use");
+            if (useBtn) {
+              useBtn.onclick = () => {
+                DOM.scrapeKeyword.value = data.expanded;
+                expEl.classList.add("hidden");
+                updateSearchBtnState();
+              };
+            }
+          } else {
+            if (expEl) expEl.classList.add("hidden");
+          }
+        } catch {
+          if (expEl) expEl.classList.add("hidden");
+        }
+      }, 600);
+    });
+
     DOM.scrapeKeyword?.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); handleScrapeSearch(); }
     });
