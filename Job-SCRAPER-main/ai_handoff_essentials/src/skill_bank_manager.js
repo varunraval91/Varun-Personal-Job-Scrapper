@@ -4,6 +4,33 @@ const { addSkillToVector, updateSkillInVector, resetClient } = require("./rag_en
 
 const DB_PATH = path.join(__dirname, "..", "data", "skill_data_bank.json");
 
+// Atomic write with retry — avoids EPERM on Windows when file is briefly locked
+function atomicWriteSync(filePath, data) {
+  const tmpPath = filePath + ".tmp";
+  const maxRetries = 3;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      fs.writeFileSync(tmpPath, data);
+      // Atomic rename (overwrites target on Windows with Node 14+)
+      try { fs.renameSync(tmpPath, filePath); } catch {
+        // renameSync can fail on some Windows configs; fall back to direct write
+        fs.writeFileSync(filePath, data);
+        try { fs.unlinkSync(tmpPath); } catch {}
+      }
+      return;
+    } catch (err) {
+      if (i < maxRetries - 1 && (err.code === "EPERM" || err.code === "EBUSY")) {
+        // Brief delay then retry
+        const waitMs = 100 * (i + 1);
+        const start = Date.now();
+        while (Date.now() - start < waitMs) { /* busy wait */ }
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 const VALID_CATEGORIES = [
   "SAP_Technical",
   "Engineering_Dev",
@@ -22,7 +49,7 @@ function loadBank() {
 
 function saveBank(bank) {
   bank.last_updated = new Date().toISOString().split("T")[0];
-  fs.writeFileSync(DB_PATH, JSON.stringify(bank, null, 2));
+  atomicWriteSync(DB_PATH, JSON.stringify(bank, null, 2));
 }
 
 // ── v4.0: skills live in user_skills ─────────────────────────────────────────

@@ -364,6 +364,30 @@ let libraryIndex = [];
 // HELPERS
 // ═══════════════════════════════════════════════════════════════
 
+// Atomic write with retry — avoids EPERM on Windows when file is briefly locked
+function atomicWriteSync(filePath, data) {
+  const tmpPath = filePath + ".tmp";
+  const maxRetries = 3;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      fs.writeFileSync(tmpPath, data);
+      try { fs.renameSync(tmpPath, filePath); } catch {
+        fs.writeFileSync(filePath, data);
+        try { fs.unlinkSync(tmpPath); } catch {}
+      }
+      return;
+    } catch (err) {
+      if (i < maxRetries - 1 && (err.code === "EPERM" || err.code === "EBUSY")) {
+        const waitMs = 100 * (i + 1);
+        const start = Date.now();
+        while (Date.now() - start < waitMs) {}
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 function normalizeSapJobUrl(url) {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
@@ -2902,7 +2926,7 @@ app.post("/skill-bank/update-project", async (req, res) => {
     if (impact      !== undefined) proj.impact      = impact;
     // Regenerate vector_text for this project so RAG picks up the change
     proj.vector_text = `${proj.project_name||proj.name} ${proj.tech||""} ${proj.description||""} ${proj.impact||""}`.replace(/\s+/g," ").trim();
-    fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2));
+    atomicWriteSync(bankPath, JSON.stringify(bank, null, 2));
     skillBank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
     if (rebuildVectorStore) { await rebuildVectorStore(skillBank); vectorReady = true; }
     res.json({ success: true, project: proj, vectorRebuilt: !!rebuildVectorStore });
@@ -2929,7 +2953,7 @@ app.post("/skill-bank/update-work", async (req, res) => {
     if (responsibilities !== undefined) { entry.responsibilities = Array.isArray(responsibilities) ? responsibilities : responsibilities.split("\n").map(s => s.trim()).filter(Boolean); if (entry.bullets !== undefined) entry.bullets = entry.responsibilities; }
     // Regenerate vector_text for this work entry
     entry.vector_text = `${entry.job_title||entry.title} ${entry.company} ${(entry.responsibilities||entry.bullets||[]).join(" ")} ${(entry.skills_used||[]).join(" ")}`.replace(/\s+/g," ").trim();
-    fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2));
+    atomicWriteSync(bankPath, JSON.stringify(bank, null, 2));
     skillBank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
     if (rebuildVectorStore) { await rebuildVectorStore(skillBank); vectorReady = true; }
     res.json({ success: true, entry, vectorRebuilt: !!rebuildVectorStore });
@@ -2952,7 +2976,7 @@ app.post("/skill-bank/update-cert", (req, res) => {
     if (provider !== undefined) entry.provider = provider;
     if (date     !== undefined) entry.date     = date;
     if (duration !== undefined) entry.duration = duration;
-    fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2));
+    atomicWriteSync(bankPath, JSON.stringify(bank, null, 2));
     skillBank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
     res.json({ success: true, entry });
   } catch (err) { res.status(500).json({ success: false, error: safeError(err) }); }
@@ -2976,7 +3000,7 @@ app.post("/skill-bank/update-research", (req, res) => {
     if (date        !== undefined) entry.date        = date;
     if (references  !== undefined) entry.references  = references;
     if (key_finding !== undefined) entry.key_finding = key_finding;
-    fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2));
+    atomicWriteSync(bankPath, JSON.stringify(bank, null, 2));
     skillBank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
     res.json({ success: true, entry });
   } catch (err) { res.status(500).json({ success: false, error: safeError(err) }); }
@@ -2995,7 +3019,7 @@ app.post("/skill-bank/update-education", (req, res) => {
     if (status      !== undefined) entry.status      = status;
     if (relevance   !== undefined) entry.relevance   = relevance;
     if (key_modules !== undefined) entry.key_modules = Array.isArray(key_modules) ? key_modules : key_modules.split("\n").map(s => s.trim()).filter(Boolean);
-    fs.writeFileSync(bankPath, JSON.stringify(bank, null, 2));
+    atomicWriteSync(bankPath, JSON.stringify(bank, null, 2));
     skillBank = JSON.parse(fs.readFileSync(bankPath, "utf-8"));
     res.json({ success: true, entry });
   } catch (err) { res.status(500).json({ success: false, error: safeError(err) }); }
