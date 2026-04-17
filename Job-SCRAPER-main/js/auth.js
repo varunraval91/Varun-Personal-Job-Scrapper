@@ -134,10 +134,15 @@
         await FirebaseAPI.auth.signInWithEmail(email, password);
       } catch (error) {
         const code = error?.code || '';
-        let message = 'Sign in failed. Please try again.';
+        console.error('[Auth] Sign-in error:', code, error?.message);
+        let message = `Sign in failed (${code || 'unknown error'})`;
         if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') message = 'Invalid email or password.';
         else if (code === 'auth/user-not-found') message = 'No account found for this email.';
         else if (code === 'auth/too-many-requests') message = 'Too many attempts. Please wait and retry.';
+        else if (code === 'auth/operation-not-allowed') message = 'Email/password sign-in is not enabled in Firebase Console.';
+        else if (code === 'auth/invalid-api-key') message = 'Invalid Firebase API key — check firebase-config.local.js.';
+        else if (code === 'auth/network-request-failed') message = 'Network error — check your connection.';
+        else if (error?.message) message = error.message;
         setLoginBusy(false, message);
       }
     });
@@ -148,10 +153,23 @@
     bindThemeSyncListeners();
     rotateMotivation();
 
+    // Dev bypass: firebase-config.local.js sets window.__DEV_NO_AUTH__ = true
+    // when Firebase credentials aren't configured yet.
+    if (window.__DEV_NO_AUTH__) {
+      showAppLayout();
+      if (window.JobHuntApp && window.JobHuntApp.init) {
+        // Load existing localStorage data so tracker applications are preserved
+        let savedApps = [];
+        try { savedApps = JSON.parse(localStorage.getItem('job_hunt_hq_applications')) || []; } catch { savedApps = []; }
+        window.JobHuntApp.init('local-dev', savedApps);
+      }
+      return;
+    }
+
     if (typeof FirebaseAPI === 'undefined' || !FirebaseAPI.isReady || !FirebaseAPI.isReady()) {
       initRetries += 1;
       if (initRetries > MAX_INIT_RETRIES) {
-        setLoginBusy(false, 'Firebase is not initialized. Check firebase-config.local.js.');
+        setLoginBusy(false, 'Firebase not configured. Add credentials to firebase-config.local.js.');
         return;
       }
       setTimeout(initAuth, 500);

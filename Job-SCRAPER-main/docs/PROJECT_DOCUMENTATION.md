@@ -1,7 +1,8 @@
 # SAP Job Automator — Complete Project Documentation
+
 ### Version 1.0 · March 2026 · Developer Reference
 
----
+***
 
 ## TABLE OF CONTENTS
 
@@ -20,7 +21,7 @@
 13. [Environment Setup](#13-environment-setup)
 14. [Glossary](#14-glossary)
 
----
+***
 
 ## 1. WHAT THIS PROJECT IS
 
@@ -53,7 +54,7 @@ YOUR 35 REAL DOCUMENTS (foundation)
 
 The system gets better every time you use it. Your 2027 applications will draw on everything you learned in 2026.
 
----
+***
 
 ## 2. SYSTEM ARCHITECTURE
 
@@ -102,50 +103,50 @@ The system gets better every time you use it. Your 2027 applications will draw o
 
 ### Why This Split?
 
-| Concern | Runs Where | Why |
-|---------|-----------|-----|
-| **Scraping** | Server (Playwright) | SAP blocks client-side requests (CORS). Playwright needs a real browser. |
-| **AI Generation** | Server (Gemini API) | API key must stay on server — never exposed to browser. |
-| **PDF Export** | Server (Playwright) | Browser can't generate styled PDFs reliably. Playwright renders HTML → PDF with exact control. |
-| **PDF Parsing** | Server (pdf-parse) | Browser can't read files from disk. Server reads your foundation PDFs at startup. |
-| **Auth & Data** | Client (Firebase) | Firebase SDK handles auth + Firestore directly from browser. No server middleware needed. |
-| **UI & Interactions** | Client (HTML/CSS/JS) | Everything visual runs in the browser. |
+| Concern               | Runs Where           | Why                                                                                            |
+| --------------------- | -------------------- | ---------------------------------------------------------------------------------------------- |
+| **Scraping**          | Server (Playwright)  | SAP blocks client-side requests (CORS). Playwright needs a real browser.                       |
+| **AI Generation**     | Server (Gemini API)  | API key must stay on server — never exposed to browser.                                        |
+| **PDF Export**        | Server (Playwright)  | Browser can't generate styled PDFs reliably. Playwright renders HTML → PDF with exact control. |
+| **PDF Parsing**       | Server (pdf-parse)   | Browser can't read files from disk. Server reads your foundation PDFs at startup.              |
+| **Auth & Data**       | Client (Firebase)    | Firebase SDK handles auth + Firestore directly from browser. No server middleware needed.      |
+| **UI & Interactions** | Client (HTML/CSS/JS) | Everything visual runs in the browser.                                                         |
 
----
+***
 
 ## 3. TECH STACK
 
 ### Backend
 
-| Technology | Version | Purpose |
-|-----------|---------|---------|
-| **Node.js** | 18+ | JavaScript runtime |
-| **Express** | 5.x | HTTP server, API routing, static file serving |
-| **Playwright** | 1.58+ | Headless Chromium: scraping SAP portal, fetching JDs, rendering PDFs |
-| **@google/generative-ai** | 0.24+ | Gemini API client for CV/CL generation |
-| **pdf-parse** | 1.1+ | Extract text from foundation PDF documents |
-| **dotenv** | 17+ | Load .env variables (API keys) |
-| **cors** | 2.8+ | Cross-origin headers |
+| Technology                | Version | Purpose                                                              |
+| ------------------------- | ------- | -------------------------------------------------------------------- |
+| **Node.js**               | 18+     | JavaScript runtime                                                   |
+| **Express**               | 5.x     | HTTP server, API routing, static file serving                        |
+| **Playwright**            | 1.58+   | Headless Chromium: scraping SAP portal, fetching JDs, rendering PDFs |
+| **@google/generative-ai** | 0.24+   | Gemini API client for CV/CL generation                               |
+| **pdf-parse**             | 1.1+    | Extract text from foundation PDF documents                           |
+| **dotenv**                | 17+     | Load .env variables (API keys)                                       |
+| **cors**                  | 2.8+    | Cross-origin headers                                                 |
 
 ### Frontend
 
-| Technology | Source | Purpose |
-|-----------|--------|---------|
-| **HTML/CSS/JS** | Custom | Single-page app, no framework |
-| **Firebase SDK** | CDN v9.22 (compat) | Auth + Firestore + offline persistence |
-| **Chart.js** | CDN 4.4 | Analytics charts (bar, doughnut) |
-| **SheetJS (xlsx)** | CDN 0.18 | CSV/XLSX import/export |
-| **Google Fonts** | CDN | Cabinet Grotesk + Instrument Sans |
+| Technology         | Source             | Purpose                                |
+| ------------------ | ------------------ | -------------------------------------- |
+| **HTML/CSS/JS**    | Custom             | Single-page app, no framework          |
+| **Firebase SDK**   | CDN v9.22 (compat) | Auth + Firestore + offline persistence |
+| **Chart.js**       | CDN 4.4            | Analytics charts (bar, doughnut)       |
+| **SheetJS (xlsx)** | CDN 0.18           | CSV/XLSX import/export                 |
+| **Google Fonts**   | CDN                | Cabinet Grotesk + Instrument Sans      |
 
 ### External Services
 
-| Service | Plan | Purpose |
-|---------|------|---------|
-| **Google Gemini API** | Free tier (15 req/min) | AI text generation |
-| **Firebase Auth** | Spark (free) | Email/password authentication |
-| **Firebase Firestore** | Spark (free) | Cloud database for applications, library, JD cache |
+| Service                | Plan                   | Purpose                                            |
+| ---------------------- | ---------------------- | -------------------------------------------------- |
+| **Google Gemini API**  | Free tier (15 req/min) | AI text generation                                 |
+| **Firebase Auth**      | Spark (free)           | Email/password authentication                      |
+| **Firebase Firestore** | Spark (free)           | Cloud database for applications, library, JD cache |
 
----
+***
 
 ## 4. FILE & FOLDER STRUCTURE
 
@@ -197,7 +198,7 @@ Job-SCRAPER-main/
     └── (backup exports, etc.)
 ```
 
----
+***
 
 ## 5. THE 4-SECTION UI
 
@@ -208,14 +209,16 @@ The app has 4 main sections, accessed via sidebar navigation:
 **Purpose:** Find jobs on SAP career portal.
 
 **What the user sees:**
-- Keyword input (comma-separated for multiple: "BTP, SAP Analytics Cloud")
-- Location input (e.g., "Walldorf" or blank for all Germany)
-- Career status dropdown: Student / Graduate / Professional
-- Country dropdown: Germany / Austria / Switzerland
-- Posted-within dropdown: Today / 1 Week / 2 Weeks / 3 Weeks / 1 Month / Any
-- "Search Jobs" button with loading spinner
+
+* Keyword input (comma-separated for multiple: "BTP, SAP Analytics Cloud")
+* Location input (e.g., "Walldorf" or blank for all Germany)
+* Career status dropdown: Student / Graduate / Professional
+* Country dropdown: Germany / Austria / Switzerland
+* Posted-within dropdown: Today / 1 Week / 2 Weeks / 3 Weeks / 1 Month / Any
+* "Search Jobs" button with loading spinner
 
 **What happens behind the scenes:**
+
 1. Frontend sends POST to `/scrape` with all filter values
 2. Server launches Playwright → navigates to jobs.sap.com/search
 3. Fills in search form fields, clicks Submit
@@ -225,24 +228,25 @@ The app has 4 main sections, accessed via sidebar navigation:
 7. Returns deduplicated results to frontend
 
 **Results table columns:**
-| Select | Job Title | Keyword | Req ID | Location | Posted | Link |
+\| Select | Job Title | Keyword | Req ID | Location | Posted | Link |
 
 **Key action:** Checkboxes let user select jobs → selected jobs appear in Section 2 for generation AND can be pushed to Section 4 (Tracker) as Wishlist items.
 
----
+***
 
 ### Section 2: GENERATE (AI Document Generation)
 
 **Purpose:** Generate tailored CV and cover letter for a selected job.
 
 **What the user sees:**
-- List of selected jobs (from Section 1 or Section 4)
-- For each job: "Generate CV + Cover Letter" button
-- After generation:
-  - Editable text preview (left: CV, right: Cover Letter)
-  - AI Decision Log (what samples were used, why certain skills highlighted)
-  - Three action buttons: ✅ Approve & Save | 📝 Save Draft | ❌ Discard
-  - "Export PDF" button (only after content is finalized)
+
+* List of selected jobs (from Section 1 or Section 4)
+* For each job: "Generate CV + Cover Letter" button
+* After generation:
+  * Editable text preview (left: CV, right: Cover Letter)
+  * AI Decision Log (what samples were used, why certain skills highlighted)
+  * Three action buttons: ✅ Approve & Save | 📝 Save Draft | ❌ Discard
+  * "Export PDF" button (only after content is finalized)
 
 **What happens behind the scenes (the generation pipeline):**
 
@@ -328,44 +332,47 @@ POST /export-pdf { content: "...", type: "cv" | "cover_letter" }
 → Returns PDF binary → saved to generated/ folder + Downloads
 ```
 
----
+***
 
 ### Section 3: ANALYTICS (Dashboard & Insights)
 
 **Purpose:** Visualize your application pipeline and document performance.
 
 **What the user sees:**
-- **Stats cards:** Total applications, Response rate, Active pipeline, Offers
-- **Pipeline chart:** Bar chart showing count per stage (Wishlist → Offer)
-- **Outcome chart:** Doughnut showing Interview/Rejected/Offer distribution
-- **Domain insights:** "Your analytics CVs get 2x more interviews than operations CVs"
-- **Filter sidebar:** Date range, stage, company, keyword
-- **Data table:** All applications with sortable columns
-- **Export button:** Download filtered data as CSV
+
+* **Stats cards:** Total applications, Response rate, Active pipeline, Offers
+* **Pipeline chart:** Bar chart showing count per stage (Wishlist → Offer)
+* **Outcome chart:** Doughnut showing Interview/Rejected/Offer distribution
+* **Domain insights:** "Your analytics CVs get 2x more interviews than operations CVs"
+* **Filter sidebar:** Date range, stage, company, keyword
+* **Data table:** All applications with sortable columns
+* **Export button:** Download filtered data as CSV
 
 **Where the data comes from:**
-- Application data: Firebase `users/{uid}/applications/`
-- Library performance: Firebase `users/{uid}/library/insights/`
-- Generation history: Firebase `users/{uid}/library/approved/`
+
+* Application data: Firebase `users/{uid}/applications/`
+* Library performance: Firebase `users/{uid}/library/insights/`
+* Generation history: Firebase `users/{uid}/library/approved/`
 
 **Analytics calculated:**
 
-| Metric | Formula |
-|--------|---------|
-| Response Rate | (Interview + Offer) / Total Applied × 100 |
-| Offer Rate | Offer / Total Applied × 100 |
-| Domain Performance | interviews_in_domain / generations_in_domain × 100 |
-| Best Skills per Domain | Skills from highest-weight approved docs |
-| Avoid Patterns | Skills from lowest-weight docs (rejections/no response) |
+| Metric                 | Formula                                                 |
+| ---------------------- | ------------------------------------------------------- |
+| Response Rate          | (Interview + Offer) / Total Applied × 100               |
+| Offer Rate             | Offer / Total Applied × 100                             |
+| Domain Performance     | interviews\_in\_domain / generations\_in\_domain × 100  |
+| Best Skills per Domain | Skills from highest-weight approved docs                |
+| Avoid Patterns         | Skills from lowest-weight docs (rejections/no response) |
 
----
+***
 
 ### Section 4: TRACKER (Kanban Board)
 
 **Purpose:** Track every application through its lifecycle.
 
 **What the user sees:**
-- 6-column Kanban board:
+
+* 6-column Kanban board:
 
 ```
 ┌──────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
@@ -377,13 +384,13 @@ POST /export-pdf { content: "...", type: "cv" | "cover_letter" }
 └──────────┴──────────┴──────────┴──────────┴──────────┴──────────┘
 ```
 
-- Each card shows: Company, Role, Location, Deadline, Urgency color
-- Drag-and-drop between columns
-- Click card to edit details
-- Search bar + Stage filter chips + Company shortcut buttons
-- Sort by: Deadline / Date added / Company / Fit rating
-- Weekly goal widget with progress bar
-- "New Application" button (manual entry or paste URL for auto-fill)
+* Each card shows: Company, Role, Location, Deadline, Urgency color
+* Drag-and-drop between columns
+* Click card to edit details
+* Search bar + Stage filter chips + Company shortcut buttons
+* Sort by: Deadline / Date added / Company / Fit rating
+* Weekly goal widget with progress bar
+* "New Application" button (manual entry or paste URL for auto-fill)
 
 **The Outcome Feedback Bridge (NEW):**
 
@@ -408,7 +415,7 @@ When a card moves to **Interview**, **Rejected**, or **Offer**, the system promp
 
 This closes the feedback loop. The tracker feeds performance data back into the library, making future generations smarter.
 
----
+***
 
 ## 6. BACKEND API ENDPOINTS
 
@@ -416,17 +423,18 @@ This closes the feedback loop. The tracker feeds performance data back into the 
 
 **Purpose:** Search SAP career portal for job listings.
 
-| Field | Type | Required | Example |
-|-------|------|----------|---------|
-| keyword | string | Yes | "BTP" |
-| location | string | No | "Walldorf" |
-| country | string | Yes | "DE" |
-| careerStatus | string | Yes | "Student" |
-| period | string | Yes | "1week" |
+| Field        | Type   | Required | Example    |
+| ------------ | ------ | -------- | ---------- |
+| keyword      | string | Yes      | "BTP"      |
+| location     | string | No       | "Walldorf" |
+| country      | string | Yes      | "DE"       |
+| careerStatus | string | Yes      | "Student"  |
+| period       | string | Yes      | "1week"    |
 
 **Response:** `{ success: true, jobs: [...] }`
 
 **How it works:**
+
 1. Launches shared Playwright browser page
 2. Navigates to `https://jobs.sap.com/search/`
 3. Fills keyword, location, selects career status & country
@@ -436,58 +444,61 @@ This closes the feedback loop. The tracker feeds performance data back into the 
 7. Filters by period (today, 1week, 2weeks, etc.)
 8. Returns deduplicated array
 
----
+***
 
 ### POST /fetch-jd
 
 **Purpose:** Fetch full job description from a SAP job detail page.
 
-| Field | Type | Required | Example |
-|-------|------|----------|---------|
-| url | string | Yes | "https://jobs.sap.com/job/walldorf/working-student/..." |
+| Field | Type   | Required | Example                                                   |
+| ----- | ------ | -------- | --------------------------------------------------------- |
+| url   | string | Yes      | "<https://jobs.sap.com/job/walldorf/working-student/>..." |
 
 **Response:** `{ success: true, jd: { title, fullText, requirements, responsibilities, location, department } }`
 
 **How it works:**
+
 1. Opens URL in Playwright page
 2. Extracts:
-   - Job title from `h1` or `[data-careersite-propertyid="title"]`
-   - Full description from job content area
-   - Requirements/qualifications section
-   - Location, department, posted date
+   * Job title from `h1` or `[data-careersite-propertyid="title"]`
+   * Full description from job content area
+   * Requirements/qualifications section
+   * Location, department, posted date
 3. Cleans HTML tags, normalizes whitespace
 4. Returns structured JD object
 
 **Why this matters:** Job descriptions disappear from SAP portal after HR finalizes candidates. By fetching and caching immediately, the user always has the JD available — even months later before an interview.
 
----
+***
 
 ### POST /generate
 
 **Purpose:** Generate a CV or cover letter using Gemini AI.
 
-| Field | Type | Required | Example |
-|-------|------|----------|---------|
-| jobDescription | string | Yes | "Full JD text..." |
-| documentType | string | Yes | "cv" or "cover_letter" |
-| selectedSamples | array | Yes | [{text, type, weight}...] |
-| domainInsights | object | No | {bestSkills: [...]} |
-| userEdits | string | No | Previous draft for refinement |
+| Field           | Type   | Required | Example                       |
+| --------------- | ------ | -------- | ----------------------------- |
+| jobDescription  | string | Yes      | "Full JD text..."             |
+| documentType    | string | Yes      | "cv" or "cover\_letter"       |
+| selectedSamples | array  | Yes      | \[{text, type, weight}...]    |
+| domainInsights  | object | No       | {bestSkills: \[...]}          |
+| userEdits       | string | No       | Previous draft for refinement |
 
 **Response:** `{ success: true, content: "generated text...", decisions: { samplesUsed: [...], skillsHighlighted: [...], reasoning: "..." } }`
 
 **How it works:**
+
 1. Constructs a prompt with:
-   - System instructions (role, style rules, template structure)
-   - Selected library samples as context
-   - The full job description
-   - Domain insights (if available)
-   - Template structure from LaTeX files
+   * System instructions (role, style rules, template structure)
+   * Selected library samples as context
+   * The full job description
+   * Domain insights (if available)
+   * Template structure from LaTeX files
 2. Calls Gemini API (`gemini-2.0-flash`)
 3. Parses response into sections matching the template
 4. Returns content + AI decision metadata
 
 **Prompt structure (simplified):**
+
 ```
 SYSTEM:
 You are writing a CV for Varun Raval. Follow these rules:
@@ -518,42 +529,44 @@ A complete CV in the exact template structure, tailored to this job.
 
 **Rate limiting:** Minimum 4-second gap between API calls. Queue concurrent requests.
 
----
+***
 
 ### POST /export-pdf
 
 **Purpose:** Render finalized content as a styled PDF.
 
-| Field | Type | Required | Example |
-|-------|------|----------|---------|
-| content | string | Yes | "The CV/CL text content" |
-| type | string | Yes | "cv" or "cover_letter" |
-| filename | string | No | "Varun_Raval_CV_SAP_Analytics" |
+| Field    | Type   | Required | Example                            |
+| -------- | ------ | -------- | ---------------------------------- |
+| content  | string | Yes      | "The CV/CL text content"           |
+| type     | string | Yes      | "cv" or "cover\_letter"            |
+| filename | string | No       | "Varun\_Raval\_CV\_SAP\_Analytics" |
 
 **Response:** PDF binary file (Content-Type: application/pdf)
 
 **How it works:**
+
 1. Takes the user's finalized text content
 2. Wraps it in an HTML page styled to match the LaTeX template:
-   - **CV:** Replicates cv_style_guide.tex — colors (#111, #333, #666, #003366), fonts (Latin Modern → system serif), margins (1.8cm), section format, bullet style
-   - **CL:** Replicates cover_letter_template.tex — wider margins (2.8cm), centered title, justified paragraphs, 1.15× line height
+   * **CV:** Replicates cv\_style\_guide.tex — colors (#111, #333, #666, #003366), fonts (Latin Modern → system serif), margins (1.8cm), section format, bullet style
+   * **CL:** Replicates cover\_letter\_template.tex — wider margins (2.8cm), centered title, justified paragraphs, 1.15× line height
 3. Opens HTML in Playwright headless browser
 4. Calls `page.pdf({ format: 'A4', printBackground: true })`
 5. Saves to `generated/` folder AND returns as download
 
----
+***
 
 ### POST /index-library
 
 **Purpose:** Parse foundation PDFs and return extraction results.
 
-| Field | Type | Required | Example |
-|-------|------|----------|---------|
-| (none) | — | — | — |
+| Field  | Type | Required | Example |
+| ------ | ---- | -------- | ------- |
+| (none) | —    | —        | —       |
 
 **Response:** `{ success: true, indexed: [{ filename, type, charCount, preview }...], errors: [...] }`
 
 **How it works:**
+
 1. Reads all PDFs from `library/foundation/cvs/` and `library/foundation/cover_letters/`
 2. Uses `pdf-parse` to extract text from each
 3. Returns extraction report with character counts
@@ -561,7 +574,7 @@ A complete CV in the exact template structure, tailored to this job.
 5. Extracted text is cached in memory for generation use
 6. Text is also sent to Firebase for cloud persistence
 
----
+***
 
 ## 7. THE LIVING LIBRARY — CORE CONCEPT
 
@@ -668,13 +681,13 @@ GOOD (what we enforce):
   → AI learns from you, not from itself
 ```
 
----
+***
 
 ## 8. DATA MODELS
 
 ### Job (from scraping)
 
-```javascript
+```JavaScript
 {
   title: "Working Student (f/m/d) - Revenue Operations",
   url: "https://jobs.sap.com/job/walldorf/working-student-revenue-ops/...",
@@ -689,7 +702,7 @@ GOOD (what we enforce):
 
 ### Application (tracker card)
 
-```javascript
+```JavaScript
 {
   id: "a1b2c3d4-...",            // crypto.randomUUID()
   company: "SAP",
@@ -711,7 +724,7 @@ GOOD (what we enforce):
 
 ### Foundation Document (library Layer 1)
 
-```javascript
+```JavaScript
 {
   id: "f001",
   filename: "Varun Raval_SAP_Analytics.pdf",
@@ -727,7 +740,7 @@ GOOD (what we enforce):
 
 ### Approved Generation (library Layer 2)
 
-```javascript
+```JavaScript
 {
   id: "g001",
   type: "cv",                    // "cv" | "cover_letter"
@@ -749,7 +762,7 @@ GOOD (what we enforce):
 
 ### Cached Job Description
 
-```javascript
+```JavaScript
 {
   id: "1372686533",              // requisition ID
   title: "Working Student (f/m/d) - Revenue Operations",
@@ -766,7 +779,7 @@ GOOD (what we enforce):
 
 ### Domain Insight (library Layer 3)
 
-```javascript
+```JavaScript
 {
   domain: "analytics",
   bestPerformingSkills: ["Python", "SAP BTP", "data visualization"],
@@ -780,7 +793,7 @@ GOOD (what we enforce):
 }
 ```
 
----
+***
 
 ## 9. FIREBASE ARCHITECTURE
 
@@ -846,14 +859,14 @@ service cloud.firestore {
 
 ### Firestore Limits (Spark Plan)
 
-| Resource | Free Limit | Our Usage | Safe? |
-|----------|-----------|-----------|-------|
-| Document reads | 50,000/day | ~500/day max | ✅ |
-| Document writes | 20,000/day | ~100/day max | ✅ |
-| Storage | 1 GB | ~50 MB (text only) | ✅ |
-| Document size limit | 1 MB | ~5-10 KB per doc | ✅ |
+| Resource            | Free Limit | Our Usage           | Safe? |
+| ------------------- | ---------- | ------------------- | ----- |
+| Document reads      | 50,000/day | \~500/day max       | ✅     |
+| Document writes     | 20,000/day | \~100/day max       | ✅     |
+| Storage             | 1 GB       | \~50 MB (text only) | ✅     |
+| Document size limit | 1 MB       | \~5-10 KB per doc   | ✅     |
 
----
+***
 
 ## 10. FEATURE WALKTHROUGHS
 
@@ -928,67 +941,69 @@ service cloud.firestore {
 6. Even if SAP has removed the posting: user still has the full JD
 ```
 
----
+***
 
 ## 11. SECURITY DESIGN
 
 ### Credentials & Secrets
 
-| Secret | Stored Where | Protection |
-|--------|-------------|------------|
-| Gemini API key | `.env` file (server-side) | gitignored, never sent to browser |
+| Secret          | Stored Where               | Protection                                                            |
+| --------------- | -------------------------- | --------------------------------------------------------------------- |
+| Gemini API key  | `.env` file (server-side)  | gitignored, never sent to browser                                     |
 | Firebase config | `firebase-config.local.js` | gitignored, client-side (okay — Firebase security rules protect data) |
-| User password | Firebase Auth | Handled entirely by Firebase, never touches our code |
+| User password   | Firebase Auth              | Handled entirely by Firebase, never touches our code                  |
 
 ### XSS Prevention
 
 All dynamic content rendered in the UI uses `escapeHtml()`:
-```javascript
+
+```JavaScript
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
 }
 ```
+
 This applies to: job titles, company names, role names, any text from scraping or user input. No `innerHTML` with unsanitized content.
 
 ### API Security
 
-- Gemini API key stays on server — browser never sees it
-- `/scrape`, `/fetch-jd`, `/generate`, `/export-pdf` are server-only endpoints
-- Rate limiting on `/generate`: 4-second minimum gap, queue concurrent requests
-- Input validation on all endpoints: reject missing/malformed parameters
+* Gemini API key stays on server — browser never sees it
+* `/scrape`, `/fetch-jd`, `/generate`, `/export-pdf` are server-only endpoints
+* Rate limiting on `/generate`: 4-second minimum gap, queue concurrent requests
+* Input validation on all endpoints: reject missing/malformed parameters
 
 ### Firestore Security
 
-- Rules enforce: `request.auth.uid == userId` — users can only access their own data
-- No public collections, no shared data
-- Offline persistence enabled — works without internet, syncs when back online
+* Rules enforce: `request.auth.uid == userId` — users can only access their own data
+* No public collections, no shared data
+* Offline persistence enabled — works without internet, syncs when back online
 
----
+***
 
 ## 12. KNOWN CONSTRAINTS & DESIGN DECISIONS
 
 ### Why Playwright for PDFs instead of LaTeX?
 
-| LaTeX (pdflatex) | Playwright (HTML → PDF) |
-|-------------------|------------------------|
-| Pixel-perfect to .tex template | Very close visual match |
-| Requires TeX installation (~2 GB) | Already installed (Playwright is a dependency) |
-| Complex to debug | Simple HTML/CSS debugging |
-| Hard to integrate with Node.js | Native Node.js integration |
+| LaTeX (pdflatex)                   | Playwright (HTML → PDF)                        |
+| ---------------------------------- | ---------------------------------------------- |
+| Pixel-perfect to .tex template     | Very close visual match                        |
+| Requires TeX installation (\~2 GB) | Already installed (Playwright is a dependency) |
+| Complex to debug                   | Simple HTML/CSS debugging                      |
+| Hard to integrate with Node.js     | Native Node.js integration                     |
 
 **Decision:** Use Playwright. The visual difference is negligible. The developer experience is dramatically better.
 
 ### Why Firebase instead of local JSON?
 
-| Local JSON | Firebase Firestore |
-|-----------|-------------------|
-| Works offline immediately | Works offline with persistence |
-| Zero setup | Requires Firebase project |
-| Lost if browser/disk clears | Survives everything |
-| Single device only | Syncs across devices |
-| No auth needed | Auth required |
+| Local JSON                  | Firebase Firestore             |
+| --------------------------- | ------------------------------ |
+| Works offline immediately   | Works offline with persistence |
+| Zero setup                  | Requires Firebase project      |
+| Lost if browser/disk clears | Survives everything            |
+| Single device only          | Syncs across devices           |
+| No auth needed              | Auth required                  |
 
 **Decision:** Firebase. The library is too valuable to risk losing. Cloud persistence is non-negotiable for data that grows over months.
 
@@ -1000,39 +1015,40 @@ Firebase-only authentication ensures data is always cloud-backed.
 
 ### Why Smart Selector picks only 3-5 docs (not all 35)?
 
-- **Token cost:** 35 docs ≈ 50K tokens per call. 5 docs ≈ 8K tokens. 6× cheaper.
-- **Quality:** Gemini performs better with focused, relevant context than with diluted mega-context.
-- **Speed:** Smaller context = faster response time.
-- **Relevance:** An operations CV sample actively confuses the AI when generating for an analytics role.
+* **Token cost:** 35 docs ≈ 50K tokens per call. 5 docs ≈ 8K tokens. 6× cheaper.
+* **Quality:** Gemini performs better with focused, relevant context than with diluted mega-context.
+* **Speed:** Smaller context = faster response time.
+* **Relevance:** An operations CV sample actively confuses the AI when generating for an analytics role.
 
 ### Why cache JDs immediately?
 
 SAP removes job postings after finalizing candidates. This can happen within days.
 If user selects a job Monday, generates CV Wednesday, and the posting is gone by Tuesday:
-- Without cache: `/fetch-jd` fails → no generation possible
-- With cache: JD was saved Monday → generation works perfectly
+
+* Without cache: `/fetch-jd` fails → no generation possible
+* With cache: JD was saved Monday → generation works perfectly
 
 ### Gemini rate limiting (free tier)
 
 15 requests per minute. Each generation = 2 calls (1 for CV, 1 for CL).
-Maximum safe throughput: ~7 jobs per minute.
+Maximum safe throughput: \~7 jobs per minute.
 For typical usage (1-3 jobs per session): no issue.
 Safety: 4-second gap between API calls + request queue.
 
----
+***
 
 ## 13. ENVIRONMENT SETUP
 
 ### Prerequisites
 
-- Node.js 18+
-- npm
-- A Firebase project with Auth + Firestore enabled
-- A Gemini API key
+* Node.js 18+
+* npm
+* A Firebase project with Auth + Firestore enabled
+* A Gemini API key
 
 ### Installation
 
-```bash
+```Shell
 cd Job-SCRAPER-main
 npm install
 npx playwright install chromium
@@ -1041,13 +1057,15 @@ npx playwright install chromium
 ### Configuration
 
 **.env file:**
+
 ```
 GEMINI_API_KEY=AIzaSy...
 GEMINI_MODEL=gemini-2.0-flash
 ```
 
 **firebase-config.local.js:** (already created, gitignored)
-```javascript
+
+```JavaScript
 window.__FIREBASE_CONFIG__ = {
   apiKey: "...",
   authDomain: "...",
@@ -1060,32 +1078,32 @@ window.__FIREBASE_CONFIG__ = {
 
 ### Running
 
-```bash
+```Shell
 npm start
 # → Server running at http://localhost:3000
 ```
 
----
+***
 
 ## 14. GLOSSARY
 
-| Term | Meaning |
-|------|---------|
-| **Foundation** | Your original 35 PDFs. Layer 1. Immutable. Your authentic voice. |
-| **Approved Generation** | A CV/CL that you generated, edited, and clicked "Approve" on. Layer 2. |
-| **Domain** | A category of job roles: analytics, operations, BTP, management, etc. |
-| **Domain Insight** | Statistical knowledge about what works per domain. Layer 3. |
-| **Smart Selector** | Algorithm that picks the 3-5 best library samples for each generation. |
-| **Weight** | A number (0.5-2.0) on approved docs. Higher = prioritized more. Adjusted by outcomes. |
-| **Outcome** | What happened after applying: interview, rejected, no_response, offer. |
-| **Feedback Loop** | Outcome data flows back into the library, improving future generations. |
-| **JD** | Job Description — the full text of a job posting. |
-| **Voice Pollution** | When AI repeatedly reads its own output, losing the user's authentic style. |
-| **Context Injection** | Sending relevant library samples with each Gemini API call (not model training). |
-| **Playwright** | Headless browser automation. Used for: scraping, JD fetching, PDF rendering. |
-| **Req ID** | Requisition ID — SAP's unique identifier for each job posting. |
+| Term                    | Meaning                                                                               |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| **Foundation**          | Your original 35 PDFs. Layer 1. Immutable. Your authentic voice.                      |
+| **Approved Generation** | A CV/CL that you generated, edited, and clicked "Approve" on. Layer 2.                |
+| **Domain**              | A category of job roles: analytics, operations, BTP, management, etc.                 |
+| **Domain Insight**      | Statistical knowledge about what works per domain. Layer 3.                           |
+| **Smart Selector**      | Algorithm that picks the 3-5 best library samples for each generation.                |
+| **Weight**              | A number (0.5-2.0) on approved docs. Higher = prioritized more. Adjusted by outcomes. |
+| **Outcome**             | What happened after applying: interview, rejected, no\_response, offer.               |
+| **Feedback Loop**       | Outcome data flows back into the library, improving future generations.               |
+| **JD**                  | Job Description — the full text of a job posting.                                     |
+| **Voice Pollution**     | When AI repeatedly reads its own output, losing the user's authentic style.           |
+| **Context Injection**   | Sending relevant library samples with each Gemini API call (not model training).      |
+| **Playwright**          | Headless browser automation. Used for: scraping, JD fetching, PDF rendering.          |
+| **Req ID**              | Requisition ID — SAP's unique identifier for each job posting.                        |
 
----
+***
 
 *Document created: March 12, 2026*
 *Project: SAP Job Automator v1.0*

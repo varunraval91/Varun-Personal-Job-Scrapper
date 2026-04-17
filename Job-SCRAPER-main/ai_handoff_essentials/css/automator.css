@@ -159,6 +159,11 @@
   color: var(--text-primary, #111827);
   vertical-align: middle;
 }
+.auto-table tbody tr[data-selectable="true"] { cursor: pointer; }
+.auto-table tbody tr[data-selectable="true"]:focus-visible {
+  outline: 2px solid var(--accent-primary, #6C63FF);
+  outline-offset: -2px;
+}
 .auto-table tbody tr:hover { background: rgba(99, 102, 241, .05); }
 .auto-table tbody tr.selected-row { background: rgba(108, 92, 231, .08); }
 .auto-empty {

@@ -575,6 +575,57 @@ function parseJobDate(raw) {
   return null;
 }
 
+function escapeRegex(text) {
+  return String(text || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function computeQuickMatchFromSkills(job, keyword, skills, options = {}) {
+  const { includeRecency = true } = options;
+  const kw = String(keyword || "").trim().toLowerCase();
+  const hasKeyword = kw.length > 0;
+  const titleLower = String(job?.title || "").toLowerCase();
+
+  const titleWordMatch = hasKeyword ? new RegExp(`\\b${escapeRegex(kw)}\\b`).test(titleLower) : false;
+  const titleContains = hasKeyword ? titleLower.includes(kw) : false;
+  const titleMatch = titleWordMatch || titleContains;
+
+  const avgRelevance = (skills || []).length
+    ? (skills.reduce((sum, s) => {
+      const dist = Number.isFinite(s?.distance) ? s.distance : 1;
+      const clampedDist = Math.max(0, Math.min(1, dist));
+      return sum + (1 - clampedDist) * 100;
+    }, 0) / skills.length)
+    : 0;
+
+  const skillScore = Math.max(0, Math.min(100, avgRelevance));
+  const titleBonus = !hasKeyword ? 0 : titleWordMatch ? 12 : titleContains ? 6 : 0;
+
+  let recencyBonus = 0;
+  if (includeRecency) {
+    const postedD = parseJobDate(job?.rawDate);
+    if (postedD) {
+      const daysSince = (Date.now() - postedD) / 86400000;
+      recencyBonus = Math.max(0, 8 - daysSince * 0.5);
+    }
+  }
+
+  const matchScore = Math.round(Math.min(100, skillScore * 0.86 + titleBonus + recencyBonus));
+  const topMatchedSkills = (skills || []).map(s => s?.metadata?.skill_name).filter(Boolean).slice(0, 3);
+
+  return {
+    matchScore,
+    titleMatch,
+    topMatchedSkills,
+    matchMeta: {
+      method: "quick-fit-v2",
+      skillScore: Math.round(skillScore),
+      titleBonus: Math.round(titleBonus),
+      recencyBonus: Math.round(recencyBonus),
+      keywordUsed: hasKeyword
+    }
+  };
+}
+
 function filterByPeriod(jobs, period) {
   if (period === "any") return jobs;
   const now = new Date();
@@ -610,9 +661,37 @@ async function scrapeOnePage(page, keyword, location, country, statusValue) {
   }
   await page.fill(`input[name="${keywordInputName}"]`, keyword || "");
   if (location) await page.fill('input[name="locationsearch"]', location);
-  await page.waitForSelector("#optionsFacetsDD_customfield3", { timeout: 25000 });
-  await page.selectOption("#optionsFacetsDD_customfield3", statusValue);
-  await page.selectOption("#optionsFacetsDD_country", country);
+  // Career status filter — try exact value first, then partial label match, then skip
+  try {
+    await page.waitForSelector("#optionsFacetsDD_customfield3", { timeout: 25000 });
+    const matched = await page.evaluate((sv) => {
+      const sel = document.querySelector("#optionsFacetsDD_customfield3");
+      if (!sel) return null;
+      const opts = Array.from(sel.options);
+      let opt = opts.find(o => o.value === sv);
+      if (!opt) opt = opts.find(o => o.value.toLowerCase() === sv.toLowerCase());
+      if (!opt) opt = opts.find(o => o.text.toLowerCase().includes(sv.toLowerCase()) || sv.toLowerCase().includes(o.text.toLowerCase().split("/")[0].trim()));
+      return opt ? opt.value : null;
+    }, statusValue);
+    if (matched) await page.selectOption("#optionsFacetsDD_customfield3", matched);
+  } catch (e) {
+    console.warn(`Career status filter unavailable: ${e.message.split("\n")[0]}`);
+  }
+  // Country filter — try exact match, skip if unavailable
+  try {
+    await page.waitForSelector("#optionsFacetsDD_country", { timeout: 10000 });
+    const countryMatched = await page.evaluate((cv) => {
+      const sel = document.querySelector("#optionsFacetsDD_country");
+      if (!sel) return null;
+      const opts = Array.from(sel.options);
+      let opt = opts.find(o => o.value === cv) || opts.find(o => o.value.toLowerCase() === cv.toLowerCase());
+      if (!opt) opt = opts.find(o => o.text.toLowerCase().includes(cv.toLowerCase()));
+      return opt ? opt.value : null;
+    }, country);
+    if (countryMatched) await page.selectOption("#optionsFacetsDD_country", countryMatched);
+  } catch (e) {
+    console.warn(`Country filter unavailable: ${e.message.split("\n")[0]}`);
+  }
   await page.evaluate(() => { const btn = document.querySelector('input[type="submit"]'); if (btn) btn.click(); });
   await Promise.race([
     page.waitForSelector("a.jobTitle-link, .jobTitle-link, .jobTitle, .jobTitle a", { timeout: BASE_ACTION_TIMEOUT_MS }),
@@ -663,7 +742,7 @@ async function scrapeOnePage(page, keyword, location, country, statusValue) {
 // ═══════════════════════════════════════════════════════════════
 
 app.post("/scrape", async (req, res) => {
-  const { keyword, location, country, careerStatus, period, portal = "sap" } = req.body;
+  const { keyword, location, state, city, country, careerStatus, period, portal = "sap" } = req.body;
   if (!keyword && !location) return res.status(400).json({ success: false, error: "Enter a keyword or location." });
 
   // ── SAP portal — existing optimized scraper ──
@@ -689,37 +768,19 @@ app.post("/scrape", async (req, res) => {
     const filtered = filterByPeriod(jobsWithDates, period);
 
     // Add vector match scores if available
-    const kw = keyword.toLowerCase();
+    const kw = String(keyword || "").trim().toLowerCase();
+    const hasKeyword = kw.length > 0;
     if (vectorReady && retrieveContext) {
       for (const job of filtered) {
         try {
-          const result = await retrieveContext(job.title, { topSkills: 5, topProjects: 0, topWork: 0 });
-          const avgRelevance = result.skills.length > 0
-            ? result.skills.reduce((sum, s) => sum + (1 - s.distance) * 100, 0) / result.skills.length
-            : 0;
-          const vectorScore = Math.min(100, avgRelevance * 2);
-
-          // Keyword-in-title boost: whole-word match = +30, substring = +15
-          const titleLower = job.title.toLowerCase();
-          const titleWordMatch = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(titleLower);
-          const titleMatch = titleWordMatch || titleLower.includes(kw);
-          const titleBonus = titleWordMatch ? 30 : titleLower.includes(kw) ? 15 : 0;
-
-          // Recency bonus: up to +10 pts, fades linearly over 20 days
-          let recencyBonus = 0;
-          const postedD = parseJobDate(job.rawDate);
-          if (postedD) {
-            const daysSince = (Date.now() - postedD) / 86400000;
-            recencyBonus = Math.max(0, 10 - daysSince * 0.5);
-          }
-
-          job.matchScore = Math.round(Math.min(100, vectorScore * 0.75 + titleBonus + recencyBonus));
-          job.titleMatch = titleMatch;
-          job.topMatchedSkills = result.skills.slice(0, 3).map(s => s.metadata.skill_name);
+          const fitQuery = [job.title, hasKeyword ? kw : "", job.location].filter(Boolean).join(" ");
+          const result = await retrieveContext(fitQuery, { topSkills: 5, topProjects: 0, topWork: 0 });
+          Object.assign(job, computeQuickMatchFromSkills(job, keyword, result.skills, { includeRecency: true }));
         } catch {
           job.matchScore = 0;
           job.titleMatch = false;
           job.topMatchedSkills = [];
+          job.matchMeta = null;
         }
       }
       // Sort: title matches first, then by composite score descending
@@ -730,8 +791,8 @@ app.post("/scrape", async (req, res) => {
     } else {
       // No vector store: still sort title matches first
       filtered.forEach(job => {
-        const titleLower = job.title.toLowerCase();
-        job.titleMatch = titleLower.includes(kw);
+        const titleLower = String(job.title || "").toLowerCase();
+        job.titleMatch = hasKeyword ? titleLower.includes(kw) : false;
       });
       filtered.sort((a, b) => (a.titleMatch === b.titleMatch ? 0 : a.titleMatch ? -1 : 1));
     }
@@ -743,17 +804,152 @@ app.post("/scrape", async (req, res) => {
     return res.status(500).json({ success: false, error: safeError(err) });
   }
   } // end SAP portal
-  // ── Non-SAP portals — generic Google-based search ──
+  // ── Siemens portal — Phenom People platform ──
+  else if (portal === "siemens") {
+    console.log(`Scraping Siemens: "${keyword}" in ${location || "all"} (${careerStatus})`);
+
+    // Map UI career status → Siemens exact experience level label (Phenom People)
+    const siemensTypeMap = {
+      "Student":      "Student (Not Yet Graduated)",
+      "Graduate":     "Graduate",
+      "Professional": "Experienced Professional"
+    };
+    const siemensType = siemensTypeMap[careerStatus] || "";
+
+    // Map country code → full name for Phenom facet
+    const countryMap = { DE: "Germany", AT: "Austria", CH: "Switzerland" };
+    const countryName = countryMap[country] || country || "";
+
+    // Build Siemens search URL — Phenom facets: query, country, state, city, experience
+    const searchUrl = new URL("https://jobs.siemens.com/careers");
+    if (keyword)      searchUrl.searchParams.set("query", keyword);
+    // Location hierarchy: city → state → country (most specific wins for relevance)
+    if (city)         searchUrl.searchParams.set("city", city);
+    if (state)        searchUrl.searchParams.set("state", state);
+    if (countryName)  searchUrl.searchParams.set("country", countryName);
+    // Broad location text for the search bar (optional, improves results on some Phenom configs)
+    const locationText = city || state || location || countryName;
+    if (locationText) searchUrl.searchParams.set("location", locationText);
+    // Experience level facet — exact label as shown in Siemens filter UI
+    if (siemensType)  searchUrl.searchParams.set("experience", siemensType);
+
+    try {
+      const browser = await getSharedBrowser();
+      const page = await browser.newPage();
+      page.setDefaultTimeout(BASE_ACTION_TIMEOUT_MS);
+      page.setDefaultNavigationTimeout(BASE_NAV_TIMEOUT_MS);
+
+      // networkidle waits for all XHR/fetch API calls to finish — critical for Phenom People SPA
+      await page.goto(searchUrl.toString(), { waitUntil: "networkidle", timeout: 45000 });
+      await dismissCookieBanner(page, "generic");
+
+      // Extra wait for React render after network idle
+      await page.waitForTimeout(3000);
+
+      // Wait for job list container — Phenom People renders a list/grid of results
+      try {
+        await page.waitForSelector(
+          '[class*="job"] a[href*="/jobs/"], [class*="Job"] a[href*="/jobs/"], [class*="result"] a[href*="/jobs/"], a[href*="/jobs/"]',
+          { timeout: 15000 }
+        );
+      } catch { /* proceed anyway — evaluate will collect whatever rendered */ }
+
+      // Extract job cards — Phenom People platform selectors
+      const jobs = await page.evaluate((company) => {
+        const results = [];
+        const seen = new Set();
+
+        // Collect ALL links that point to /jobs/ paths — Phenom job URLs are /jobs/<id>-<slug>
+        const allLinks = Array.from(document.querySelectorAll('a[href*="/jobs/"]'));
+
+        for (const a of allLinks) {
+          const href = a.href;
+          if (!href) continue;
+          const key = href.split("?")[0];
+          if (seen.has(key)) continue;
+          // Skip nav/header/footer links
+          if (a.closest('nav, header, footer')) continue;
+          // Skip links without meaningful text
+          const rawText = a.textContent.trim().replace(/\s+/g, " ");
+          if (!rawText || rawText.length < 4 || rawText.length > 300) continue;
+          // Heuristic: job links usually have a numeric segment or contain "job" in path
+          const path = new URL(href).pathname;
+          if (path === "/jobs/" || path === "/en_US/externaljobs" || path.endsWith("/externaljobs")) continue;
+          seen.add(key);
+
+          // Walk up to find the card container
+          const card = a.closest('li, article, [class*="card"], [class*="result"], [class*="item"]') || a.parentElement;
+
+          // Try to get title from a heading inside the card, fall back to link text
+          const titleEl = card?.querySelector('h1, h2, h3, h4, [class*="title"], [class*="Title"]');
+          const title = (titleEl || a).textContent.trim().replace(/\s+/g, " ");
+          if (!title || title.length < 4) continue;
+
+          const locEl  = card?.querySelector('[class*="location"], [class*="Location"], [class*="city"], [class*="country"]');
+          const dateEl = card?.querySelector('time, [class*="date"], [class*="Date"], [class*="post"]');
+
+          results.push({
+            title,
+            url: href,
+            location: locEl?.textContent?.replace(/\s+/g, " ").trim() || "",
+            rawDate: dateEl?.getAttribute("datetime") || dateEl?.textContent?.trim() || "",
+            requisitionId: href.match(/\/(\d{5,})\/?/)?.[1] || "",
+            company
+          });
+        }
+        return results.slice(0, 50);
+      }, "Siemens");
+
+      await page.close();
+
+      // Period filter (client-side, same as SAP)
+      const filtered = filterByPeriod(jobs, period || "any");
+
+      // Match scores
+      const kw = (keyword || "").toLowerCase();
+      const hasKeyword = String(kw).trim().length > 0;
+      if (vectorReady && retrieveContext) {
+        for (const job of filtered) {
+          try {
+            const fitQuery = [job.title, hasKeyword ? kw : "", job.location].filter(Boolean).join(" ");
+            const result = await retrieveContext(fitQuery, { topSkills: 5, topProjects: 0, topWork: 0 });
+            Object.assign(job, computeQuickMatchFromSkills(job, keyword, result.skills, { includeRecency: true }));
+          } catch {
+            job.matchScore = 0;
+            job.titleMatch = false;
+            job.topMatchedSkills = [];
+            job.matchMeta = null;
+          }
+        }
+        filtered.sort((a, b) => {
+          if (a.titleMatch !== b.titleMatch) return a.titleMatch ? -1 : 1;
+          return (b.matchScore || 0) - (a.matchScore || 0);
+        });
+      } else {
+        filtered.forEach(job => {
+          const titleLower = String(job.title || "").toLowerCase();
+          job.titleMatch = hasKeyword ? titleLower.includes(kw) : false;
+        });
+        filtered.sort((a, b) => (a.titleMatch === b.titleMatch ? 0 : a.titleMatch ? -1 : 1));
+      }
+
+      console.log(`Found ${filtered.length} jobs on Siemens`);
+      return res.json({ success: true, jobs: filtered });
+    } catch (err) {
+      console.error("Siemens scrape error:", err.message);
+      return res.status(500).json({ success: false, error: safeError(err) });
+    }
+  }
+  // ── Other portals (Infineon, Bosch) — generic ──
   else {
     const PORTAL_SEARCH_URLS = {
-      siemens: "https://jobs.siemens.com/careers",
       infineon: "https://jobs.infineon.com/careers",
       bosch: "https://www.bosch.com/careers/job-search/"
     };
     const portalUrl = PORTAL_SEARCH_URLS[portal];
     if (!portalUrl) return res.status(400).json({ success: false, error: `Unknown portal: ${portal}` });
 
-    const portalNames = { siemens: "Siemens", infineon: "Infineon", bosch: "Bosch" };
+    const portalNames = { infineon: "Infineon", bosch: "Bosch" };
     const companyName = portalNames[portal] || portal;
     console.log(`Scraping ${companyName}: "${keyword}" in ${location || "all"}`);
 
@@ -763,107 +959,38 @@ app.post("/scrape", async (req, res) => {
       page.setDefaultTimeout(BASE_ACTION_TIMEOUT_MS);
       page.setDefaultNavigationTimeout(BASE_NAV_TIMEOUT_MS);
 
-      // Build search URL with query params
       const searchUrl = new URL(portalUrl);
-      if (keyword) searchUrl.searchParams.set("q", keyword);
       if (keyword) searchUrl.searchParams.set("query", keyword);
-      if (keyword) searchUrl.searchParams.set("keywords", keyword);
       if (location) searchUrl.searchParams.set("location", location);
 
       await page.goto(searchUrl.toString(), { waitUntil: "domcontentloaded", timeout: BASE_NAV_TIMEOUT_MS });
       await dismissCookieBanner(page, detectPortalType(portalUrl).type);
-      await page.waitForTimeout(3000); // wait for SPA content to load
+      await page.waitForTimeout(4000);
 
-      // Try to find a search form and fill it (some portals need form interaction)
-      try {
-        const searchInput = await page.$('input[type="search"], input[name="q"], input[name="query"], input[name="keywords"], input[placeholder*="Search"], input[placeholder*="search"], input[aria-label*="Search"], input[aria-label*="search"]');
-        if (searchInput && keyword) {
-          await searchInput.fill("");
-          await searchInput.fill(keyword);
-          // Try submitting via Enter or button
-          await searchInput.press("Enter");
-          await page.waitForTimeout(3000);
-        }
-      } catch {}
-
-      // Extract job listing links from the results page
       const jobs = await page.evaluate((company) => {
-        const results = [];
-        const seen = new Set();
-
-        // Find all links that look like job postings
-        const allLinks = document.querySelectorAll('a[href]');
-        for (const a of allLinks) {
-          const href = a.href;
-          const text = a.textContent.trim();
-          // Filter for job-like links: contain job-related path segments and have meaningful text
-          if (!text || text.length < 5 || text.length > 200) continue;
-          if (seen.has(href)) continue;
-          // Common job URL patterns
-          const isJobLink = /\/(job|position|career|opening|vacancy|requisition|posting)\b/i.test(href)
-            || /\/\d{4,}/.test(href) // numeric ID in path
-            || a.closest('[class*="job"], [class*="Job"], [class*="position"], [class*="listing"], [class*="result"], [class*="search-result"]');
-          if (!isJobLink) continue;
-          // Skip navigation/footer links
-          if (a.closest('nav, footer, header')) continue;
-          seen.add(href);
-          results.push({
-            title: text.replace(/\s+/g, " ").trim(),
-            url: href,
-            location: "",
-            rawDate: "",
-            requisitionId: "",
-            company: company
-          });
-        }
-        return results.slice(0, 50); // cap at 50
+        const results = [], seen = new Set();
+        document.querySelectorAll('a[href]').forEach(a => {
+          const href = a.href, text = a.textContent.trim();
+          const key = href.split("?")[0];
+          if (!text || text.length < 5 || text.length > 200 || seen.has(key)) return;
+          const isJobLink = /\/(job|position|career|opening|vacancy|requisition|posting)\b/i.test(href) || /\/\d{4,}/.test(href)
+            || a.closest('[class*="job"],[class*="Job"],[class*="position"],[class*="listing"],[class*="result"]');
+          if (!isJobLink || a.closest('nav,footer,header')) return;
+          seen.add(key);
+          const card = a.closest('[class*="job"],[class*="card"],li,article') || a.parentElement;
+          const locEl = card?.querySelector('[class*="location"],[class*="Location"]');
+          const dateEl = card?.querySelector('[class*="date"],[class*="Date"],time');
+          results.push({ title: text.replace(/\s+/g, " ").trim(), url: href, location: locEl?.textContent?.trim() || "", rawDate: dateEl?.textContent?.trim() || "", requisitionId: "", company });
+        });
+        return results.slice(0, 50);
       }, companyName);
 
-      // Try to extract location/date from nearby elements for each job
-      for (const job of jobs) {
-        try {
-          const details = await page.evaluate((url) => {
-            const link = document.querySelector(`a[href="${url}"]`);
-            if (!link) return {};
-            const parent = link.closest('[class*="job"], [class*="result"], [class*="listing"], [class*="card"], tr, li, article') || link.parentElement;
-            if (!parent) return {};
-            const locEl = parent.querySelector('[class*="location"], [class*="Location"], .job-location');
-            const dateEl = parent.querySelector('[class*="date"], [class*="Date"], time');
-            return {
-              location: locEl?.textContent?.replace(/\s+/g, " ").trim() || "",
-              rawDate: dateEl?.textContent?.trim() || dateEl?.getAttribute("datetime") || ""
-            };
-          }, job.url);
-          if (details.location) job.location = details.location;
-          if (details.rawDate) job.rawDate = details.rawDate;
-        } catch {}
-      }
-
       await page.close();
-
-      // Add match scores if vector store available
-      const kw = (keyword || "").toLowerCase();
-      if (vectorReady && retrieveContext) {
-        for (const job of jobs) {
-          try {
-            const result = await retrieveContext(job.title, { topSkills: 5, topProjects: 0, topWork: 0 });
-            const avgRelevance = result.skills.length > 0
-              ? result.skills.reduce((sum, s) => sum + (1 - s.distance) * 100, 0) / result.skills.length
-              : 0;
-            job.matchScore = Math.round(Math.min(100, avgRelevance * 1.5));
-            job.topMatchedSkills = result.skills.slice(0, 3).map(s => s.metadata.skill_name);
-          } catch {
-            job.matchScore = 0;
-            job.topMatchedSkills = [];
-          }
-        }
-        jobs.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
-      }
 
       console.log(`Found ${jobs.length} jobs on ${companyName}`);
       return res.json({ success: true, jobs });
     } catch (err) {
-      console.error(`${companyName} scrape error:`, err.message);
+      console.error(`${portal} scrape error:`, err.message);
       return res.status(500).json({ success: false, error: safeError(err) });
     }
   }
@@ -3344,225 +3471,6 @@ Return ONLY the rewritten text. No commentary.`;
     res.status(500).json({ success: false, error: safeError(err) });
   }
 });
-
-// ═══════════════════════════════════════════════════════════════
-// OUTLOOK EMAIL INTEGRATION (OAuth2 + Microsoft Graph)
-// ═══════════════════════════════════════════════════════════════
-
-const OUTLOOK_CLIENT_ID = process.env.OUTLOOK_CLIENT_ID || "";
-const OUTLOOK_TENANT = process.env.OUTLOOK_TENANT || "common";
-const OUTLOOK_REDIRECT_URI = `http://localhost:${PORT}/auth/callback`;
-const OUTLOOK_SCOPES = "Mail.Read User.Read offline_access";
-
-// In-memory token store (per session — not persisted)
-let outlookTokens = null;
-
-app.get("/auth/outlook", (req, res) => {
-  if (!OUTLOOK_CLIENT_ID) return res.status(503).json({ error: "OUTLOOK_CLIENT_ID not set in .env" });
-  // PKCE: generate code_verifier and code_challenge
-  const crypto = require("crypto");
-  const codeVerifier = crypto.randomBytes(32).toString("base64url");
-  const codeChallenge = crypto.createHash("sha256").update(codeVerifier).digest("base64url");
-  // Store verifier in memory for callback
-  outlookTokens = { codeVerifier };
-  const authUrl = `https://login.microsoftonline.com/${OUTLOOK_TENANT}/oauth2/v2.0/authorize?` +
-    `client_id=${encodeURIComponent(OUTLOOK_CLIENT_ID)}` +
-    `&response_type=code` +
-    `&redirect_uri=${encodeURIComponent(OUTLOOK_REDIRECT_URI)}` +
-    `&scope=${encodeURIComponent(OUTLOOK_SCOPES)}` +
-    `&response_mode=query` +
-    `&code_challenge=${codeChallenge}` +
-    `&code_challenge_method=S256`;
-  res.redirect(authUrl);
-});
-
-app.get("/auth/callback", async (req, res) => {
-  const code = req.query.code;
-  if (!code || !outlookTokens?.codeVerifier) {
-    return res.status(400).send("<h3>Auth failed — no code received. <a href='/'>Go back</a></h3>");
-  }
-  try {
-    const tokenRes = await fetch(`https://login.microsoftonline.com/${OUTLOOK_TENANT}/oauth2/v2.0/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: OUTLOOK_CLIENT_ID,
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: OUTLOOK_REDIRECT_URI,
-        scope: OUTLOOK_SCOPES,
-        code_verifier: outlookTokens.codeVerifier
-      })
-    });
-    const tokenData = await tokenRes.json();
-    if (tokenData.error) throw new Error(tokenData.error_description || tokenData.error);
-    outlookTokens = {
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
-      expiresAt: Date.now() + (tokenData.expires_in * 1000)
-    };
-    console.log("[Outlook] Connected successfully");
-    res.send(`<html><body style="font-family:system-ui;text-align:center;padding:60px">
-      <h2 style="color:#22c55e">✓ Outlook Connected</h2>
-      <p>You can close this tab and go back to the app.</p>
-      <script>setTimeout(function(){window.close()},2000)</script>
-    </body></html>`);
-  } catch (err) {
-    console.error("[Outlook] Auth error:", err.message);
-    res.status(500).send(`<h3>Auth failed: ${err.message}. <a href='/'>Go back</a></h3>`);
-  }
-});
-
-async function refreshOutlookToken() {
-  if (!outlookTokens?.refreshToken) return false;
-  try {
-    const tokenRes = await fetch(`https://login.microsoftonline.com/${OUTLOOK_TENANT}/oauth2/v2.0/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: OUTLOOK_CLIENT_ID,
-        grant_type: "refresh_token",
-        refresh_token: outlookTokens.refreshToken,
-        scope: OUTLOOK_SCOPES
-      })
-    });
-    const data = await tokenRes.json();
-    if (data.error) throw new Error(data.error_description || data.error);
-    outlookTokens.accessToken = data.access_token;
-    if (data.refresh_token) outlookTokens.refreshToken = data.refresh_token;
-    outlookTokens.expiresAt = Date.now() + (data.expires_in * 1000);
-    return true;
-  } catch { return false; }
-}
-
-async function getOutlookToken() {
-  if (!outlookTokens?.accessToken) return null;
-  if (Date.now() > outlookTokens.expiresAt - 60000) {
-    const ok = await refreshOutlookToken();
-    if (!ok) { outlookTokens = null; return null; }
-  }
-  return outlookTokens.accessToken;
-}
-
-app.get("/api/email/status", async (req, res) => {
-  const token = await getOutlookToken();
-  if (!token) return res.json({ connected: false });
-  try {
-    const me = await fetch("https://graph.microsoft.com/v1.0/me", {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const user = await me.json();
-    res.json({ connected: true, email: user.mail || user.userPrincipalName, name: user.displayName });
-  } catch {
-    res.json({ connected: false });
-  }
-});
-
-// Rejection email patterns
-const REJECTION_PATTERNS = [
-  /unfortunately[,.]?\s.*(not|unable|cannot)/i,
-  /regret to inform/i,
-  /not (be )?mov(e|ing) forward/i,
-  /will not be (proceeding|continuing)/i,
-  /decided not to (proceed|continue|advance)/i,
-  /not (been )?selected/i,
-  /position has been filled/i,
-  /pursue other candidates/i,
-  /unable to offer/i,
-  /not (a |the )?match/i,
-  /your application.*(unsuccessful|not successful)/i,
-  /after careful (consideration|review).*(not|unfortunately)/i,
-  /we (have |will )?(chose|chosen|selected) (another|other|a different)/i,
-  /Absage/i,
-  /leider (nicht|kein)/i,
-  /können wir Ihnen leider/i,
-  /müssen wir Ihnen leider mitteilen/i
-];
-
-function isRejectionEmail(subject, bodyPreview) {
-  const text = (subject + " " + bodyPreview).trim();
-  return REJECTION_PATTERNS.some(p => p.test(text));
-}
-
-function extractMatchInfo(subject, bodyPreview, trackerApps) {
-  const text = (subject + " " + bodyPreview).toLowerCase();
-  const matches = [];
-  for (const app of trackerApps) {
-    let score = 0;
-    // Match by Req ID (strongest signal)
-    if (app.reqId && text.includes(app.reqId.toLowerCase())) score += 10;
-    // Match by company name
-    if (app.company && text.includes(app.company.toLowerCase())) score += 5;
-    // Match by role/title keywords (2+ word match)
-    if (app.role) {
-      const words = app.role.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-      const wordHits = words.filter(w => text.includes(w)).length;
-      if (wordHits >= 2) score += 3;
-      else if (wordHits === 1) score += 1;
-    }
-    if (score >= 3) matches.push({ appId: app.id, company: app.company, role: app.role, reqId: app.reqId, score });
-  }
-  return matches.sort((a, b) => b.score - a.score);
-}
-
-app.post("/api/email/scan", async (req, res) => {
-  const token = await getOutlookToken();
-  if (!token) return res.status(401).json({ success: false, error: "Outlook not connected. Click 'Connect Outlook' first." });
-
-  const { applications } = req.body; // Tracker apps from frontend
-  if (!applications?.length) return res.json({ success: true, rejections: [], message: "No applications to match against." });
-
-  try {
-    // Fetch last 60 days of emails, max 100
-    const since = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
-    const filter = `receivedDateTime ge ${since}`;
-    const select = "subject,bodyPreview,from,receivedDateTime";
-    const graphUrl = `https://graph.microsoft.com/v1.0/me/messages?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=100&$orderby=receivedDateTime desc`;
-
-    const emailRes = await fetch(graphUrl, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!emailRes.ok) {
-      const err = await emailRes.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Graph API returned ${emailRes.status}`);
-    }
-    const emailData = await emailRes.json();
-    const emails = emailData.value || [];
-    console.log(`[Outlook] Scanned ${emails.length} emails from last 60 days`);
-
-    // Filter only potential active applications (Applied, OA/Test, Interview)
-    const activeApps = applications.filter(a => ["Applied", "OA/Test", "Interview"].includes(a.stage));
-
-    const rejections = [];
-    for (const email of emails) {
-      if (!isRejectionEmail(email.subject || "", email.bodyPreview || "")) continue;
-      const matched = extractMatchInfo(email.subject || "", email.bodyPreview || "", activeApps);
-      if (matched.length > 0) {
-        rejections.push({
-          emailSubject: email.subject,
-          emailFrom: email.from?.emailAddress?.address || "unknown",
-          emailDate: email.receivedDateTime,
-          emailPreview: (email.bodyPreview || "").slice(0, 200),
-          matchedApp: matched[0] // Best match
-        });
-      }
-    }
-
-    console.log(`[Outlook] Found ${rejections.length} rejection emails matching tracked applications`);
-    res.json({ success: true, rejections, totalScanned: emails.length });
-  } catch (err) {
-    console.error("[Outlook] Scan error:", err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.post("/auth/outlook/disconnect", (req, res) => {
-  outlookTokens = null;
-  console.log("[Outlook] Disconnected");
-  res.json({ success: true });
-});
-
-if (OUTLOOK_CLIENT_ID) console.log("[OK] Outlook integration ready");
 
 // ═══════════════════════════════════════════════════════════════
 // START

@@ -424,7 +424,7 @@
     const gen  = genState.generations[key] || { state: "idle" };
 
     const scoreBadge = job.matchScore != null
-      ? `<span class="match-badge ${job.matchScore >= 40 ? "match-badge-high" : job.matchScore >= 20 ? "match-badge-med" : "match-badge-low"}">${job.matchScore}% match</span>`
+      ? `<span class="match-badge ${job.matchScore >= 65 ? "match-badge-high" : job.matchScore >= 40 ? "match-badge-med" : "match-badge-low"}" title="Quick estimate from title + skill-bank similarity. Use Analyze JD for detailed fit.">${job.matchScore}% quick fit</span>`
       : "";
     const titleMatchBadge = job.titleMatch ? `<span class="match-badge-title-hit" title="Keyword found in job title">🎯 title match</span>` : "";
     const skillTags  = (job.topMatchedSkills || []).slice(0, 4).map(s => `<span class="queue-skill-tag">${esc(s)}</span>`).join("");
@@ -872,13 +872,15 @@
     const avgRel    = coverage
       ? Math.round(topChunks.reduce((s, c) => s + Math.round((1 - (c.distance || 0)) * 100), 0) / coverage)
       : 0;
+    const coveragePct = Math.round((Math.min(coverage, 6) / 6) * 100);
+    const fitScore = Math.round(avgRel * 0.7 + coveragePct * 0.3);
 
     // Strategy badge
-    const strat = (coverage >= 6 || avgRel >= 55)
+    const strat = (fitScore >= 70)
       ? { label: "STRONG FIT — apply immediately", cls: "gqi-strat-strong" }
-      : (coverage >= 4 || avgRel >= 42)
+      : (fitScore >= 52)
       ? { label: "GOOD FIT — worth applying",      cls: "gqi-strat-good"   }
-      : (coverage >= 2)
+      : (fitScore >= 35)
       ? { label: "PARTIAL FIT — assess gaps",      cls: "gqi-strat-partial" }
       : { label: "LOW MATCH — consider skipping",  cls: "gqi-strat-low"    };
 
@@ -946,7 +948,7 @@
     return `<details class="gqi-jd-details gqi-strat-${stratMod}"${openAttr}>
       <summary class="gqi-jd-summary">
         <span class="gqi-strat-badge ${strat.cls}">\u2713 ${strat.label}</span>
-        <span class="gqi-jd-sum-meta"><span style="color:#4f46e5;font-weight:700">${coverage} matches</span> &middot; avg ${avgRel >= 65 ? `<span style="color:#059669;font-weight:700">${avgRel}%</span>` : avgRel >= 45 ? `<span style="color:#d97706;font-weight:700">${avgRel}%</span>` : `<span style="color:#e11d48;font-weight:700">${avgRel}%</span>`}</span>
+        <span class="gqi-jd-sum-meta"><span style="color:#4f46e5;font-weight:700">fit ${fitScore}%</span> &middot; <span style="color:#4f46e5;font-weight:700">${coverage} matches</span> &middot; avg ${avgRel >= 65 ? `<span style="color:#059669;font-weight:700">${avgRel}%</span>` : avgRel >= 45 ? `<span style="color:#d97706;font-weight:700">${avgRel}%</span>` : `<span style="color:#e11d48;font-weight:700">${avgRel}%</span>`}</span>
       </summary>
       <div class="gqi-jd-body">
         ${oneLiner ? `<p class="gqi-jd-oneliner">${esc(oneLiner)}</p>` : ""}

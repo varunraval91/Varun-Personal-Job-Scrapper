@@ -53,7 +53,7 @@
           <form id="auth-login-form" class="auth-form" autocomplete="on">
             <p class="auth-status-chip"><span class="chip-dot"></span>Sign in to continue</p>
             <div class="auth-header">
-              <h2 class="auth-title">Welcome back,<br />Varun.</h2>
+              <h2 class="auth-title">Welcome back.</h2>
               <p class="auth-subtitle">Your pipeline and AI generation awaits.</p>
             </div>
             <label for="auth-email-input">Email</label>
@@ -84,7 +84,7 @@
               </div>
             </div>
           </form>
-          <p class="auth-footer"><span class="footer-icon" aria-hidden="true">🔐</span>Firebase auth required. Contact admin for access.</p>
+          <p class="auth-footer"><span class="footer-icon" aria-hidden="true">🔐</span>Sign in with your account to continue.</p>
         </div>
       </div>
     </div>
@@ -182,7 +182,7 @@
           </div>
         </header>
 
-        <div class="auto-card">
+        <div class="auto-card" id="search-panel-card">
           <div class="auto-filters">
             <div class="auto-filter-group">
               <label>Portal</label>
@@ -201,9 +201,55 @@
                 <button type="button" class="btn btn-xs keyword-expansion-use" id="keyword-expansion-use">Use</button>
               </div>
             </div>
-            <div class="auto-filter-group">
-              <label>Location</label>
+            <div class="auto-filter-group" id="filter-location">
+              <label>Location <span id="scrape-location-tip" style="font-size:0.75em;color:var(--color-muted)"></span></label>
               <input type="text" id="scrape-location" placeholder="e.g. Walldorf" value="" />
+            </div>
+            <!-- Siemens-only: State + City facets -->
+            <div class="auto-filter-group" id="filter-state" style="display:none">
+              <label>State / Province</label>
+              <select id="scrape-state">
+                <option value="">Any State</option>
+                <option value="Baden-Wuerttemberg" selected>Baden-Württemberg</option>
+                <option value="Bavaria">Bavaria</option>
+                <option value="Berlin">Berlin</option>
+                <option value="Brandenburg">Brandenburg</option>
+                <option value="Bremen">Bremen</option>
+                <option value="Hamburg">Hamburg</option>
+                <option value="Hesse">Hesse</option>
+                <option value="Lower Saxony">Lower Saxony</option>
+                <option value="Mecklenburg-Vorpommern">Mecklenburg-Vorpommern</option>
+                <option value="North Rhine-Westphalia">North Rhine-Westphalia</option>
+                <option value="Rhineland-Palatinate">Rhineland-Palatinate</option>
+                <option value="Saarland">Saarland</option>
+                <option value="Saxony">Saxony</option>
+                <option value="Saxony-Anhalt">Saxony-Anhalt</option>
+                <option value="Schleswig-Holstein">Schleswig-Holstein</option>
+                <option value="Thuringia">Thuringia</option>
+              </select>
+            </div>
+            <div class="auto-filter-group" id="filter-city" style="display:none">
+              <label>City</label>
+              <select id="scrape-city">
+                <option value="">Any City</option>
+                <option value="Munich">Munich</option>
+                <option value="Berlin">Berlin</option>
+                <option value="Hamburg">Hamburg</option>
+                <option value="Cologne">Cologne</option>
+                <option value="Frankfurt">Frankfurt</option>
+                <option value="Stuttgart">Stuttgart</option>
+                <option value="Düsseldorf">Düsseldorf</option>
+                <option value="Nuremberg">Nuremberg</option>
+                <option value="Mannheim" selected>Mannheim</option>
+                <option value="Karlsruhe">Karlsruhe</option>
+                <option value="Erlangen">Erlangen</option>
+                <option value="Augsburg">Augsburg</option>
+                <option value="Leipzig">Leipzig</option>
+                <option value="Dresden">Dresden</option>
+                <option value="Bonn">Bonn</option>
+                <option value="Hanover">Hanover</option>
+                <option value="Bremen">Bremen</option>
+              </select>
             </div>
             <div class="auto-filter-group">
               <label>Posted Within</label>
@@ -216,22 +262,9 @@
                 <option value="any">Any Time</option>
               </select>
             </div>
-            <div class="auto-filter-group">
-              <label>Career Status</label>
-              <select id="scrape-careerStatus">
-                <option value="Student" selected>Student / Internship</option>
-                <option value="Graduate">Graduate</option>
-                <option value="Professional">Professional</option>
-              </select>
-            </div>
-            <div class="auto-filter-group">
-              <label>Country</label>
-              <select id="scrape-country">
-                <option value="DE" selected>Germany</option>
-                <option value="AT">Austria</option>
-                <option value="CH">Switzerland</option>
-              </select>
-            </div>
+            <!-- Hidden defaults: always Student + Germany -->
+            <input type="hidden" id="scrape-careerStatus" value="Student" />
+            <input type="hidden" id="scrape-country" value="DE" />
           </div>
           <div class="auto-actions">
             <button class="btn btn-primary" id="scrape-search-btn" type="button">
@@ -415,7 +448,7 @@
           <div class="toolbar" role="search">
             <div class="search-wrapper">
               <span class="search-icon" aria-hidden="true">🔍</span>
-              <input type="text" id="search-input" class="search-input" placeholder="Search company, role, contact..." aria-label="Search applications" autocomplete="off" />
+              <input type="text" id="search-input" class="search-input" placeholder="Search by company, role, req ID, location, or status (e.g. rejected, offer)..." aria-label="Search applications" autocomplete="off" />
             </div>
             <div class="company-shortcuts" id="company-shortcuts" role="group" aria-label="Company shortcuts"></div>
             <span class="filter-by-label">Filter by</span>
@@ -437,15 +470,6 @@
                 <option value="company-asc">Company A–Z</option>
                 <option value="fit-desc">Fit Rating ↓</option>
               </select>
-            </div>
-            <div class="outlook-controls" style="display:flex;gap:6px;margin-left:auto;">
-              <button type="button" id="outlook-connect-btn" class="chip" style="background:#0078d4;color:#fff;border:none;cursor:pointer;font-size:12px;" title="Connect university Outlook to scan for rejection emails">
-                📧 Connect Outlook
-              </button>
-              <button type="button" id="outlook-sync-btn" class="chip" style="background:#22c55e;color:#fff;border:none;cursor:pointer;font-size:12px;display:none;" title="Scan inbox for rejection emails">
-                🔄 Sync Rejections
-              </button>
-              <span id="outlook-status" style="font-size:11px;color:#888;align-self:center;"></span>
             </div>
           </div>
           <div class="active-filter-bar" id="active-filter-bar" hidden>

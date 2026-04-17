@@ -2521,9 +2521,27 @@ body {
 [data-theme="dark"] .auto-card:hover { border-color: #6C5CE7; }
 [data-theme="dark"] .auto-filter-group input,
 [data-theme="dark"] .auto-filter-group select {
-  background: var(--bg-elevated, #1b2343);
-  border-color: var(--border-default, #334273);
+  background: rgba(255,255,255,0.05);
+  border-color: transparent;
   color: var(--text-primary, #e8ecff);
+}
+[data-theme="dark"] .auto-filter-group input:focus,
+[data-theme="dark"] .auto-filter-group select:focus {
+  background: rgba(108,99,255,0.1);
+  border-color: #6C63FF;
+}
+[data-theme="dark"] .auto-card:has(.auto-filters) {
+  background: var(--bg-surface, #171d35);
+  border-color: var(--border-default, #334273);
+  box-shadow: 0 4px 32px rgba(0,0,0,0.3);
+}
+[data-theme="dark"] .auto-filter-group {
+  border-right-color: var(--border-default, #334273);
+}
+[data-theme="dark"] .auto-filter-group select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a78bfa' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
 }
 [data-theme="dark"] .gen-progressbar-track { background: #252840; }
 [data-theme="dark"] .gen-pb-dot { background: #1b2343; border-color: #334273; }

@@ -33,6 +33,7 @@
     currentCompanyFilter: "all",
     currentSort: "deadline-asc",
     searchQuery: "",
+    searchTokens: [],
     editingId: null,
     theme: safeStorageGet(THEME_KEY) || "light"
   };
@@ -98,12 +99,10 @@
       "company-shortcuts", "kanban-board", "scroll-to-top-btn", "filter-chips",
       "motivational-quote-container",
       // search view
-      "scrape-portal", "scrape-keyword", "scrape-location", "scrape-period", "scrape-careerStatus", "scrape-country",
+      "scrape-portal", "scrape-keyword", "scrape-location", "scrape-state", "scrape-city", "scrape-period", "scrape-careerStatus", "scrape-country",
       "scrape-search-btn", "scrape-spinner", "scrape-btn-text", "scrape-result-count",
       "scrape-results-body", "selected-jobs-card", "selected-count", "selected-jobs-list",
       "add-to-tracker-btn", "go-generate-btn",
-      // Outlook
-      "outlook-connect-btn", "outlook-sync-btn", "outlook-status"
     ];
     ids.forEach((id) => {
       const camel = id.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
@@ -260,15 +259,63 @@
   // ═══════════════════════════════════════════════════════════════
   // FILTER / SORT
   // ═══════════════════════════════════════════════════════════════
+  // Maps typed keywords → canonical stage values
+  const STAGE_KEYWORDS = {
+    wishlist: "Wishlist",
+    applied: "Applied",
+    "oa/test": "OA/Test", oa: "OA/Test", test: "OA/Test",
+    interview: "Interview",
+    rejected: "Rejected",
+    offer: "Offer"
+  };
+
   function applySearchInput(raw) {
     const trimmed = String(raw || "").trim();
-    const parts = trimmed.split(/\s+/).filter(Boolean);
-    const first = parts[0] || "";
-    if (first.startsWith("\\") && first.length > 1) {
-      const matched = findCompanyByShortcut(first.slice(1));
+    // Split on commas and/or whitespace → supports "450579, 450570" or "sap walldorf"
+    const parts = trimmed.split(/[\s,]+/).filter(Boolean);
+
+    // Company shortcut: \sap
+    if (parts[0] && parts[0].startsWith("\\") && parts[0].length > 1) {
+      const matched = findCompanyByShortcut(parts[0].slice(1));
       if (matched) { state.currentCompanyFilter = matched; state.searchQuery = parts.slice(1).join(" ").toLowerCase(); return; }
     }
-    state.searchQuery = trimmed.toLowerCase();
+
+    // Stage keyword detection — extract stage tokens, rest become search tokens
+    let stageMatch = null;
+    const nonStageTokens = [];
+    for (const p of parts) {
+      const pl = p.toLowerCase();
+      if (!stageMatch && STAGE_KEYWORDS[pl]) {
+        stageMatch = STAGE_KEYWORDS[pl];
+      } else {
+        nonStageTokens.push(pl);
+      }
+    }
+
+    if (stageMatch) {
+      state.currentFilter = stageMatch;
+      // store remaining tokens as OR-search array
+      state.searchTokens = nonStageTokens;
+      state.searchQuery = nonStageTokens.join(" ");
+    } else {
+      if (!trimmed) { state.currentFilter = "all"; state.searchTokens = []; }
+      state.searchQuery = trimmed.toLowerCase();
+      // all tokens for OR matching
+      state.searchTokens = parts.map((p) => p.toLowerCase());
+    }
+  }
+
+  function appMatchesTokens(a, tokens) {
+    const fields = [a.company, a.role, a.location, a.reqId, a.contactType, a.contactName, a.notes]
+      .map((v) => (v || "").toLowerCase());
+    const haystack = fields.join(" ");
+    // OR logic: app passes if ANY token matches
+    return tokens.some((tok) => {
+      // req ID priority: numeric token checks reqId field first
+      const looksLikeReqId = /^[a-z0-9\-_]{2,20}$/i.test(tok) && /\d/.test(tok);
+      if (looksLikeReqId && (a.reqId || "").toLowerCase().includes(tok)) return true;
+      return haystack.includes(tok);
+    });
   }
 
   function getFilteredApplications() {
@@ -278,9 +325,9 @@
       const ck = normalizeCompanyKey(state.currentCompanyFilter);
       f = f.filter((a) => { const ak = normalizeCompanyKey(a.company); return ak.includes(ck) || ck.includes(ak); });
     }
-    if (state.searchQuery) {
-      const q = state.searchQuery;
-      f = f.filter((a) => [a.company, a.role, a.contactType, a.contactName, a.notes].join(" ").toLowerCase().includes(q));
+    const tokens = state.searchTokens && state.searchTokens.length ? state.searchTokens : (state.searchQuery ? [state.searchQuery] : []);
+    if (tokens.length) {
+      f = f.filter((a) => appMatchesTokens(a, tokens));
     }
     f.sort((a, b) => {
       switch (state.currentSort) {
@@ -405,7 +452,10 @@
         const parts = [];
         if (state.currentFilter !== "all") parts.push(`Stage: ${state.currentFilter}`);
         if (state.currentCompanyFilter !== "all") parts.push(`Company: ${state.currentCompanyFilter}`);
-        if (state.searchQuery) parts.push(`Search: "${state.searchQuery}"`);
+        if (state.searchQuery) {
+          const looksLikeReqId = /^[a-z0-9\-_]{2,20}$/i.test(state.searchQuery) && /\d/.test(state.searchQuery);
+          parts.push(`Search: "${state.searchQuery}"${looksLikeReqId ? " (req ID)" : ""}`);
+        }
         DOM.activeFilterLabel.textContent = parts.join(" · ");
       }
     }
@@ -660,11 +710,13 @@
       const avgRel = coverage
         ? Math.round(topChunks.reduce((sum, c) => sum + Math.round((1 - (c.distance || 0)) * 100), 0) / coverage)
         : 0;
-      const fit = (coverage >= 6 || avgRel >= 55)
+      const coveragePct = Math.round((Math.min(coverage, 6) / 6) * 100);
+      const fitScore = Math.round(avgRel * 0.7 + coveragePct * 0.3);
+      const fit = (fitScore >= 70)
         ? { label: "STRONG FIT", cls: "strong" }
-        : (coverage >= 4 || avgRel >= 42)
+        : (fitScore >= 52)
         ? { label: "GOOD FIT", cls: "good" }
-        : (coverage >= 2)
+        : (fitScore >= 35)
         ? { label: "PARTIAL FIT", cls: "partial" }
         : { label: "LOW MATCH", cls: "low" };
 
@@ -685,7 +737,7 @@
       }).join("");
 
       analysisHtml = `<section class="adm-analysis">
-        <div class="adm-fit-badge adm-fit-${fit.cls}">${fit.label} · ${coverage} matches · avg ${avgRel}%</div>
+        <div class="adm-fit-badge adm-fit-${fit.cls}">${fit.label} · fit ${fitScore}% · ${coverage} matches · avg ${avgRel}%</div>
         ${oneLiner ? `<p class="adm-oneliner">${esc(oneLiner)}</p>` : ""}
         <div class="adm-grid">
           <div class="adm-panel">
@@ -907,98 +959,6 @@
     a.download = filename;
     a.click();
     URL.revokeObjectURL(a.href);
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // OUTLOOK EMAIL INTEGRATION
-  // ═══════════════════════════════════════════════════════════════
-
-  async function checkOutlookStatus() {
-    try {
-      const res = await fetch("/api/email/status");
-      const data = await res.json();
-      if (data.connected) {
-        if (DOM.outlookConnectBtn) DOM.outlookConnectBtn.style.display = "none";
-        if (DOM.outlookSyncBtn) DOM.outlookSyncBtn.style.display = "";
-        if (DOM.outlookStatus) DOM.outlookStatus.textContent = `✓ ${data.email || "Connected"}`;
-      } else {
-        if (DOM.outlookConnectBtn) DOM.outlookConnectBtn.style.display = "";
-        if (DOM.outlookSyncBtn) DOM.outlookSyncBtn.style.display = "none";
-        if (DOM.outlookStatus) DOM.outlookStatus.textContent = "";
-      }
-    } catch {
-      // Outlook integration not available — hide buttons
-      if (DOM.outlookConnectBtn) DOM.outlookConnectBtn.style.display = "none";
-      if (DOM.outlookSyncBtn) DOM.outlookSyncBtn.style.display = "none";
-    }
-  }
-
-  function handleOutlookConnect() {
-    window.open("/auth/outlook", "_blank", "width=600,height=700");
-    // Poll for connection after auth popup
-    const poll = setInterval(async () => {
-      try {
-        const res = await fetch("/api/email/status");
-        const data = await res.json();
-        if (data.connected) {
-          clearInterval(poll);
-          checkOutlookStatus();
-          showToast("Outlook connected: " + (data.email || ""));
-        }
-      } catch { /* waiting */ }
-    }, 2000);
-    // Stop polling after 3 minutes
-    setTimeout(() => clearInterval(poll), 180000);
-  }
-
-  async function handleOutlookSync() {
-    if (!state.applications.length) { showToast("No applications to match against", "error"); return; }
-    const btn = DOM.outlookSyncBtn;
-    if (btn) { btn.disabled = true; btn.textContent = "🔄 Scanning…"; }
-    try {
-      const res = await fetch("/api/email/scan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ applications: state.applications })
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
-
-      if (data.rejections.length === 0) {
-        showToast(`Scanned ${data.totalScanned} emails — no new rejections found`);
-        return;
-      }
-
-      // Show confirmation before moving to Rejected
-      const summary = data.rejections.map(r =>
-        `• ${r.matchedApp.company} — ${r.matchedApp.role}${r.matchedApp.reqId ? " (" + r.matchedApp.reqId + ")" : ""}\n  From: ${r.emailFrom}\n  "${r.emailSubject}"`
-      ).join("\n\n");
-
-      const confirm = window.confirm(
-        `Found ${data.rejections.length} rejection(s) from ${data.totalScanned} emails:\n\n${summary}\n\nMove these to Rejected?`
-      );
-
-      if (confirm) {
-        let moved = 0;
-        for (const rej of data.rejections) {
-          const app = state.applications.find(a => a.id === rej.matchedApp.appId);
-          if (app && app.stage !== "Rejected") {
-            const rejNote = `[Email ${new Date(rej.emailDate).toLocaleDateString()}] ${rej.emailSubject}`;
-            app.stage = "Rejected";
-            app.notes = app.notes ? app.notes + " | " + rejNote : rejNote;
-            app.updatedAt = new Date().toISOString();
-            await persistApplication(app);
-            moved++;
-          }
-        }
-        renderUI();
-        showToast(`Moved ${moved} application(s) to Rejected`);
-      }
-    } catch (err) {
-      showToast("Scan failed: " + err.message, "error");
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = "🔄 Sync Rejections"; }
-    }
   }
 
   async function onImportFileChange(e) {
@@ -1314,6 +1274,8 @@
     const period = DOM.scrapePeriod?.value || "1week";
     const careerStatus = DOM.scrapeCareerStatus?.value || "Student";
     const country = DOM.scrapeCountry?.value || "DE";
+    const state = DOM.scrapeState?.value?.trim() || "";
+    const city  = DOM.scrapeCity?.value?.trim() || "";
 
     if (DOM.scrapeSpinner) DOM.scrapeSpinner.classList.add("active");
     if (DOM.scrapeBtnText) DOM.scrapeBtnText.textContent = "Searching…";
@@ -1354,7 +1316,7 @@
       const res = await fetch("/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyword, location, period, careerStatus, country, portal: DOM.scrapePortal?.value || "sap" })
+        body: JSON.stringify({ keyword, location, state, city, period, careerStatus, country, portal: DOM.scrapePortal?.value || "sap" })
       });
       if (!res.ok) {
         let errMsg = `Server error (${res.status})`;
@@ -1427,12 +1389,12 @@
       const trackBtnHtml = alreadyTracked
         ? `<button type="button" class="btn btn-sm scrape-quick-add" data-idx="${i}" disabled style="background:rgba(62,207,142,.15);color:#3ECF8E;border-color:rgba(62,207,142,.4);cursor:default">&#10003; Tracked</button>`
         : `<button type="button" class="btn btn-sm btn-primary scrape-quick-add" data-idx="${i}">+ Track</button>`;
-      return `<tr class="${sel ? "selected-row" : ""}">
+      return `<tr class="${sel ? "selected-row" : ""}" data-idx="${i}" data-selectable="true" role="checkbox" aria-checked="${sel ? "true" : "false"}" tabindex="0">
         <td><input type="checkbox" class="scrape-select-cb" data-idx="${i}" ${sel ? "checked" : ""}/></td>
         <td>
           <div class="scrape-title-cell">
             <a href="${esc(job.url)}" target="_blank" rel="noopener">${esc(job.title)}</a>
-            ${job.matchScore != null ? `<span class="match-badge ${job.matchScore >= 40 ? "match-badge-high" : job.matchScore >= 20 ? "match-badge-med" : "match-badge-low"}">${job.matchScore}% match</span>` : ""}
+            ${job.matchScore != null ? `<span class="match-badge ${job.matchScore >= 65 ? "match-badge-high" : job.matchScore >= 40 ? "match-badge-med" : "match-badge-low"}" title="Quick estimate from title + skill-bank similarity. Use Analyze JD for detailed fit.">${job.matchScore}% quick fit</span>` : ""}
           </div>
           ${(job.topMatchedSkills && job.topMatchedSkills.length) ? `<div class="scrape-skill-tags">${job.topMatchedSkills.slice(0,4).map(s => `<span class="scrape-skill-tag">${esc(s)}</span>`).join("")}</div>` : ""}
         </td>
@@ -1443,6 +1405,29 @@
         <td>${trackBtnHtml}</td>
       </tr>`;
     }).join("");
+
+    DOM.scrapeResultsBody.querySelectorAll("tr[data-selectable='true']").forEach((row) => {
+      row.addEventListener("click", (event) => {
+        if (event.target.closest("a, button")) return;
+        const idx = parseInt(row.dataset.idx, 10);
+        const shouldSelect = !scrapeState.selected.has(idx);
+        if (shouldSelect) scrapeState.selected.set(idx, scrapeState.jobs[idx]);
+        else scrapeState.selected.delete(idx);
+        renderSelectedJobs();
+        renderScrapeResults();
+      });
+      row.addEventListener("keydown", (event) => {
+        if (event.target.closest("a, button")) return;
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        const idx = parseInt(row.dataset.idx, 10);
+        const shouldSelect = !scrapeState.selected.has(idx);
+        if (shouldSelect) scrapeState.selected.set(idx, scrapeState.jobs[idx]);
+        else scrapeState.selected.delete(idx);
+        renderSelectedJobs();
+        renderScrapeResults();
+      });
+    });
 
     // Bind checkboxes
     DOM.scrapeResultsBody.querySelectorAll(".scrape-select-cb").forEach((cb) => {
@@ -1490,7 +1475,7 @@
 
       const matchScore = job.matchScore;
       const scoreBadge = matchScore != null
-        ? `<span class="match-badge ${matchScore >= 40 ? "match-badge-high" : matchScore >= 20 ? "match-badge-med" : "match-badge-low"}">${matchScore}% match</span>`
+        ? `<span class="match-badge ${matchScore >= 65 ? "match-badge-high" : matchScore >= 40 ? "match-badge-med" : "match-badge-low"}" title="Quick estimate from title + skill-bank similarity. Use Analyze JD for detailed fit.">${matchScore}% quick fit</span>`
         : "";
       const skillTags = (job.topMatchedSkills || []).slice(0, 5)
         .map(s => `<span class="scrape-skill-tag">${esc(s)}</span>`).join("");
@@ -1695,11 +1680,6 @@
     DOM.downloadTemplateBtn?.addEventListener("click", downloadImportTemplate);
     DOM.exportCsvBtn?.addEventListener("click", exportToCSV);
 
-    // Outlook email integration
-    DOM.outlookConnectBtn?.addEventListener("click", handleOutlookConnect);
-    DOM.outlookSyncBtn?.addEventListener("click", handleOutlookSync);
-    checkOutlookStatus();
-
     // Scroll to top
     DOM.scrollToTopBtn?.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
     window.addEventListener("scroll", () => {
@@ -1769,6 +1749,20 @@
       if (e.key === "Enter") { e.preventDefault(); handleScrapeSearch(); }
     });
     DOM.scrapeSearchBtn?.addEventListener("click", handleScrapeSearch);
+
+    // Show/hide Siemens-specific state+city filters when portal changes
+    function syncPortalFilters() {
+      const portal = DOM.scrapePortal?.value || "sap";
+      const isSiemens = portal === "siemens";
+      const stateRow = document.getElementById("filter-state");
+      const cityRow  = document.getElementById("filter-city");
+      const locRow   = document.getElementById("filter-location");
+      if (stateRow) stateRow.style.display = isSiemens ? "" : "none";
+      if (cityRow)  cityRow.style.display  = isSiemens ? "" : "none";
+      if (locRow)   locRow.style.display   = isSiemens ? "none" : "";
+    }
+    DOM.scrapePortal?.addEventListener("change", syncPortalFilters);
+    syncPortalFilters(); // run once on load
     DOM.addToTrackerBtn?.addEventListener("click", addSelectedToTracker);
     DOM.goGenerateBtn?.addEventListener("click", () => {
       if (!scrapeState.selected.size) { showToast("Select at least one job", "error"); return; }

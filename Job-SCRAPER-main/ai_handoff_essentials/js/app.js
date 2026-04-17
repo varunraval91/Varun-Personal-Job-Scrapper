@@ -660,11 +660,13 @@
       const avgRel = coverage
         ? Math.round(topChunks.reduce((sum, c) => sum + Math.round((1 - (c.distance || 0)) * 100), 0) / coverage)
         : 0;
-      const fit = (coverage >= 6 || avgRel >= 55)
+      const coveragePct = Math.round((Math.min(coverage, 6) / 6) * 100);
+      const fitScore = Math.round(avgRel * 0.7 + coveragePct * 0.3);
+      const fit = (fitScore >= 70)
         ? { label: "STRONG FIT", cls: "strong" }
-        : (coverage >= 4 || avgRel >= 42)
+        : (fitScore >= 52)
         ? { label: "GOOD FIT", cls: "good" }
-        : (coverage >= 2)
+        : (fitScore >= 35)
         ? { label: "PARTIAL FIT", cls: "partial" }
         : { label: "LOW MATCH", cls: "low" };
 
@@ -685,7 +687,7 @@
       }).join("");
 
       analysisHtml = `<section class="adm-analysis">
-        <div class="adm-fit-badge adm-fit-${fit.cls}">${fit.label} · ${coverage} matches · avg ${avgRel}%</div>
+        <div class="adm-fit-badge adm-fit-${fit.cls}">${fit.label} · fit ${fitScore}% · ${coverage} matches · avg ${avgRel}%</div>
         ${oneLiner ? `<p class="adm-oneliner">${esc(oneLiner)}</p>` : ""}
         <div class="adm-grid">
           <div class="adm-panel">
@@ -1427,12 +1429,12 @@
       const trackBtnHtml = alreadyTracked
         ? `<button type="button" class="btn btn-sm scrape-quick-add" data-idx="${i}" disabled style="background:rgba(62,207,142,.15);color:#3ECF8E;border-color:rgba(62,207,142,.4);cursor:default">&#10003; Tracked</button>`
         : `<button type="button" class="btn btn-sm btn-primary scrape-quick-add" data-idx="${i}">+ Track</button>`;
-      return `<tr class="${sel ? "selected-row" : ""}">
+      return `<tr class="${sel ? "selected-row" : ""}" data-idx="${i}" data-selectable="true" role="checkbox" aria-checked="${sel ? "true" : "false"}" tabindex="0">
         <td><input type="checkbox" class="scrape-select-cb" data-idx="${i}" ${sel ? "checked" : ""}/></td>
         <td>
           <div class="scrape-title-cell">
             <a href="${esc(job.url)}" target="_blank" rel="noopener">${esc(job.title)}</a>
-            ${job.matchScore != null ? `<span class="match-badge ${job.matchScore >= 40 ? "match-badge-high" : job.matchScore >= 20 ? "match-badge-med" : "match-badge-low"}">${job.matchScore}% match</span>` : ""}
+            ${job.matchScore != null ? `<span class="match-badge ${job.matchScore >= 65 ? "match-badge-high" : job.matchScore >= 40 ? "match-badge-med" : "match-badge-low"}" title="Quick estimate from title + skill-bank similarity. Use Analyze JD for detailed fit.">${job.matchScore}% quick fit</span>` : ""}
           </div>
           ${(job.topMatchedSkills && job.topMatchedSkills.length) ? `<div class="scrape-skill-tags">${job.topMatchedSkills.slice(0,4).map(s => `<span class="scrape-skill-tag">${esc(s)}</span>`).join("")}</div>` : ""}
         </td>
@@ -1443,6 +1445,29 @@
         <td>${trackBtnHtml}</td>
       </tr>`;
     }).join("");
+
+    DOM.scrapeResultsBody.querySelectorAll("tr[data-selectable='true']").forEach((row) => {
+      row.addEventListener("click", (event) => {
+        if (event.target.closest("a, button")) return;
+        const idx = parseInt(row.dataset.idx, 10);
+        const shouldSelect = !scrapeState.selected.has(idx);
+        if (shouldSelect) scrapeState.selected.set(idx, scrapeState.jobs[idx]);
+        else scrapeState.selected.delete(idx);
+        renderSelectedJobs();
+        renderScrapeResults();
+      });
+      row.addEventListener("keydown", (event) => {
+        if (event.target.closest("a, button")) return;
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        const idx = parseInt(row.dataset.idx, 10);
+        const shouldSelect = !scrapeState.selected.has(idx);
+        if (shouldSelect) scrapeState.selected.set(idx, scrapeState.jobs[idx]);
+        else scrapeState.selected.delete(idx);
+        renderSelectedJobs();
+        renderScrapeResults();
+      });
+    });
 
     // Bind checkboxes
     DOM.scrapeResultsBody.querySelectorAll(".scrape-select-cb").forEach((cb) => {
@@ -1490,7 +1515,7 @@
 
       const matchScore = job.matchScore;
       const scoreBadge = matchScore != null
-        ? `<span class="match-badge ${matchScore >= 40 ? "match-badge-high" : matchScore >= 20 ? "match-badge-med" : "match-badge-low"}">${matchScore}% match</span>`
+        ? `<span class="match-badge ${matchScore >= 65 ? "match-badge-high" : matchScore >= 40 ? "match-badge-med" : "match-badge-low"}" title="Quick estimate from title + skill-bank similarity. Use Analyze JD for detailed fit.">${matchScore}% quick fit</span>`
         : "";
       const skillTags = (job.topMatchedSkills || []).slice(0, 5)
         .map(s => `<span class="scrape-skill-tag">${esc(s)}</span>`).join("");
