@@ -1,0 +1,1199 @@
+/* iPhone-first overrides loaded last. Keep desktop behavior untouched. */
+:root {
+  --iphone-tabbar-height: 68px;
+}
+
+.mobile-tabbar {
+  display: none;
+}
+
+.mobile-hamburger,
+.mobile-quicknav,
+.mobile-quicknav-backdrop {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  .app-layout,
+  .app-layout.process-rail-active {
+    grid-template-columns: 1fr !important;
+  }
+
+  #sidebar,
+  .sidebar,
+  #process-rail,
+  .process-rail {
+    display: none !important;
+  }
+
+  #main-content,
+  .main-content {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .app-layout {
+    position: relative;
+    min-height: 100vh;
+    overflow-x: clip;
+  }
+
+  .main-content {
+    overflow-x: clip;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(var(--iphone-tabbar-height) + env(safe-area-inset-bottom) + 14px);
+  }
+
+  .main-content > * {
+    min-width: 0;
+  }
+
+  .mobile-tabbar {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    height: calc(var(--iphone-tabbar-height) + env(safe-area-inset-bottom));
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    border-radius: 16px;
+    border: 1px solid rgba(79, 70, 229, 0.24);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(243, 244, 255, 0.94));
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    z-index: 1200;
+  }
+
+  .mobile-hamburger {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 10px);
+    left: 10px;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    border: 1px solid rgba(79, 70, 229, 0.28);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 244, 255, 0.94));
+    color: #273360;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    line-height: 1;
+    z-index: 1305;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-quicknav-backdrop {
+    position: fixed;
+    inset: 0;
+    display: block;
+    background: rgba(15, 23, 42, 0.3);
+    z-index: 1303;
+  }
+
+  .mobile-quicknav {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 62px);
+    left: 10px;
+    right: 10px;
+    display: block;
+    border: 1px solid rgba(79, 70, 229, 0.28);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 244, 255, 0.96));
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.16);
+    padding: 12px;
+    max-height: min(62vh, 480px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    z-index: 1304;
+  }
+
+  .mobile-quicknav-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .mobile-quicknav-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(79, 70, 229, 0.2);
+    background: rgba(255, 255, 255, 0.92);
+    color: #475569;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .mobile-quicknav-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .mobile-quicknav-empty {
+    border: 1px dashed rgba(148, 163, 184, 0.45);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.82);
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 12px;
+  }
+
+  .mobile-quicknav-item {
+    width: 100%;
+    min-height: 48px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    background: rgba(255, 255, 255, 0.94);
+    color: #25314f;
+    text-align: left;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 11px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: transform 0.12s ease, border-color 0.16s ease, background 0.16s ease;
+  }
+
+  .mobile-quicknav-item:active {
+    transform: translateY(1px);
+  }
+
+  .mobile-quicknav-icon {
+    width: 24px;
+    text-align: center;
+    line-height: 1;
+    font-size: 17px;
+    flex: 0 0 auto;
+  }
+
+  .mobile-quicknav-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mobile-service-focus {
+    outline: 2px solid rgba(79, 70, 229, 0.45);
+    outline-offset: 2px;
+    transition: outline-color 0.2s ease;
+  }
+
+  .mobile-quicknav-item.active {
+    border-color: rgba(79, 70, 229, 0.42);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.22) 0%, rgba(59, 130, 246, 0.18) 100%);
+    color: #1e2a58;
+  }
+
+  [data-theme="dark"] .mobile-tabbar {
+    border-color: rgba(111, 127, 214, 0.44);
+    background: linear-gradient(180deg, rgba(18, 25, 46, 0.96), rgba(12, 18, 38, 0.95));
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.42);
+  }
+
+  [data-theme="dark"] .mobile-hamburger {
+    border-color: rgba(111, 127, 214, 0.48);
+    background: linear-gradient(180deg, rgba(18, 25, 46, 0.98), rgba(12, 18, 38, 0.96));
+    color: #dbe6ff;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+  }
+
+  [data-theme="dark"] .mobile-quicknav-backdrop {
+    background: rgba(2, 6, 23, 0.56);
+  }
+
+  [data-theme="dark"] .mobile-quicknav {
+    border-color: rgba(111, 127, 214, 0.5);
+    background: linear-gradient(180deg, rgba(18, 25, 46, 0.98), rgba(12, 18, 38, 0.97));
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.48);
+  }
+
+  [data-theme="dark"] .mobile-quicknav-header {
+    color: #b9c8f2;
+  }
+
+  [data-theme="dark"] .mobile-quicknav-close {
+    border-color: rgba(111, 127, 214, 0.34);
+    background: rgba(30, 41, 59, 0.65);
+    color: #cbd5e1;
+  }
+
+  [data-theme="dark"] .mobile-quicknav-item {
+    border-color: rgba(111, 127, 214, 0.3);
+    background: rgba(30, 41, 59, 0.65);
+    color: #d7dfef;
+  }
+
+  [data-theme="dark"] .mobile-quicknav-empty {
+    border-color: rgba(111, 127, 214, 0.36);
+    background: rgba(30, 41, 59, 0.56);
+    color: #a5b4d4;
+  }
+
+  [data-theme="dark"] .mobile-quicknav-item.active {
+    border-color: rgba(118, 136, 206, 0.58);
+    background: linear-gradient(145deg, rgba(86, 104, 172, 0.36), rgba(52, 72, 132, 0.3));
+    color: #e8eefb;
+  }
+
+  .mobile-tab {
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: transparent;
+    color: #4b5563;
+    min-height: 46px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-tab-icon {
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .mobile-tab.active {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(59, 130, 246, 0.15) 100%);
+    color: #1e2a58;
+    border-color: rgba(79, 70, 229, 0.28);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  }
+
+  .mobile-tab:active {
+    transform: translateY(1px);
+  }
+
+  [data-theme="dark"] .mobile-tab {
+    color: #afbcde;
+  }
+
+  [data-theme="dark"] .mobile-tab.active {
+    color: #dbe6ff;
+    background: linear-gradient(145deg, rgba(86, 104, 172, 0.36), rgba(52, 72, 132, 0.3));
+    border-color: rgba(118, 136, 206, 0.48);
+    box-shadow: inset 0 0 0 1px rgba(166, 184, 249, 0.15);
+  }
+
+  .topbar,
+  .goal-section,
+  .insights-container,
+  .kanban-board,
+  #searchView .auto-card,
+  #generateView .auto-card,
+  #generateView .gen-flow-shell,
+  #generateView .gen-step-intro,
+  #analyticsView .an-topbar,
+  #analyticsView .an-body,
+  #skillBankView .sb-header,
+  #skillBankView .sb-tabs,
+  #skillBankView .sb-panel {
+    width: calc(100% - 0.8rem);
+    max-width: none;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .mobile-tab-label {
+    white-space: nowrap;
+    line-height: 1.1;
+  }
+
+  .topbar {
+    padding: 0.95rem 0.9rem;
+    gap: 0.8rem;
+  }
+
+  .topbar-right {
+    width: 100%;
+  }
+
+  .topbar-right .btn,
+  .topbar-right button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .auto-card {
+    border-radius: 14px;
+    padding: 14px 12px;
+    margin-bottom: 12px;
+  }
+
+  .auto-card:has(.auto-filters) {
+    padding: 0;
+  }
+
+  .auto-filters {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 14px 12px 0;
+    align-items: stretch;
+  }
+
+  .auto-filter-group {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+    padding: 0;
+    border-right: none;
+  }
+
+  .auto-filter-group:has(#scrape-keyword) {
+    flex: 1 1 auto;
+    max-width: none;
+  }
+
+  .auto-filter-group label {
+    margin-bottom: 5px;
+  }
+
+  .auto-filter-group input,
+  .auto-filter-group select,
+  .scrape-sort-select,
+  .sort-select,
+  .chip,
+  .sb-tab {
+    min-height: 44px;
+  }
+
+  .auto-actions {
+    padding: 0 12px 12px;
+    margin-top: 0;
+  }
+
+  .auto-actions .btn,
+  .auto-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  #searchView .auto-card-header {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  #searchView .auto-card-header h2 {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  #searchView .scrape-sort-select {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  #searchView .auto-table-wrap {
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #searchView .auto-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  #searchView .auto-table th {
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
+    padding: 7px 8px;
+  }
+
+  #searchView .auto-table td {
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    padding: 7px 6px;
+  }
+
+  /* Hide keyword, reqId at 900px — checkbox and location remain visible */
+  #searchView .auto-table th:nth-child(3),
+  #searchView .auto-table td:nth-child(3),
+  #searchView .auto-table th:nth-child(4),
+  #searchView .auto-table td:nth-child(4) {
+    display: none;
+  }
+
+  /* Checkbox col: easy tap target */
+  #searchView .auto-table th:nth-child(1),
+  #searchView .auto-table td:nth-child(1) {
+    width: 44px;
+    text-align: center;
+  }
+
+  #searchView .auto-table td:nth-child(1) input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: #6366f1;
+  }
+
+  /* Track button: full width in last col */
+  #searchView .auto-table td:last-child .btn,
+  #searchView .auto-table td:last-child button {
+    width: 100%;
+    margin-bottom: 4px;
+  }
+
+  /* Selected row: vivid state at 900px table view too */
+  #searchView .auto-table tr.selected-row {
+    background: rgba(99, 102, 241, 0.07) !important;
+    outline: 2px solid #6366f1;
+    outline-offset: -2px;
+  }
+
+  /* Selected-jobs panel: fixed compact bottom bar on tablet */
+  #searchView #selected-jobs-card {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--iphone-tabbar-height, 72px) + env(safe-area-inset-bottom));
+    z-index: 60;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.2);
+    margin: 0 !important;
+    border: none;
+    border-top: 2px solid #6366f1;
+    padding: 12px 16px 10px !important;
+  }
+
+  #searchView #selected-jobs-card #selected-jobs-list {
+    display: none;
+  }
+
+  #searchView #selected-jobs-card .auto-card-header {
+    margin-bottom: 6px;
+    padding: 0;
+    border: none;
+  }
+
+  #searchView #selected-jobs-card .auto-actions {
+    margin-top: 8px !important;
+    padding: 0;
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  #searchView #selected-jobs-card .auto-actions .btn {
+    flex: 1;
+    width: auto !important;
+  }
+
+  #generateView .gen-flow-shell,
+  #generateView .gen-flow-shell.gen-flow-right {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  #generateView .gen-task-sidebar {
+    position: static;
+    top: auto;
+    max-height: none;
+    order: 1;
+  }
+
+  #generateView .gen-workspace {
+    order: 2;
+  }
+
+  #generateView .gen-task-list {
+    max-height: 40vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  #generateView .gen-task-sidebar-header {
+    flex-wrap: wrap;
+  }
+
+  #generateView .gen-task-sidebar-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  #generateView .gen-queue-item {
+    overflow: hidden;
+  }
+
+  #generateView .gqi-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  #generateView .gen-queue-title,
+  #generateView .gen-queue-meta,
+  #generateView .gqi-results-title,
+  #generateView .gqi-gen-title {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  #generateView .gen-queue-actions {
+    width: 100%;
+    max-width: none;
+    justify-content: flex-start;
+  }
+
+  #generateView .gqi-status-chip {
+    white-space: normal;
+    text-align: center;
+  }
+
+  #generateView .gqi-gen-header {
+    align-items: flex-start;
+  }
+
+  #generateView .gqi-gen-status {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  #generateView .gqi-jd-details > summary {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 9px 10px;
+  }
+
+  #generateView .gqi-jd-sum-meta {
+    margin-left: 0;
+    width: 100%;
+    white-space: normal;
+  }
+
+  #generateView .gqi-jd-body {
+    padding: 0 10px 12px;
+  }
+
+  #generateView .gqi-jd-cols {
+    grid-template-columns: 1fr;
+  }
+
+  #generateView .gqi-jd-col + .gqi-jd-col {
+    border-left: none;
+    border-top: 1px solid var(--gen-polish-border, rgba(15, 23, 42, 0.12));
+  }
+
+  #generateView .gqi-req-table,
+  #generateView .gqi-req-group,
+  #generateView .gqi-req-cell-label,
+  #generateView .gqi-req-chips {
+    display: block;
+    width: 100%;
+  }
+
+  #generateView .gqi-req-cell-label {
+    padding: 0 0 4px;
+  }
+
+  #generateView .gqi-req-label {
+    font-size: 9px;
+  }
+
+  #generateView .gqi-req-chip,
+  #generateView .gqi-chip {
+    white-space: normal;
+    max-width: 100%;
+    line-height: 1.3;
+  }
+
+  #generateView .gqi-st-row {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  #generateView .gqi-st-label {
+    min-width: 0;
+  }
+
+  #generateView .gqi-jd-matches {
+    padding: 10px;
+  }
+
+  #generateView .gqi-matches-hdr {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  #generateView .gqi-match-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-spacing: 0;
+  }
+
+  #generateView .gqi-match-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "name pct"
+      "bar bar";
+    gap: 4px 8px;
+  }
+
+  #generateView .gqi-match-id {
+    display: none;
+  }
+
+  #generateView .gqi-match-name {
+    grid-area: name;
+    display: block;
+    max-width: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    padding-right: 0;
+  }
+
+  #generateView .gqi-match-bar-wrap {
+    grid-area: bar;
+    display: block;
+    width: 100%;
+    padding-right: 0;
+  }
+
+  #generateView .gqi-match-pct {
+    grid-area: pct;
+    display: block;
+    width: auto;
+    min-width: 32px;
+    text-align: right;
+  }
+
+  #generateView .gqi-bar-track {
+    height: 8px;
+  }
+
+  #generateView .gqi-panel-toolbar {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  #generateView .gen-panel-controls {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  #generateView .gen-panel-controls .btn,
+  #generateView .gen-panel-controls button {
+    flex: 1 1 calc(33.33% - 6px);
+    min-height: 38px;
+    justify-content: center;
+  }
+
+  #generateView .gqi-result-textarea {
+    min-height: 240px;
+    font-size: 0.8rem;
+    padding: 10px;
+  }
+
+  #generateView .gqi-result-actions,
+  #generateView .gqi-result-actions-secondary {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #generateView .gqi-result-actions .btn,
+  #generateView .gqi-result-actions button,
+  #generateView .gqi-result-actions-secondary .btn,
+  #generateView .gqi-result-actions-secondary button,
+  #generateView .gqi-result-actions .gqi-status-chip {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  #kanbanView .goal-widget {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  #kanbanView .goal-label {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  #kanbanView .goal-progress-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  #kanbanView .goal-text {
+    white-space: normal;
+    text-align: left;
+  }
+
+  #kanbanView .stats-bar {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 8px;
+    padding: 8px 14px;
+    scrollbar-width: none;
+  }
+
+  #kanbanView .stats-bar::-webkit-scrollbar { display: none; }
+
+  #kanbanView .stat-tile {
+    flex: 0 0 auto;
+    min-width: 80px;
+    justify-content: center;
+  }
+
+  #kanbanView .toolbar {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 0.5rem;
+  }
+
+  #kanbanView .search-wrapper,
+  #kanbanView .company-shortcuts,
+  #kanbanView .filter-chips,
+  #kanbanView .sort-wrapper {
+    width: 100%;
+    min-width: 0;
+  }
+
+  #kanbanView .company-shortcuts,
+  #kanbanView .filter-chips {
+    justify-content: flex-start;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 4px;
+  }
+
+  #kanbanView .company-shortcuts > *,
+  #kanbanView .filter-chips > * {
+    flex: 0 0 auto;
+  }
+
+  #kanbanView .sort-select {
+    width: 100%;
+  }
+
+  #kanbanView .kanban-board {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-x: hidden !important;
+    padding: 10px 14px 100px;
+    gap: 6px;
+  }
+
+  #kanbanView .kanban-column {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+
+  #kanbanView .column-list {
+    gap: 8px;
+    padding: 8px 10px 10px;
+    min-height: auto;
+  }
+
+  #kanbanView .kanban-card {
+    min-height: auto;
+    cursor: default;
+  }
+
+  #kanbanView .kc-stage-sel,
+  #kanbanView .kc-btn {
+    min-height: 36px;
+  }
+
+  #kanbanView .kc-company { font-size: 14px; }
+  #kanbanView .kc-role    { font-size: 14px; }
+
+  #analyticsView .an-topbar {
+    padding: 0.8rem;
+    gap: 8px;
+  }
+
+  #analyticsView .an-date-group {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  #analyticsView .an-topbar-right {
+    width: 100%;
+    justify-content: stretch;
+    gap: 8px;
+  }
+
+  #analyticsView .an-topbar-right .an-btn,
+  #analyticsView .an-topbar-right button {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  #analyticsView .an-body {
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  #analyticsView .an-filter-sb {
+    width: 100%;
+    max-height: none;
+  }
+
+  #analyticsView .an-main {
+    min-width: 0;
+  }
+
+  #analyticsView .an-stats-row,
+  #analyticsView .an-charts-row {
+    flex-direction: column;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  #analyticsView .an-table-card {
+    margin: 8px;
+  }
+
+  #analyticsView .an-table {
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
+  }
+
+  #analyticsView .an-table th {
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  #analyticsView .an-table td,
+  #analyticsView .an-td-role span {
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+
+  #skillBankView .sb-header {
+    padding: 0.85rem;
+    gap: 8px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  #skillBankView .sb-title {
+    font-size: 1.15rem;
+  }
+
+  #skillBankView .sb-header-stats {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  #skillBankView .sb-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 4px;
+    padding: 0 0.65rem;
+  }
+
+  #skillBankView .sb-tab {
+    flex: 0 0 auto;
+    min-height: 40px;
+    white-space: nowrap;
+    min-width: max-content;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  #skillBankView .sb-tab-count {
+    flex: 0 0 auto;
+  }
+
+  #skillBankView .sb-panel {
+    padding: 0.85rem;
+  }
+
+  #skillBankView .sb-filters {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  #skillBankView .sb-input,
+  #skillBankView .sb-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  #skillBankView .sb-table {
+    width: max-content;
+    min-width: 720px;
+    table-layout: auto;
+  }
+
+  #skillBankView .sb-table th,
+  #skillBankView .sb-table td {
+    white-space: nowrap;
+    word-break: normal;
+  }
+
+  #skillBankView .sb-evidence,
+  #skillBankView .sb-tech-cell,
+  #skillBankView .sb-bullet-preview,
+  #skillBankView .sb-tools-cell {
+    white-space: normal;
+    overflow-wrap: break-word;
+    min-width: 170px;
+    max-width: 280px;
+  }
+
+  .fab-column,
+  .scratchpad-popup,
+  .polish-popup {
+    display: none !important;
+  }
+
+  .an-table-card,
+  .an-chart-card,
+  .sb-table-wrap,
+  .auto-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #auth-screen {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #auth-screen .auth-container {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  #auth-screen .auth-left-panel {
+    min-height: 42vh;
+    padding: 56px 16px 18px;
+  }
+
+  #auth-screen .auth-right-panel {
+    align-items: flex-start;
+    padding: 18px 14px calc(18px + env(safe-area-inset-bottom));
+  }
+
+  #auth-screen .auth-card {
+    max-width: none;
+  }
+
+  #auth-screen:not(.hidden) ~ .fab-column,
+  #auth-screen:not(.hidden) ~ .scratchpad-popup,
+  #auth-screen:not(.hidden) ~ .polish-popup {
+    display: none !important;
+  }
+}
+
+@media (max-width: 900px) and (max-height: 760px) {
+  #auth-screen .auth-mini-pipeline,
+  #auth-screen .auth-left-quote {
+    display: none;
+  }
+
+  #auth-screen .auth-left-panel {
+    min-height: 260px;
+  }
+
+  #auth-screen .auth-orbit {
+    width: 138px;
+    height: 138px;
+    margin-bottom: 12px;
+  }
+
+  #auth-screen .auth-hero {
+    font-size: 34px;
+  }
+}
+
+@media (max-width: 430px) {
+  :root {
+    --iphone-tabbar-height: 72px;
+  }
+
+  .mobile-tab {
+    font-size: 9px;
+  }
+
+  .mobile-tab-icon {
+    font-size: 14px;
+  }
+
+  .topbar-left h1,
+  .app-title {
+    font-size: 20px;
+  }
+
+  .app-subtitle {
+    font-size: 12px;
+  }
+
+  .goal-text {
+    font-size: 12px;
+  }
+
+  .sb-header-stats {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  /* ── Prevent iOS auto-zoom on input focus (font-size < 16px triggers zoom) ── */
+  input,
+  select,
+  textarea,
+  [contenteditable] {
+    font-size: 16px !important;
+  }
+
+  /* ── Search results: card layout, no horizontal scroll ── */
+  #searchView .auto-table-wrap {
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: auto;
+  }
+
+  /* Convert table rows to stacked cards */
+  #searchView .auto-table,
+  #searchView .auto-table tbody {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #searchView .auto-table thead {
+    display: none !important;
+  }
+
+  #searchView .auto-table tr {
+    display: block !important;
+    position: relative !important;
+    background: var(--surface-card, #fff);
+    border: 1.5px solid rgba(99, 102, 241, 0.18);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    padding: 10px 48px 10px 12px;
+    overflow: visible !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  /* Selected card: vivid indigo border + tint */
+  #searchView .auto-table tr.selected-row {
+    border: 2px solid #6366f1 !important;
+    background: rgba(99, 102, 241, 0.07) !important;
+    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.15) !important;
+  }
+
+  #searchView .auto-table td {
+    display: block !important;
+    width: 100% !important;
+    padding: 2px 0 !important;
+    border: none !important;
+    white-space: normal !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+  }
+
+  /* Hide: keyword, requisitionId, location on 430px (NOT checkbox) */
+  #searchView .auto-table td:nth-child(3),
+  #searchView .auto-table td:nth-child(4),
+  #searchView .auto-table td:nth-child(5) {
+    display: none !important;
+  }
+
+  /* Checkbox: float to top-right corner of card */
+  #searchView .auto-table td:nth-child(1) {
+    display: block !important;
+    position: absolute !important;
+    top: 10px !important;
+    right: 12px !important;
+    width: auto !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+
+  #searchView .auto-table td:nth-child(1) input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    accent-color: #6366f1;
+    border-radius: 6px;
+  }
+
+  /* Title cell — main content */
+  #searchView .auto-table td:nth-child(2) {
+    padding-bottom: 8px !important;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  /* Date — muted small text */
+  #searchView .auto-table td:nth-child(6) {
+    font-size: 12px;
+    color: var(--text-muted, #888);
+    padding-top: 4px !important;
+  }
+
+  /* Track button — full width */
+  #searchView .auto-table td:nth-child(7) {
+    padding-top: 8px !important;
+  }
+
+  #searchView .auto-table td:nth-child(7) .btn,
+  #searchView .auto-table td:nth-child(7) button {
+    width: 100% !important;
+    justify-content: center;
+  }
+
+  #generateView .gen-panel-controls .btn,
+  #generateView .gen-panel-controls button {
+    flex: 1 1 calc(50% - 6px);
+  }
+}
+
