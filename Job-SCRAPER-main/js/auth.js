@@ -136,7 +136,7 @@
         const code = error?.code || '';
         console.error('[Auth] Sign-in error:', code, error?.message);
         let message = `Sign in failed (${code || 'unknown error'})`;
-        if (code === 'auth/invalid-credential' || code === 'auth/wrong-password') message = 'Invalid email or password.';
+        if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/invalid-login-credentials') message = 'Invalid email or password.';
         else if (code === 'auth/user-not-found') message = 'No account found for this email.';
         else if (code === 'auth/too-many-requests') message = 'Too many attempts. Please wait and retry.';
         else if (code === 'auth/operation-not-allowed') message = 'Email/password sign-in is not enabled in Firebase Console.';

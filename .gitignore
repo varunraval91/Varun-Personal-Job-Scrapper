@@ -18,6 +18,14 @@ Job-SCRAPER-main/generated/
 Job-SCRAPER-main/library/ocr-cache.json
 Job-SCRAPER-main/library/approved/
 
+# Debug artifacts (may contain personal data in screenshots)
+Job-SCRAPER-main/debug-screenshots/
+
+# Internal planning docs (not relevant to users)
+graphify-out/
+SAAS_MIGRATION_PLAN.md
+SIDEBAR_UI_STYLE_REPORT.md
+
 # Large binary (Tesseract OCR data)
 *.traineddata
 

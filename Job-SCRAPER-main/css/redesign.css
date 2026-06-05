@@ -771,13 +771,15 @@ body {
 
 }
 
-/* Screenshot match pass */
+/* Screenshot match pass — desktop only to avoid overriding mobile media queries */
 body {
   background: #f4f1fa;
 }
 
+@media (min-width: 901px) {
 .app-layout {
   grid-template-columns: 88px 1fr;
+}
 }
 
 .sidebar {

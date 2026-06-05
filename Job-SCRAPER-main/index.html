@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="css/auth-screen-styles.css" />
   <link rel="stylesheet" href="css/automator.css?v=22" />
   <link rel="stylesheet" href="css/skill-bank.css" />
+  <link rel="stylesheet" href="css/iphone-overrides.css" />
 </head>
 <body>
 
@@ -188,6 +189,10 @@
               <label>Portal</label>
               <select id="scrape-portal">
                 <option value="sap" selected>SAP</option>
+
+
+
+                <option value="basf">BASF</option>
                 <option value="siemens">Siemens</option>
                 <option value="infineon">Infineon</option>
                 <option value="bosch">Bosch</option>
@@ -204,6 +209,9 @@
             <div class="auto-filter-group" id="filter-location">
               <label>Location <span id="scrape-location-tip" style="font-size:0.75em;color:var(--color-muted)"></span></label>
               <input type="text" id="scrape-location" placeholder="e.g. Walldorf" value="" />
+              <div id="scrape-location-dropdown-wrap" style="display:none">
+                <select id="scrape-location-dropdown"></select>
+              </div>
             </div>
             <!-- Siemens-only: State + City facets -->
             <div class="auto-filter-group" id="filter-state" style="display:none">
@@ -339,53 +347,79 @@
           </div>
         </header>
 
-        <!-- RAG Status Card + Document Library (collapsible) -->
-        <div class="auto-card" id="library-status-card">
-          <div class="auto-card-header">
-            <h2>AI Pipeline Status</h2>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <button class="btn btn-sm" id="rag-refresh-btn" type="button" title="Refresh RAG status">&#8635; Refresh</button>
-              <button class="btn btn-sm lib-toggle-btn" id="lib-toggle-btn" type="button" title="Expand / Collapse library">&#9660;</button>
+        <div class="gen-flow-shell">
+          <aside class="gen-task-sidebar" aria-label="Task flow">
+            <div class="gen-task-sidebar-header">
+              <div>
+                <p class="gen-task-sidebar-kicker">Task Flow</p>
+                <h2 class="gen-task-sidebar-title">Jobs In Progress</h2>
+              </div>
+              <div class="gen-task-sidebar-actions">
+                <span class="gen-task-sidebar-count" id="gen-task-sidebar-count">0</span>
+                <button class="btn btn-sm gen-task-sidebar-toggle" id="gen-task-side-toggle-btn" type="button" title="Move task flow to right side" aria-label="Toggle task flow side" aria-pressed="false">&#x1F500;</button>
+                <button class="btn btn-sm gen-task-sidebar-add" id="gen-task-add-btn" type="button" title="Add external job link">+</button>
+              </div>
             </div>
-          </div>
-          <!-- RAG status row (always visible) -->
-          <div id="rag-status-row" class="rag-status-row">
-            <div class="rag-status-tile" id="rag-tile-vector">
-              <span class="rag-tile-icon">◈</span>
-              <div><span class="rag-tile-val" id="rag-skill-count">—</span><span class="rag-tile-label">Skill Chunks</span></div>
+            <div class="gen-task-list" id="gen-task-list">
+              <p class="auto-empty">Select jobs from Search to start your flow.</p>
             </div>
-            <div class="rag-status-tile" id="rag-tile-style">
-              <span class="rag-tile-icon">✍</span>
-              <div><span class="rag-tile-val" id="rag-style-status">—</span><span class="rag-tile-label">Writing Style</span></div>
+          </aside>
+
+          <section class="gen-workspace" aria-label="Active task workspace">
+            <!-- RAG Status Card + Document Library (collapsible) -->
+            <div class="auto-card" id="library-status-card">
+              <div class="auto-card-header">
+                <h2>AI Pipeline Status</h2>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <button class="btn btn-sm" id="rag-refresh-btn" type="button" title="Refresh RAG status">&#8635; Refresh</button>
+                  <button class="btn btn-sm lib-toggle-btn" id="lib-toggle-btn" type="button" title="Expand / Collapse library">&#9660;</button>
+                </div>
+              </div>
+              <!-- RAG status row (always visible) -->
+              <div id="rag-status-row" class="rag-status-row">
+                <div class="rag-status-tile" id="rag-tile-vector">
+                  <span class="rag-tile-icon">◈</span>
+                  <div><span class="rag-tile-val" id="rag-skill-count">—</span><span class="rag-tile-label">Skill Chunks</span></div>
+                </div>
+                <div class="rag-status-tile" id="rag-tile-style">
+                  <span class="rag-tile-icon">✍</span>
+                  <div><span class="rag-tile-val" id="rag-style-status">—</span><span class="rag-tile-label">Writing Style</span></div>
+                </div>
+                <div class="rag-status-tile" id="rag-tile-docs">
+                  <span class="rag-tile-icon">◉</span>
+                  <div><span class="rag-tile-val" id="rag-doc-count">—</span><span class="rag-tile-label">Vector Store</span></div>
+                </div>
+                <div class="rag-status-tile" id="rag-tile-ai">
+                  <span class="rag-tile-icon">🤖</span>
+                  <div><span class="rag-tile-val" id="rag-ai-provider">—</span><span class="rag-tile-label">AI Provider</span></div>
+                </div>
+              </div>
+              <!-- Document Library (collapsed by default) -->
+              <div id="library-status" class="lib-collapsed"></div>
+              <!-- Hidden button kept for backward-compat with generate.js logic -->
+              <button id="index-library-btn" type="button" style="display:none">Index Foundation PDFs</button>
             </div>
-            <div class="rag-status-tile" id="rag-tile-docs">
-              <span class="rag-tile-icon">◉</span>
-              <div><span class="rag-tile-val" id="rag-doc-count">—</span><span class="rag-tile-label">Vector Store</span></div>
+
+            <div class="auto-card gen-active-task-header" id="gen-active-task-header">
+              <p class="auto-empty">Pick a task from the left to start.</p>
             </div>
-            <div class="rag-status-tile" id="rag-tile-ai">
-              <span class="rag-tile-icon">🤖</span>
-              <div><span class="rag-tile-val" id="rag-ai-provider">—</span><span class="rag-tile-label">AI Provider</span></div>
+
+            <!-- Generation Workspace -->
+            <div class="auto-card" id="gen-queue-card">
+              <div class="auto-card-header">
+                <h2>Generation Workspace</h2>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <span class="auto-badge" id="gen-queue-count">0 jobs</span>
+                </div>
+              </div>
+              <div id="gen-queue-list">
+                <p class="auto-empty">Select jobs from the Search tab to generate documents.</p>
+              </div>
             </div>
-          </div>
-          <!-- Document Library (collapsed by default) -->
-          <div id="library-status" class="lib-collapsed">
-          </div>
-          <!-- Hidden button kept for backward-compat with generate.js logic -->
-          <button id="index-library-btn" type="button" style="display:none">Index Foundation PDFs</button>
+          </section>
         </div>
 
-        <!-- Generation Queue -->
-        <div class="auto-card" id="gen-queue-card">
-          <div class="auto-card-header">
-            <h2>Generation Queue</h2>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <span class="auto-badge" id="gen-queue-count">0 jobs</span>
-            </div>
-          </div>
-          <div id="gen-queue-list">
-            <p class="auto-empty">Select jobs from the Search tab to generate documents.</p>
-          </div>
-        </div>
+        <div id="gen-process-card-store" hidden></div>
 
       </div>
 
@@ -399,6 +433,12 @@
             <p class="app-subtitle">Track every move. Stay relentless.</p>
           </div>
           <div class="topbar-right">
+            <div class="tracker-vsw" id="tracker-vsw" role="group" aria-label="Tracker view mode">
+              <button type="button" class="vsw-btn vsw-btn--active" data-tview="kanban" title="Full Kanban">&#9646; Kanban</button>
+              <button type="button" class="vsw-btn" data-tview="interview" title="Interview Focus">&#127919; Interview</button>
+              <button type="button" class="vsw-btn" data-tview="list" title="List View">&#128203; List</button>
+              <button type="button" class="vsw-btn" data-tview="pipeline" title="Pipeline View">&#9711; Pipeline</button>
+            </div>
             <button type="button" class="btn btn-primary btn-add" id="open-modal-btn" aria-label="Add new application" onclick="if(window.JobHuntHQOpenModal){window.JobHuntHQOpenModal();}">
               <span>+</span> Add Job
             </button>
@@ -478,6 +518,9 @@
         </section>
 
         <div class="kanban-board" id="kanban-board" role="region" aria-label="Application pipeline"></div>
+        <div id="interview-focus-board" style="display:none" aria-label="Interview Focus view"></div>
+        <div id="list-view-container" style="display:none" aria-label="List view"></div>
+        <div id="pipeline-view-container" style="display:none" aria-label="Pipeline view"></div>
       </div>
 
       <!-- ═══════════════════════════════════ -->
@@ -934,7 +977,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <!-- App logic (cache-busted to ensure latest JS is loaded) -->
-  <script src="js/app.js?v=12"></script>
+  <script src="js/app.js?v=17"></script>
   <script src="js/generate.js?v=22"></script>
   <script src="js/skill-bank.js?v=2"></script>
 

@@ -5,6 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "setup": "node scripts/setup.js",
+    "extract-style": "node scripts/extract_style.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

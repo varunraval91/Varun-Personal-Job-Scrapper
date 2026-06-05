@@ -866,15 +866,22 @@ body {
   }
 
   .auth-left-panel {
-    min-height: 58vh;
-    padding: 64px 18px 24px;
+    min-height: auto;
+    padding: 56px 20px 20px;
+  }
+
+  /* hide heavy animation elements — keep brand name + pill only */
+  .auth-orbit,
+  .auth-mini-pipeline,
+  .auth-left-quote {
+    display: none;
   }
 
   .auth-right-panel {
     width: 100%;
     border-left: 0;
     border-top: 1px solid var(--border);
-    padding: 24px 16px 18px;
+    padding: 24px 16px 24px;
   }
 
   .auth-right-accent {
@@ -883,14 +890,43 @@ body {
   }
 
   .auth-hero {
-    font-size: 42px;
+    font-size: 38px;
   }
 
   .auth-title {
-    font-size: 30px;
+    font-size: 28px;
   }
 
-  .auth-left-quote {
-    margin-top: 22px;
+  /* touch-friendly inputs and button */
+  .auth-input-wrap input {
+    font-size: 16px;  /* prevents iOS zoom on focus */
+    min-height: 48px;
+  }
+
+  .btn-auth {
+    min-height: 52px;
+    font-size: 16px;
+  }
+}
+
+/* ── phone (≤ 480px): hide left panel entirely, card fills viewport ── */
+@media (max-width: 480px) {
+  .auth-left-panel {
+    display: none;
+  }
+
+  .auth-theme-toggle {
+    top: max(env(safe-area-inset-top), 12px);
+    right: 12px;
+  }
+
+  .auth-right-panel {
+    border-top: 0;
+    padding: calc(env(safe-area-inset-top) + 56px) 16px calc(env(safe-area-inset-bottom) + 20px);
+    min-height: 100dvh;
+  }
+
+  .auth-card {
+    max-width: 100%;
   }
 }

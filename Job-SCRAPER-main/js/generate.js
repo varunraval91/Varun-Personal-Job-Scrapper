@@ -20,10 +20,65 @@
     userId: null,
     libExpanded: false,
     selectors: {},      // reqId → { we, projects, certifications, aiPickWE, aiPickProjects, aiPickCerts, pinnedWE, pinnedProjects, pinnedCerts, loading }
-    bankToolIndex: null  // cached map: tool-name-lower → true (for tool chip matching)
+    bankToolIndex: null,  // cached map: tool-name-lower → true (for tool chip matching)
+    processPage: "jd",
+    activeProcessKey: null,
+    flowSidebarSide: "left"
   };
 
   const $ = (id) => document.getElementById(id);
+  const PROCESS_STEPS = ["jd", "selector", "generate", "applied"];
+  const GEN_FLOW_SIDE_KEY = "job_hunt_hq_gen_flow_side";
+
+  const CV_DRAFT_TEMPLATE = `CERTIFICATIONS
+
+────────────────────────────────────────────────────────────────
+
+What Is Generative AI?                              Dec 2023
+
+
+
+Foundational certification — since extended into active production practice.
+
+Current GenAI skill set (2026): LangChain and LangGraph orchestration,
+
+MCP (Model Context Protocol) and A2A (Agent-to-Agent) architecture,
+
+custom TF-IDF RAG engine (built from scratch), multi-stage LLM pipelines
+
+with structured output contracts, and daily API integration with Claude
+
+and OpenAI in a live deployed system. Additional exposure through M.Sc.
+
+coursework in SAP AI Core and SAP Generative AI.
+
+────────────────────────────────────────────────────────────────
+
+SAP ABAP Training (S/4HANA)                    Mar – Jun 2025
+
+IGROWSOFT, Hyderabad
+
+3-month structured training in ABAP programming for SAP S/4HANA —
+
+covering data dictionary, report development, function modules, and
+
+object-oriented ABAP. Complementary to M.Sc. SAP Engineering & Analytics
+
+coursework.
+
+────────────────────────────────────────────────────────────────
+
+SAP Analytics Cloud (SAC)                           Jan 2026
+
+Project-based proof
+
+Independently built an end-to-end SAC implementation: live HANA Cloud
+
+connection, four Calculation Views, and a 4-page interactive story covering
+
+KPI dashboards, regional analysis, profitability heat mapping, and
+
+time-series forecasting across 1,000 global sales records.`;
 
   // ─── Helpers ───
   function showToast(msg, type) {
@@ -386,36 +441,242 @@
     return String(s || "").replace(/[^a-zA-Z0-9_-]/g, "_");
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // TASK FLOW SIDEBAR — stacking jobs design
+  // ═══════════════════════════════════════════════════════════════
+
+  function getActiveProcessKey() {
+    if (genState.activeProcessKey && genState.queue.some(j => getGenKey(j) === genState.activeProcessKey)) {
+      return genState.activeProcessKey;
+    }
+    const first = genState.queue[0];
+    genState.activeProcessKey = first ? getGenKey(first) : null;
+    return genState.activeProcessKey;
+  }
+
+  function setActiveProcessKey(key) {
+    const next = key || null;
+    if (genState.activeProcessKey === next) return;
+    captureActiveEditorContent();
+    genState.activeProcessKey = next;
+    renderQueue();
+    renderProcessRail();
+  }
+
+  function readFlowSidebarSide() {
+    try {
+      const saved = localStorage.getItem(GEN_FLOW_SIDE_KEY);
+      return saved === "right" ? "right" : "left";
+    } catch {
+      return "left";
+    }
+  }
+
+  function saveFlowSidebarSide(side) {
+    try {
+      localStorage.setItem(GEN_FLOW_SIDE_KEY, side);
+    } catch {
+      // Ignore storage failures; UI still works for current session.
+    }
+  }
+
+  function renderFlowSidebarToggle() {
+    const btn = $("gen-task-side-toggle-btn");
+    if (!btn) return;
+    const isRight = genState.flowSidebarSide === "right";
+    btn.classList.toggle("is-active", isRight);
+    btn.setAttribute("aria-pressed", String(isRight));
+    btn.title = isRight ? "Move task flow to left side" : "Move task flow to right side";
+  }
+
+  function applyFlowSidebarSide() {
+    const shell = document.querySelector("#generateView .gen-flow-shell");
+    if (!shell) return;
+    shell.classList.toggle("gen-flow-right", genState.flowSidebarSide === "right");
+    renderFlowSidebarToggle();
+  }
+
+  function setFlowSidebarSide(side, persist = true) {
+    const next = side === "right" ? "right" : "left";
+    genState.flowSidebarSide = next;
+    if (persist) saveFlowSidebarSide(next);
+    applyFlowSidebarSide();
+  }
+
+  function toggleFlowSidebarSide() {
+    const next = genState.flowSidebarSide === "right" ? "left" : "right";
+    setFlowSidebarSide(next);
+  }
+
+  function getProcessStatuses(job, key) {
+    const empty = { jd: "todo", selector: "todo", generate: "todo", applied: "todo" };
+    if (!job || !key) return empty;
+
+    const sel = genState.selectors[key];
+    const gen = genState.generations[key] || {};
+    const hasSelectorPins = !!(sel && (
+      (sel.pinnedWE && sel.pinnedWE.length) ||
+      (sel.pinnedProjects && sel.pinnedProjects.length) ||
+      (sel.pinnedCerts && sel.pinnedCerts.length)
+    ));
+
+    const jd = job.analyzing
+      ? "running"
+      : job.jdData?.error ? "error"
+      : job.jdData?.jdText ? "ready"
+      : "todo";
+
+    const selector = sel?.loading ? "running" : hasSelectorPins ? "ready" : "todo";
+
+    let generate = "todo";
+    if (gen.state === "generating") generate = "running";
+    else if (gen.state === "error") generate = "error";
+    else if (gen.state === "done" || gen.state === "wishlisted") generate = "ready";
+    else if (gen.state === "applied") generate = "done";
+
+    const applied = gen.state === "applied" ? "done" : "todo";
+    return { jd, selector, generate, applied };
+  }
+
+  function processStatusText(status) {
+    if (status === "running") return "In Progress";
+    if (status === "ready")   return "Ready";
+    if (status === "done")    return "Complete";
+    if (status === "error")   return "Needs Check";
+    return "Pending";
+  }
+
+  function taskFlowStatusLabel(statuses) {
+    if (statuses.applied === "done") return "Applied";
+    if (statuses.generate === "error" || statuses.selector === "error" || statuses.jd === "error") return "Needs Check";
+    if (statuses.generate === "running") return "Generating";
+    if (statuses.generate === "ready")   return "Ready";
+    if (statuses.selector === "running") return "Selecting";
+    if (statuses.selector === "ready")   return "Selector Ready";
+    if (statuses.jd === "running")       return "Analyzing JD";
+    if (statuses.jd === "ready")         return "JD Ready";
+    return "Pending";
+  }
+
+  function taskFlowStatusClass(statuses) {
+    if (statuses.applied === "done") return "is-done";
+    if (statuses.generate === "error" || statuses.selector === "error" || statuses.jd === "error") return "is-error";
+    if (statuses.generate === "running" || statuses.selector === "running" || statuses.jd === "running") return "is-running";
+    if (statuses.generate === "ready" || statuses.selector === "ready" || statuses.jd === "ready") return "is-ready";
+    return "is-pending";
+  }
+
+  function captureActiveEditorContent() {
+    const key = genState.activeProcessKey;
+    if (!key) return;
+    const gen = genState.generations[key];
+    if (!gen) return;
+    const safe = safeId(key);
+    const cvTa = document.getElementById("gqi-cv-" + safe);
+    const clTa = document.getElementById("gqi-cl-" + safe);
+    if (cvTa) gen.cvContent = cvTa.value;
+    if (clTa) gen.clContent = clTa.value;
+  }
+
+  function buildTaskSidebarItem(job, i, key, statuses, isActive) {
+    const taskNum = `T${String(i + 1).padStart(2, "0")}`;
+    const meta = [job.reqId, job.location].filter(Boolean).join(" · ");
+    const statusLabel = taskFlowStatusLabel(statuses);
+    const statusClass = taskFlowStatusClass(statuses);
+
+    const jdOn       = statuses.jd       === "running" || statuses.jd       === "ready" || statuses.jd       === "done";
+    const selectorOn = statuses.selector === "running" || statuses.selector === "ready" || statuses.selector === "done";
+    const generateOn = statuses.generate === "running" || statuses.generate === "ready" || statuses.generate === "done";
+
+    return `<button type="button" class="gen-task-btn${isActive ? " is-active" : ""}" data-gen-task-key="${esc(key)}" aria-label="Open ${esc(job.title || "job task")}">
+      <div class="gen-task-btn-head">
+        <span class="gen-task-btn-num">${taskNum}</span>
+        <span class="gen-task-btn-status ${statusClass}">${esc(statusLabel)}</span>
+      </div>
+      <div class="gen-task-btn-title">${esc(job.title || "Untitled role")}</div>
+      <div class="gen-task-btn-meta">${esc(meta || "No req/location")}</div>
+      <div class="gen-task-lights" aria-hidden="true">
+        <span class="gen-task-light gen-task-light-jd${statuses.jd === "error" ? " is-error" : jdOn ? " is-on" : ""}" title="JD Analysis"></span>
+        <span class="gen-task-light gen-task-light-selector${statuses.selector === "error" ? " is-error" : selectorOn ? " is-on" : ""}" title="CV Selector"></span>
+        <span class="gen-task-light gen-task-light-generate${statuses.generate === "error" ? " is-error" : generateOn ? " is-on" : ""}" title="Generate"></span>
+      </div>
+    </button>`;
+  }
+
+  function renderTaskSidebar() {
+    const taskListEl = $("gen-task-list");
+    if (!taskListEl) return;
+
+    if (!genState.queue.length) {
+      taskListEl.innerHTML = `<p class="auto-empty">Select jobs from Search to start your flow.</p>`;
+      const countEl = $("gen-task-sidebar-count");
+      if (countEl) countEl.textContent = "0";
+      return;
+    }
+
+    const activeKey = getActiveProcessKey();
+    taskListEl.innerHTML = genState.queue.map((job, i) => {
+      const key = getGenKey(job);
+      const statuses = getProcessStatuses(job, key);
+      return buildTaskSidebarItem(job, i, key, statuses, key === activeKey);
+    }).join("");
+
+    taskListEl.querySelectorAll("[data-gen-task-key]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        setActiveProcessKey(btn.dataset.genTaskKey);
+      });
+    });
+
+    const countEl = $("gen-task-sidebar-count");
+    if (countEl) countEl.textContent = String(genState.queue.length);
+  }
+
+  function renderActiveTaskHeader(job, i, key) {
+    const headerEl = $("gen-active-task-header");
+    if (!headerEl) return;
+
+    if (!job || !key) {
+      headerEl.innerHTML = `<p class="auto-empty">Pick a task from the left to start.</p>`;
+      return;
+    }
+
+    const statuses = getProcessStatuses(job, key);
+    const statusLabel = taskFlowStatusLabel(statuses);
+    const statusClass = taskFlowStatusClass(statuses);
+    const matchHtml = job.matchScore != null
+      ? `<span class="gen-active-match ${job.matchScore >= 40 ? "is-strong" : job.matchScore >= 20 ? "is-mid" : "is-low"}">${job.matchScore}% match</span>`
+      : "";
+    const skills = (job.topMatchedSkills || []).slice(0, 5)
+      .map((s) => `<span class="gen-active-skill">${esc(s)}</span>`)
+      .join("");
+
+    headerEl.innerHTML = `<div class="gen-active-head-top">
+      <div>
+        <p class="gen-active-eyebrow">Task ${String(i + 1).padStart(2, "0")}</p>
+        <h3 class="gen-active-title">${esc(job.title || "Untitled role")}</h3>
+      </div>
+      <div class="gen-active-head-right">
+        <span class="gen-task-btn-status ${statusClass}">${esc(statusLabel)}</span>
+        ${matchHtml}
+      </div>
+    </div>
+    <div class="gen-active-head-meta">${esc(job.reqId || "No Req ID")} · ${esc(job.location || "No Location")}${job.url ? ` · <a href="${esc(job.url)}" target="_blank" rel="noopener">open job</a>` : ""}</div>
+    ${skills ? `<div class="gen-active-skills">${skills}</div>` : ""}`;
+  }
+
+  function renderProcessRail() {
+    const key = getActiveProcessKey();
+    const job = key ? genState.queue.find((j) => getGenKey(j) === key) : null;
+    const i = job ? genState.queue.indexOf(job) : -1;
+    renderActiveTaskHeader(job, i, key);
+  }
+
   function updateJobUI(reqId) {
-    const listEl = $("gen-queue-list");
-    if (!listEl) return;
-    const i = genState.queue.findIndex(j => getGenKey(j) === reqId);
-    if (i < 0) return;
-    // Preserve any edits the user made to the textareas before replacing DOM
-    const gen = genState.generations[reqId];
-    if (gen) {
-      const safe = safeId(reqId);
-      const cvTa = document.getElementById("gqi-cv-" + safe);
-      const clTa = document.getElementById("gqi-cl-" + safe);
-      if (cvTa) gen.cvContent = cvTa.value;
-      if (clTa) gen.clContent = clTa.value;
-    }
-    const existing = Array.from(listEl.querySelectorAll("[data-gqi]")).find(el => el.dataset.gqi === reqId);
-    const html = buildQueueItemHtml(genState.queue[i], i);
-    const temp = document.createElement("div");
-    temp.innerHTML = html;
-    const newEl = temp.firstElementChild;
-    if (!newEl) return;
-    bindQueueItemEvents(newEl, i);
-    if (existing) existing.replaceWith(newEl);
-    else renderQueue();
-    // Update badge count
-    const countEl = $("gen-queue-count");
-    if (countEl) {
-      const genCount = Object.values(genState.generations).filter(g => g.state === "generating").length;
-      countEl.textContent = `${genState.queue.length} job${genState.queue.length !== 1 ? "s" : ""}` +
-        (genCount ? ` · ${genCount} generating` : "");
-    }
+    if (!reqId) return;
+    if (!genState.queue.some((j) => getGenKey(j) === reqId)) return;
+    captureActiveEditorContent();
+    renderQueue();
+    renderProcessRail();
   }
 
   function buildQueueItemHtml(job, i) {
@@ -439,6 +700,9 @@
     const customBtn = `<button type="button" class="${customBtnCls}" data-gen-selector="${esc(key)}" title="${customBtnTip}">⚙ CV</button>`;
     if (gen.state === "idle") {
       topAction = `${customBtn}<button type="button" class="btn btn-primary btn-sm gen-start-btn" data-idx="${i}">Generate</button>`;
+    } else if (gen.state === "draft") {
+      topAction = `${customBtn}<span class="gqi-status-chip gqi-status-draft">⚡ Draft</span>
+        <button type="button" class="btn btn-sm gen-start-btn" data-idx="${i}" title="Generate full CV+CL">↻ Full</button>`;
     } else if (gen.state === "generating") {
       topAction = `<span class="gqi-status-chip gqi-status-generating"><span class="gqi-inline-spin"></span>Generating…</span>`;
     } else if (gen.state === "done") {
@@ -491,19 +755,25 @@
       </div>`;
     }
 
-    // ── Inline results section (when done, applied, wishlisted or error) ──
+    // ── Inline results section (always shown except while actively generating) ──
     let resultsHtml = "";
-    if (gen.state === "done" || gen.state === "applied" || gen.state === "wishlisted") {
+    if (gen.state !== "generating") {
+      const isDraft = gen.state === "draft";
+      const isIdle  = gen.state === "idle" || gen.state === "error" || !gen.state;
+      const cvRegenTip  = isDraft ? "Generate CV"           : isIdle ? "Generate CV via AI" : "Regenerate CV";
+      const cvRegenIcon = isDraft ? "&#9654; Gen CV"        : isIdle ? "&#9654; Gen CV"     : "&#8635;";
+      const clRegenTip  = isDraft ? "Generate Cover Letter" : isIdle ? "Generate CL via AI" : "Regenerate CL";
+      const clRegenIcon = isDraft ? "&#9654; Gen CL"        : isIdle ? "&#9654; Gen CL"     : "&#8635;";
       resultsHtml = `<div class="gqi-results">
         <div class="gqi-results-header">
-          <span class="gqi-results-title">Generated for: <strong>${job.url ? `<a href="${esc(job.url)}" target="_blank" rel="noopener" class="gqi-title-link">${esc(job.title)}</a>` : esc(job.title)}</strong></span>
+          <span class="gqi-results-title">${isDraft ? "Draft for:" : "Generated for:"} <strong>${job.url ? `<a href="${esc(job.url)}" target="_blank" rel="noopener" class="gqi-title-link">${esc(job.title)}</a>` : esc(job.title)}</strong></span>
         </div>
         <div class="gqi-results-panels">
           <div class="gqi-result-panel">
             <div class="gqi-panel-toolbar">
               <span class="gqi-panel-doc-label">CV</span>
               <div class="gen-panel-controls">
-                <button type="button" class="btn btn-sm gqi-regen-btn" data-gen-regen="${esc(key)}" data-regen-type="cv" title="Regenerate CV">&#8635;</button>
+                <button type="button" class="btn btn-sm gqi-regen-btn${isDraft ? " gqi-regen-primary" : ""}" data-gen-regen="${esc(key)}" data-regen-type="cv" title="${cvRegenTip}">${cvRegenIcon}</button>
                 <button type="button" class="btn btn-sm gen-font-minus" data-target="gqi-cv-${safe}" title="A-">A-</button>
                 <button type="button" class="btn btn-sm gen-font-plus"  data-target="gqi-cv-${safe}" title="A+">A+</button>
                 <button type="button" class="btn btn-sm gen-copy-btn"   data-target="gqi-cv-${safe}" title="Copy to clipboard">&#x2398;</button>
@@ -517,7 +787,7 @@
             <div class="gqi-panel-toolbar">
               <span class="gqi-panel-doc-label">Cover Letter</span>
               <div class="gen-panel-controls">
-                <button type="button" class="btn btn-sm gqi-regen-btn" data-gen-regen="${esc(key)}" data-regen-type="cl" title="Regenerate CL">&#8635;</button>
+                <button type="button" class="btn btn-sm gqi-regen-btn${isDraft ? " gqi-regen-primary" : ""}" data-gen-regen="${esc(key)}" data-regen-type="cl" title="${clRegenTip}">${clRegenIcon}</button>
                 <button type="button" class="btn btn-sm gen-font-minus" data-target="gqi-cl-${safe}" title="A-">A-</button>
                 <button type="button" class="btn btn-sm gen-font-plus"  data-target="gqi-cl-${safe}" title="A+">A+</button>
                 <button type="button" class="btn btn-sm gen-copy-btn"   data-target="gqi-cl-${safe}" title="Copy to clipboard">&#x2398;</button>
@@ -529,23 +799,24 @@
             <textarea class="gqi-result-textarea" id="gqi-cl-${safe}" rows="20">${esc(gen.clContent || "")}</textarea>
           </div>
         </div>
-        <div class="gqi-result-actions">
+        <div class="gqi-action-buttons" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           ${gen.state === "applied"
             ? `<span class="gqi-status-chip" style="background:rgba(5,150,105,.1);color:#059669;border:1px solid rgba(5,150,105,.3)">&#10003; Applied</span>`
             : `<button class="btn btn-outline-success btn-sm" data-gen-approve="${esc(key)}">&#10003; Mark Applied</button>`}
           ${gen.state === "wishlisted"
             ? `<span class="gqi-status-chip" style="background:rgba(245,158,11,.1);color:#d97706;border:1px solid rgba(245,158,11,.3)">&#9733; Wishlisted</span>`
             : `<button class="btn btn-outline btn-sm" data-gen-save-draft="${esc(key)}">&#9733; Wishlist</button>`}
+          ${isDraft || isIdle ? "" : `<button class="btn btn-sm gqi-dach-btn" data-gen-dach="${esc(key)}">&#x1F1E9;&#x1F1EA; DACH Check</button>`}
+        </div>
+        <div class="gqi-result-actions" style="margin-top:8px">
           <button class="btn btn-primary btn-sm" data-gen-export-cv="${esc(key)}">&#x2B73; Export CV</button>
           <button class="btn btn-primary btn-sm" data-gen-export-cl="${esc(key)}">&#x2B73; Export CL</button>
-          <button class="btn btn-sm gqi-dach-btn" data-gen-dach="${esc(key)}">&#x1F1E9;&#x1F1EA; DACH Check</button>
         </div>
         ${gen.dachIssues ? buildDachResultsHtml(gen.dachIssues, key) : ""}
-      </div>`;
-    } else if (gen.state === "error") {
-      resultsHtml = `<div class="gqi-error-msg">
-        Generation failed: ${esc(gen.error || "Unknown error")}
-        <button class="btn btn-sm gen-start-btn" data-idx="${i}" style="margin-left:8px">&#8635; Retry</button>
+        ${gen.state === "error" ? `<div class="gqi-error-msg" style="margin-top:6px">
+          Last run failed: ${esc(gen.error || "Unknown error")}
+          <button class="btn btn-sm gen-start-btn" data-idx="${i}" style="margin-left:8px">&#8635; Retry</button>
+        </div>` : ""}
       </div>`;
     }
 
@@ -994,23 +1265,55 @@
   function renderQueue() {
     const listEl = $("gen-queue-list");
     const countEl = $("gen-queue-count");
+    const sideCountEl = $("gen-task-sidebar-count");
     const genCount = Object.values(genState.generations).filter(g => g.state === "generating").length;
     if (countEl) {
       countEl.textContent = `${genState.queue.length} job${genState.queue.length !== 1 ? "s" : ""}` +
         (genCount ? ` · ${genCount} generating` : "");
     }
+    if (sideCountEl) {
+      sideCountEl.textContent = String(genState.queue.length);
+    }
     if (!listEl) return;
 
+    captureActiveEditorContent();
+
     if (!genState.queue.length) {
+      genState.activeProcessKey = null;
       listEl.innerHTML = `<p class="auto-empty">Select jobs from the Search tab to generate documents.</p>`;
+      renderTaskSidebar();
+      renderActiveTaskHeader(null, -1, null);
+      renderProcessRail();
       return;
     }
 
-    listEl.innerHTML = genState.queue.map((job, i) => buildQueueItemHtml(job, i)).join("");
-    listEl.querySelectorAll("[data-gqi]").forEach((el) => {
-      const i = parseInt(el.dataset.qi, 10);
-      if (!isNaN(i)) bindQueueItemEvents(el, i);
-    });
+    // Ensure activeProcessKey points to a valid queue item
+    if (!genState.activeProcessKey || !genState.queue.some((job) => getGenKey(job) === genState.activeProcessKey)) {
+      genState.activeProcessKey = getGenKey(genState.queue[0]);
+    }
+
+    renderTaskSidebar();
+
+    // Only render the ACTIVE job's card in the workspace (one page per job)
+    const activeKey = getActiveProcessKey();
+    const activeIndex = genState.queue.findIndex((job) => getGenKey(job) === activeKey);
+    const job = activeIndex >= 0 ? genState.queue[activeIndex] : genState.queue[0];
+    const finalIndex = activeIndex >= 0 ? activeIndex : 0;
+    const finalKey = job ? getGenKey(job) : null;
+
+    if (!job || !finalKey) {
+      listEl.innerHTML = `<p class="auto-empty">Select jobs from the Search tab to generate documents.</p>`;
+      renderActiveTaskHeader(null, -1, null);
+      renderProcessRail();
+      return;
+    }
+
+    genState.activeProcessKey = finalKey;
+    renderActiveTaskHeader(job, finalIndex, finalKey);
+    listEl.innerHTML = buildQueueItemHtml(job, finalIndex);
+    const activeEl = listEl.querySelector("[data-gqi]");
+    if (activeEl) bindQueueItemEvents(activeEl, finalIndex);
+    renderProcessRail();
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -1054,13 +1357,16 @@
         projects,
         certifications,
         research,
+        profile_info: data.profile_info || {},
+        education: data.education || [],
         aiPickWE: data.aiPickWE || [],
         aiPickProjects: data.aiPickProjects || [],
         aiPickCerts: certDefaults,
         pinnedWE: preservedWE.length ? preservedWE : [...(data.aiPickWE || [])],
         pinnedProjects: preservedProjects.length ? preservedProjects : [...(data.aiPickProjects || [])],
         pinnedCerts: [],
-        pinnedResearch: preservedResearch.length ? preservedResearch : research.map(r => r.id)
+        pinnedResearch: preservedResearch.length ? preservedResearch : research.map(r => r.id),
+        jdText  // store so confirm button can init draft state
       };
     } catch (err) {
       genState.selectors[key] = null;
@@ -1073,6 +1379,114 @@
     // After updateJobUI the old itemEl reference may be stale — find fresh one
     const freshEl = document.querySelector(`[data-gqi="${CSS.escape(key)}"]`);
     renderSelectorDrawer(key, genState.selectors[key], freshEl || itemEl);
+  }
+
+  // Rich pre-written cert descriptions keyed by cert_id.
+  // When a cert is selected in the CV selector, this text is used verbatim.
+  const CERT_RICH_TEXT = {
+    CERT_GENAI: `What Is Generative AI?                              Dec 2023\n\nFoundational certification — since extended into active production practice.\nCurrent GenAI skill set (2026): LangChain and LangGraph orchestration,\nMCP (Model Context Protocol) and A2A (Agent-to-Agent) architecture,\ncustom TF-IDF RAG engine (built from scratch), multi-stage LLM pipelines\nwith structured output contracts, and daily API integration with Claude\nand OpenAI in a live deployed system. Additional exposure through M.Sc.\ncoursework in SAP AI Core and SAP Generative AI.`,
+    CERT_ABAP: `SAP ABAP Training (S/4HANA)                    Mar – Jun 2025\nIGROWSOFT, Hyderabad\n\n3-month structured training in ABAP programming for SAP S/4HANA —\ncovering data dictionary, report development, function modules, and\nobject-oriented ABAP. Complementary to M.Sc. SAP Engineering & Analytics\ncoursework.`,
+    CERT_SAC: `SAP Analytics Cloud (SAC)                           Jan 2026\nProject-based proof\n\nIndependently built an end-to-end SAC implementation: live HANA Cloud\nconnection, four Calculation Views, and a 4-page interactive story covering\nKPI dashboards, regional analysis, profitability heat mapping, and\ntime-series forecasting across 1,000 global sales records.`
+  };
+  const CERT_SEP = "\u2500".repeat(64);
+
+  // Build a full-structure CV text from selector data WITHOUT any API call.
+  // AI-only sections (Profile, Tech Skills, Key Competencies) get placeholder text
+  // so the user can see the skeleton and generate just those parts cheaply.
+  function buildStaticDraftCv(sel) {
+    const lines = [];
+    const info  = sel.profile_info || {};
+    const pinnedWeSet      = new Set(sel.pinnedWE || []);
+    const pinnedProjSet    = new Set(sel.pinnedProjects || []);
+    const pinnedCertSet    = new Set(sel.pinnedCerts || []);
+    const pinnedResSet     = new Set(sel.pinnedResearch || []);
+
+    // ── Header ────────────────────────────────────────────────
+    lines.push(info.name || "Varun Raval");
+    if (info.location) lines.push(info.location);
+    const phone = info.phone || "";
+    const email = info.email_academic || info.email_personal || "";
+    if (phone || email) lines.push([phone && `Phone: ${phone}`, email && `Email: ${email}`].filter(Boolean).join(" | "));
+    if (info.linkedin || info.github)
+      lines.push([info.linkedin && `LinkedIn: ${info.linkedin}`, info.github && `GitHub: ${info.github}`].filter(Boolean).join(" | "));
+    const langObj = info.languages || {};
+    const langStr = typeof langObj === "string" ? langObj : Object.entries(langObj).map(([k, v]) => `${k}: ${v}`).join(", ");
+    if (langStr) lines.push(`Languages: ${langStr}`);
+    lines.push("");
+
+    // ── Education (always static) ─────────────────────────────
+    const edu = sel.education || [];
+    if (edu.length) {
+      lines.push("EDUCATION");
+      edu.forEach((ed, i) => {
+        lines.push(`${ed.degree}   ${ed.date}`);
+        lines.push(ed.institution);
+        if (ed.coursework) lines.push(`Selected coursework: ${ed.coursework}`);
+        if (i < edu.length - 1) lines.push("");
+      });
+      lines.push("");
+    }
+
+    // ── Work Experience (pinned only) ─────────────────────────
+    const pinnedWE = (sel.we || []).filter(w => pinnedWeSet.has(w.id));
+    if (pinnedWE.length) {
+      lines.push("WORK EXPERIENCE");
+      pinnedWE.forEach((w, i) => {
+        lines.push(`${w.title}   ${w.period || ""}`);
+        lines.push(w.company + (w.location ? `, ${w.location}` : ""));
+        (w.responsibilities || []).forEach(r => lines.push(`- ${r}`));
+        if (i < pinnedWE.length - 1) lines.push("");
+      });
+      lines.push("");
+    }
+
+    // ── Projects (pinned only) ────────────────────────────────
+    const pinnedProjs = (sel.projects || []).filter(p => pinnedProjSet.has(p.id));
+    if (pinnedProjs.length) {
+      lines.push("PROJECTS");
+      pinnedProjs.forEach((p, i) => {
+        lines.push(`${p.name}   ${p.date || ""}`);
+        if (p.tech) lines.push(p.tech);
+        if (p.description) lines.push(p.description);
+        if (i < pinnedProjs.length - 1) lines.push("");
+      });
+      lines.push("");
+    }
+
+    // ── Research & Activities (pinned only) ───────────────────
+    const pinnedRes = (sel.research || []).filter(r => pinnedResSet.has(r.id));
+    if (pinnedRes.length) {
+      lines.push("RESEARCH & ACTIVITIES");
+      pinnedRes.forEach((r, i) => {
+        lines.push(`${r.title}   ${r.date || r.period || ""}`.trimEnd());
+        if (r.institution || r.context) lines.push(r.institution || r.context);
+        if (r.description) lines.push(r.description);
+        if (i < pinnedRes.length - 1) lines.push("");
+      });
+      lines.push("");
+    }
+
+    // ── Certifications (pinned only) ──────────────────────────
+    const pinnedCerts = (sel.certifications || []).filter(c => pinnedCertSet.has(c.id));
+    if (pinnedCerts.length) {
+      lines.push("CERTIFICATIONS");
+      lines.push("");
+      pinnedCerts.forEach((c, i) => {
+        lines.push(CERT_SEP);
+        lines.push("");
+        const rich = CERT_RICH_TEXT[c.id];
+        if (rich) {
+          lines.push(rich);
+        } else {
+          lines.push(`${c.name}   ${c.date || ""}`);
+          if (c.provider) lines.push(c.provider);
+          if (c.description) lines.push("", c.description);
+        }
+        if (i < pinnedCerts.length - 1) lines.push("");
+      });
+    }
+
+    return lines.join("\n");
   }
 
   function renderSelectorDrawer(key, sel, itemEl) {
@@ -1612,7 +2026,21 @@
       refreshAll(); renderList();
     });
 
-    const closeModal = () => { document.removeEventListener("keydown", onEsc); modal.remove(); updateJobUI(key); };
+    const closeModal = () => {
+      document.removeEventListener("keydown", onEsc);
+      modal.remove();
+      // Write fresh CV draft from current selections into the textarea
+      const sel = genState.selectors[key];
+      if (sel && !sel.loading) {
+        const draft = buildStaticDraftCv(sel);
+        const safe = safeId(key);
+        const ta = document.getElementById("gqi-cv-" + safe);
+        if (ta) ta.value = draft;
+        const gen = genState.generations[key];
+        if (gen) gen.cvContent = draft;
+      }
+      updateJobUI(key);
+    };
     const onEsc = e => { if (e.key === "Escape") closeModal(); };
     document.addEventListener("keydown", onEsc);
     drawer.querySelector(".gqi-sel-close-btn").addEventListener("click", closeModal);
@@ -1620,7 +2048,28 @@
 
     confirmBtn.addEventListener("click", () => {
       closeModal();
-      showToast("CV selection saved — click Generate to use it", "success");
+      const curSel = genState.selectors[key] || {};
+      const staticCv = buildStaticDraftCv(curSel);
+      const cur = genState.generations[key];
+      const jd  = curSel.jdText || "";
+
+      if (!cur || cur.state === "idle") {
+        // First confirm: init draft with static skeleton pre-populated
+        genState.generations[key] = {
+          state: "draft", jdText: jd,
+          cvContent: staticCv,
+          clContent: "",
+          cvJson: null, clJson: null, cvDecisions: null, clDecisions: null, error: null
+        };
+      } else if (cur.state === "draft") {
+        // Re-confirm after changing pins: rebuild static content
+        cur.cvContent = staticCv;
+        cur.jdText = jd;
+      }
+      // state "done"/"applied"/"wishlisted" — keep existing generated content untouched
+
+      updateJobUI(key);
+      showToast("CV draft ready — generate AI sections below", "success");
     });
 
     // ── Initial render + entrance animation ─────────────────────
@@ -1650,7 +2099,7 @@
       stepLabel: "Fetching job description…",
       progress: 5,
       thoughts: [],
-      cvContent: "",
+      cvContent: CV_DRAFT_TEMPLATE,
       clContent: "",
       cvJson: null,
       clJson: null,
@@ -1747,8 +2196,7 @@
       // Cache JD text for regen
       genState.generations[key].jdText = jdText;
 
-      // ── Step 2: Match Skills ──
-      setStep("skills", "Matching skills from vector store…", 25);
+      // ── Step 2: Check vector store ──
       try {
         const healthRes = await fetch("/health");
         const health = await healthRes.json();
@@ -1757,70 +2205,12 @@
         addThought("Vector store:", "Ready", true);
       }
 
-      // ── Step 3a: Generate CV ──
-      setStep("cv", "Generating CV via RAG pipeline…", 40);
-      addThought("CV generation:", "Sending JD → vector retrieval + style profile → AI…");
-      const selState = genState.selectors[key] || {};
-      const cvRes = await fetch("/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobDescription: jdText, documentType: "cv",
-          jobTitle: job.title || null,
-          jobReqId: job.reqId || null,
-          pinnedWeIds: selState.pinnedWE?.length ? selState.pinnedWE : null,
-          pinnedProjectIds: selState.pinnedProjects?.length ? selState.pinnedProjects : null,
-          pinnedCertIds: selState.pinnedCerts?.length ? selState.pinnedCerts : null,
-          pinnedResearchIds: selState.pinnedResearch?.length ? selState.pinnedResearch : null
-        })
-      });
-      const cvData = await cvRes.json();
-      if (!cvData.success) throw new Error(cvData.error || "CV generation failed");
-      genState.generations[key].cvContent   = cvData.content;
-      genState.generations[key].cvJson      = cvData.contentJson || null;
-      genState.generations[key].cvDecisions = cvData.decisions || null;
-      markLastThoughtDone();
-      addThought("CV complete:", `${cvData.content.length.toLocaleString()} chars · ${cvData.decisions?.provider || "AI"}`, true);
-
-      // ── Step 3b: Generate CL ──
-      setStep("cl", "Generating Cover Letter via RAG + Humanizer…", 70);
-      addThought("CL generation:", "Sending JD → vector retrieval + style profile → AI → Humanizer…");
-      const clRes = await fetch("/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobDescription: jdText, documentType: "cl",
-          jobTitle: job.title || null,
-          jobReqId: job.reqId || null,
-          pinnedWeIds: selState.pinnedWE?.length ? selState.pinnedWE : null,
-          pinnedProjectIds: selState.pinnedProjects?.length ? selState.pinnedProjects : null,
-          pinnedCertIds: selState.pinnedCerts?.length ? selState.pinnedCerts : null,
-          pinnedResearchIds: selState.pinnedResearch?.length ? selState.pinnedResearch : null
-        })
-      });
-      const clData = await clRes.json();
-      if (!clData.success) throw new Error(clData.error || "Cover letter generation failed");
-      genState.generations[key].clContent   = clData.content;
-      genState.generations[key].clJson      = clData.contentJson || null;
-      genState.generations[key].clDecisions = clData.decisions || null;
-      genState.generations[key].jdText      = jdText;
-      markLastThoughtDone();
-      addThought("CL complete:", `${clData.content.length.toLocaleString()} chars · ${clData.decisions?.provider || "AI"}${clData.humanized ? " · Humanized ✓" : ""}`, true);
-
-      // ── Done ──
+      // ── Done — JD cached, textareas ready for manual input or regen ──
       genState.generations[key].state    = "done";
       genState.generations[key].step     = "done";
       genState.generations[key].progress = 100;
       updateJobUI(key);
-      showToast(`Generated: ${job.title}`);
-
-      try {
-        const userId = getUserId();
-        if (userId && window.FirebaseAPI?.library) {
-          genState.approvedDocs  = await FirebaseAPI.library.loadApprovedGenerations(userId);
-          genState.domainInsights = await FirebaseAPI.library.loadDomainInsights(userId);
-        }
-      } catch {}
+      showToast(`JD ready — paste your CV/CL or use ↻ to generate`);
 
     } catch (err) {
       const g = genState.generations[key];
@@ -1976,10 +2366,18 @@
     }, 600);
 
     try {
+      const sel = genState.selectors[reqId] || {};
       const res = await fetch("/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobDescription: gen.jdText, documentType: type })
+        body: JSON.stringify({
+          jobDescription: gen.jdText,
+          documentType: type,
+          pinnedWeIds: sel.pinnedWE || [],
+          pinnedProjectIds: sel.pinnedProjects || [],
+          pinnedCertIds: sel.pinnedCerts || [],
+          pinnedResearchIds: sel.pinnedResearch || []
+        })
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || `${label} regeneration failed`);
@@ -1999,17 +2397,106 @@
       }
       gen.dachIssues = null; // reset DACH results after regen
 
+      // Promote draft → done when both CV and CL have content
+      if (gen.state === "draft" && gen.cvContent && gen.clContent) {
+        gen.state = "done";
+      }
+
       // Update the textarea directly (faster than full re-render)
       const ta = document.getElementById(prefix + safe);
       if (ta) ta.value = data.content;
 
-      showToast(`${label} regenerated${data.humanized ? " + humanized" : ""}`);
+      showToast(`${label} generated${data.humanized ? " + humanized" : ""}`);
+      if (gen.state === "done") updateJobUI(reqId); // re-render to show action buttons
     } catch (err) {
       showToast(`${label} regen failed: ` + err.message, "error");
     } finally {
       clearInterval(ticker);
       if (overlay) { overlay.remove(); }
       if (btn) btn.disabled = false;
+    }
+  }
+
+  // ─── Section-level generation (Profile Summary / Tech Skills / Key Competencies) ───
+  // Much cheaper than full CV — only generates one field at a time
+  const CV_SECT_NAMES = {
+    profile_summary:   "Profile Summary",
+    technical_skills:  "Tech Skills",
+    key_competencies:  "Key Competencies"
+  };
+  const CV_SECT_HEADERS = {
+    profile_summary:   "PROFILE",
+    technical_skills:  "TECHNICAL SKILLS",
+    key_competencies:  "KEY COMPETENCIES"
+  };
+
+  async function generateSection(reqId, section) {
+    const gen = genState.generations[reqId];
+    if (!gen || !gen.jdText) { showToast("No JD text — open CV selector first", "error"); return; }
+    const safe = safeId(reqId);
+    const sel  = genState.selectors[reqId] || {};
+    const label = CV_SECT_NAMES[section] || section;
+
+    const btn = document.querySelector(`[data-gen-section="${CSS.escape(reqId)}"][data-section="${section}"]`);
+    const panelEl = document.getElementById("gqi-cv-" + safe)?.closest(".gqi-result-panel");
+    let overlay = null;
+    if (panelEl) {
+      overlay = document.createElement("div");
+      overlay.className = "regen-overlay";
+      overlay.innerHTML = `<span class="regen-overlay-content"><span class="regen-spinner">&#8635;</span><span class="regen-pct">${esc(label)}…</span></span>`;
+      panelEl.style.position = "relative";
+      panelEl.appendChild(overlay);
+    }
+    if (btn) { btn.disabled = true; btn.textContent = "…"; }
+
+    try {
+      const res = await fetch("/generate-section", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jdText: gen.jdText,
+          section,
+          pinnedWeIds:      sel.pinnedWE      || [],
+          pinnedProjectIds: sel.pinnedProjects || []
+        })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || `${label} generation failed`);
+
+      // Splice new content into the CV textarea, replacing the matching section header block
+      const ta = document.getElementById("gqi-cv-" + safe);
+      if (ta) {
+        const header  = CV_SECT_HEADERS[section];
+        let formatted = "";
+
+        if (section === "profile_summary") {
+          formatted = `${header}\n${String(data.content || "").trim()}`;
+        } else if (section === "technical_skills") {
+          const rows = Array.isArray(data.content)
+            ? data.content.map(s => `${s.category}: ${s.items}`).join("\n")
+            : String(data.content || "").trim();
+          formatted = `${header}\n${rows}`;
+        } else {
+          formatted = `${header}\n${String(data.content || "").trim()}`;
+        }
+
+        // Replace existing section or prepend
+        const next = Object.values(CV_SECT_HEADERS).filter(h => h !== header).map(h => h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+        const secRegex = new RegExp(`${header.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\n[\\s\\S]*?(?=(?:${next})\\n|$)`, "m");
+        if (secRegex.test(ta.value)) {
+          ta.value = ta.value.replace(secRegex, formatted + "\n\n");
+        } else {
+          ta.value = (ta.value ? ta.value.trimEnd() + "\n\n" : "") + formatted + "\n\n";
+        }
+        gen.cvContent = ta.value;
+      }
+
+      showToast(`${label} generated`);
+    } catch (err) {
+      showToast(`${label} failed: ` + err.message, "error");
+    } finally {
+      if (overlay) overlay.remove();
+      if (btn) { btn.disabled = false; btn.textContent = "▶ " + label.split(" ")[0] + (label.split(" ")[1] ? " " + label.split(" ")[1] : ""); }
     }
   }
 
@@ -2227,10 +2714,9 @@
   }
 
   async function exportPdfForJob(type, reqId) {
-    const gen  = genState.generations[reqId];
+    const gen  = genState.generations[reqId] || {};
     const i    = genState.queue.findIndex(j => getGenKey(j) === reqId);
     const job  = i >= 0 ? genState.queue[i] : null;
-    if (!gen) { showToast("No generation found", "error"); return; }
     const safe = safeId(reqId);
     const content = type === "cv"
       ? (document.getElementById("gqi-cv-" + safe)?.value || gen.cvContent)
@@ -2511,6 +2997,8 @@
       if (clBtn) { exportPdfForJob("cl", clBtn.dataset.genExportCl); return; }
       const regenBtn = e.target.closest("[data-gen-regen]");
       if (regenBtn) { regenDoc(regenBtn.dataset.genRegen, regenBtn.dataset.regenType); return; }
+      const sectBtn = e.target.closest("[data-gen-section]");
+      if (sectBtn) { generateSection(sectBtn.dataset.genSection, sectBtn.dataset.section); return; }
       const dachBtn = e.target.closest("[data-gen-dach]");
       if (dachBtn) { dachCheck(dachBtn.dataset.genDach); return; }
       const dachFixBtn = e.target.closest("[data-gen-dach-fix]");
@@ -2690,6 +3178,13 @@
       if (window.JobHuntHQOpenModal) { window.JobHuntHQOpenModal(); }
       else { addJobManual(); } // fallback
     });
+
+    // Task flow sidebar toggle
+    $("gen-task-side-toggle-btn")?.addEventListener("click", toggleFlowSidebarSide);
+
+    // Init sidebar side from localStorage
+    genState.flowSidebarSide = readFlowSidebarSide();
+    applyFlowSidebarSide();
 
     // Scratchpad
     initScratchpad();

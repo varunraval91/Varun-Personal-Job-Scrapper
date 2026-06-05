@@ -17,6 +17,11 @@ const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || null;
 app.use(cors(ALLOWED_ORIGIN ? { origin: ALLOWED_ORIGIN } : undefined));
 
 app.use(express.json({ limit: "5mb" }));
+// Never cache index.html — ensures version-busted JS/CSS changes reach the browser immediately
+app.get("/", (req, res) => {
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.sendFile(path.join(__dirname, "index.html"));
+});
 app.use(express.static(__dirname));
 
 // ═══════════════════════════════════════════════════════════════
@@ -85,6 +90,7 @@ const PORT = process.env.PORT || 3000;
 const BASE_ACTION_TIMEOUT_MS = 60000;
 const BASE_NAV_TIMEOUT_MS = 90000;
 const SAP_BASE_URL = "https://jobs.sap.com";
+const BASF_BASE_URL = "https://basf.jobs";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
 // ═══════════════════════════════════════════════════════════════
@@ -172,6 +178,9 @@ function detectPortalType(url) {
     if (host.includes("jobs.sap.com") || host.includes("careers.sap.com")) {
       return { type: "successfactors", company: "SAP", domain: host };
     }
+    if (host.includes("basf.jobs") || host.includes("careers.basf.com")) {
+      return { type: "successfactors", company: "BASF", domain: host };
+    }
     if (host.includes("myworkdayjobs.com") || host.includes("myworkdaysite.com") || host.includes("wd1.") || host.includes("wd2.") || host.includes("wd3.") || host.includes("wd4.") || host.includes("wd5.")) {
       return { type: "workday", company: extractCompany(host), domain: host };
     }
@@ -251,9 +260,32 @@ if (process.env.ANTHROPIC_API_KEY) {
 }
 
 let lastAICall = 0;
-const AI_MIN_GAP_MS = aiProvider === "groq" ? 2000 : aiProvider === "claude" ? 1000 : 4000;
+const AI_MIN_GAP_MS = aiProvider === "groq" ? 2000 : aiProvider === "claude" ? 1000 : 6500; // gemini-2.5-flash free = 10 RPM → 6s min gap
 
 // ═══════════════════════════════════════════════════════════════
+// SAP JOB DETAIL CACHE
+// ═══════════════════════════════════════════════════════════════
+// Caches date + location + requisitionId per job URL so we only visit
+// each detail page once. First scrape is slow; every repeat is instant.
+
+const SAP_CACHE_PATH = path.join(__dirname, "data", "sap_detail_cache.json");
+const SAP_CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
+let sapDetailCache = {};
+try {
+  if (fs.existsSync(SAP_CACHE_PATH)) {
+    sapDetailCache = JSON.parse(fs.readFileSync(SAP_CACHE_PATH, "utf-8"));
+    console.log(`[OK] SAP detail cache loaded (${Object.keys(sapDetailCache).length} entries)`);
+  }
+} catch { sapDetailCache = {}; }
+
+function saveSapDetailCache() {
+  try {
+    const tmp = SAP_CACHE_PATH + ".tmp";
+    fs.writeFileSync(tmp, JSON.stringify(sapDetailCache));
+    try { fs.renameSync(tmp, SAP_CACHE_PATH); } catch { fs.writeFileSync(SAP_CACHE_PATH, JSON.stringify(sapDetailCache)); }
+  } catch (e) { console.warn(`[!!] SAP cache save failed: ${e.message}`); }
+}
+
 // VECTOR STORE + STYLE PROFILE
 // ═══════════════════════════════════════════════════════════════
 
@@ -313,7 +345,8 @@ async function callClaude(systemPrompt, userPrompt) {
 }
 
 async function callGemini(systemPrompt, userPrompt) {
-  for (let attempt = 0; attempt <= 1; attempt++) {
+  const MAX_ATTEMPTS = 4;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     try {
       const result = await genAI.models.generateContent({
         model: GEMINI_MODEL,
@@ -323,10 +356,11 @@ async function callGemini(systemPrompt, userPrompt) {
       return result.text;
     } catch (err) {
       const is429 = err.status === 429 || err.message?.includes("429") || err.message?.includes("RESOURCE_EXHAUSTED");
-      if (!is429 || attempt === 1) throw err;
+      if (!is429 || attempt === MAX_ATTEMPTS - 1) throw err;
       const m = err.message?.match(/retry in ([\d.]+)s/i);
-      const wait = Math.min((m ? Math.ceil(parseFloat(m[1])) : 60) * 1000, 120000);
-      console.log(`Gemini 429 — waiting ${wait / 1000}s`);
+      const base = m ? Math.ceil(parseFloat(m[1])) * 1000 : 15000 * Math.pow(2, attempt);
+      const wait = Math.min(base, 120000);
+      console.log(`Gemini 429 (attempt ${attempt + 1}/${MAX_ATTEMPTS}) — waiting ${wait / 1000}s`);
       await new Promise(r => setTimeout(r, wait));
       lastAICall = Date.now();
     }
@@ -334,6 +368,10 @@ async function callGemini(systemPrompt, userPrompt) {
 }
 
 async function callAI(systemPrompt, userPrompt) {
+  // Global throttle — enforced for every call regardless of which route triggers it
+  const gap = AI_MIN_GAP_MS - (Date.now() - lastAICall);
+  if (gap > 0) await new Promise(r => setTimeout(r, gap));
+  lastAICall = Date.now();
   if (aiProvider === "claude") return callClaude(systemPrompt, userPrompt);
   if (aiProvider === "groq") return callGroq(systemPrompt, userPrompt);
   if (aiProvider === "gemini") return callGemini(systemPrompt, userPrompt);
@@ -396,8 +434,73 @@ function normalizeSapJobUrl(url) {
 }
 
 function looksLikeDate(value) {
-  if (!value || value === "N/A") return false;
-  return /[A-Za-z]{3,9}\s+\d{1,2},\s+\d{4}|\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}-\d{2}-\d{2}/.test(value);
+  return parseJobDate(value) !== null;
+}
+
+function parseJobDate(raw) {
+  if (!raw || raw === "N/A") return null;
+  let text = String(raw).trim();
+  text = text.replace(/^[Pp]osted\s*(?:on\s*)?:?\s*/i, "").replace(/^on\s+/i, "");
+  const lower = text.toLowerCase();
+  if (lower === "today" || lower === "just posted" || lower === "just now") return new Date();
+  if (lower === "yesterday") {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d;
+  }
+  let match = lower.match(/^(\d+)\s+days?\s+ago$/);
+  if (match) {
+    const d = new Date();
+    d.setDate(d.getDate() - Number(match[1]));
+    return d;
+  }
+  match = lower.match(/^(\d+)\s+hours?\s+ago$/);
+  if (match) {
+    const d = new Date();
+    d.setHours(d.getHours() - Number(match[1]));
+    return d;
+  }
+  match = lower.match(/^(\d+)\s+weeks?\s+ago$/);
+  if (match) {
+    const d = new Date();
+    d.setDate(d.getDate() - Number(match[1]) * 7);
+    return d;
+  }
+
+  // Try native parsing first.
+  let d = new Date(text);
+  if (!Number.isNaN(d.getTime())) return d;
+
+  const monthNames = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+  };
+
+  match = text.match(/^([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})$/);
+  if (match) {
+    const mo = monthNames[match[1].slice(0, 3).toLowerCase()];
+    if (mo !== undefined) return new Date(Number(match[3]), mo, Number(match[2]));
+  }
+
+  match = text.match(/^(\d{1,2})\s+([A-Za-z]{3,9}),?\s+(\d{4})$/);
+  if (match) {
+    const mo = monthNames[match[2].slice(0, 3).toLowerCase()];
+    if (mo !== undefined) return new Date(Number(match[3]), mo, Number(match[1]));
+  }
+
+  match = text.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/);
+  if (match) {
+    const part1 = Number(match[1]);
+    const part2 = Number(match[2]);
+    const year = Number(match[3]) + (match[3].length === 2 ? 2000 : 0);
+    // Assume day/month/year for European-style dates like 06.07.2024.
+    const day = part1;
+    const month = part2 - 1;
+    d = new Date(year, month, day);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+
+  return null;
 }
 
 function extractRequisitionIdFromUrl(url) {
@@ -425,7 +528,7 @@ async function dismissCookieBanner(page, portalType) {
     if (btn) try { await btn.click({ timeout: 1500 }); return; } catch {}
   }
   // Try text-based accept buttons as last resort
-  for (const txt of ["Accept All", "Accept all cookies", "Alle akzeptieren", "Akzeptieren", "Accept"]) {
+  for (const txt of ["Allow All", "Accept All", "Accept all cookies", "Alle akzeptieren", "Akzeptieren", "Accept"]) {
     try {
       const btn = await page.$(`button:has-text("${txt}")`);
       if (btn) { await btn.click({ timeout: 1500 }); return; }
@@ -501,6 +604,7 @@ async function fetchJobDetail(browser, absoluteUrl) {
       const reqValue = facilityEl?.textContent?.trim() || "N/A";
       const dateLike = Array.from(document.querySelectorAll("span,div,li,p,dd,dt,strong"))
         .map(el => (el.textContent || "").replace(/\s+/g, " ").trim())
+        .filter(text => text.length < 80)
         .find(text => /[A-Za-z]{3,9}\s+\d{1,2},\s+\d{4}|\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}-\d{2}-\d{2}/.test(text));
       return { date: dateValue !== "N/A" ? dateValue : (dateLike || "N/A"), location: locationValue, requisitionId: reqValue };
     });
@@ -515,26 +619,36 @@ async function fetchJobDetail(browser, absoluteUrl) {
 
 async function enrichJobsWithPostedDates(browser, jobs) {
   if (!jobs.length) return jobs;
-  const CONCURRENCY = 4;
+  const now = Date.now();
   const dateByUrl = new Map();
+  const urlsToFetch = [];
 
-  // Deduplicate URLs that need visiting
-  const uniqueUrls = [];
   for (const job of jobs) {
     const absoluteUrl = normalizeSapJobUrl(job.url);
+    if (dateByUrl.has(absoluteUrl)) continue;
     const urlBasedReqId = extractRequisitionIdFromUrl(absoluteUrl) || "N/A";
     const needsVisit = !looksLikeDate(job.date) || !job.location || job.location === "N/A" || job.requisitionId === urlBasedReqId;
-    if (needsVisit && !dateByUrl.has(absoluteUrl)) {
-      dateByUrl.set(absoluteUrl, null); // placeholder
-      uniqueUrls.push(absoluteUrl);
+    if (!needsVisit) continue;
+
+    const cached = sapDetailCache[absoluteUrl];
+    if (cached && (now - (cached.cachedAt || 0)) < SAP_CACHE_TTL_MS) {
+      dateByUrl.set(absoluteUrl, cached);
+    } else {
+      dateByUrl.set(absoluteUrl, null);
+      urlsToFetch.push(absoluteUrl);
     }
   }
 
-  // Fetch all detail pages with limited concurrency
-  for (let i = 0; i < uniqueUrls.length; i += CONCURRENCY) {
-    const batch = uniqueUrls.slice(i, i + CONCURRENCY);
-    const results = await Promise.all(batch.map(url => fetchJobDetail(browser, url)));
-    batch.forEach((url, idx) => dateByUrl.set(url, results[idx]));
+  if (urlsToFetch.length > 0) {
+    const cached = Object.keys(dateByUrl).length - urlsToFetch.length;
+    console.log(`[Enrichment] ${urlsToFetch.length} detail pages to fetch, ${cached} from cache`);
+    for (const url of urlsToFetch) {
+      const result = await fetchJobDetail(browser, url);
+      dateByUrl.set(url, result);
+      sapDetailCache[url] = { ...result, cachedAt: Date.now() };
+      await new Promise(r => setTimeout(r, 800));
+    }
+    saveSapDetailCache();
   }
 
   // Build enriched list
@@ -632,8 +746,8 @@ function filterByPeriod(jobs, period) {
   return jobs.filter(job => {
     const raw = job.rawDate || job.date;
     const posted = parseJobDate(raw);
-    // Exclude jobs with no parseable date when a specific period is selected
-    if (!posted) return false;
+    // Keep jobs with unknown dates — they're still valid, just missing metadata
+    if (!posted) return true;
     const days = (now - posted) / 86400000;
     if (period === "today") return days >= 0 && days < 1;
     if (period === "1week") return days >= 0 && days <= 7;
@@ -645,61 +759,189 @@ function filterByPeriod(jobs, period) {
 }
 
 async function scrapeOnePage(page, keyword, location, country, statusValue) {
-  await page.goto("https://jobs.sap.com/search/", { waitUntil: "domcontentloaded", timeout: BASE_NAV_TIMEOUT_MS });
-  // Use 'q' (keyword search) instead of 'title' (full-text) for curated, relevant results
-  await dismissCookieBanner(page, "successfactors");
-  let keywordInputName = "q";
+  // Navigate directly to the search URL — avoids fragile form interaction and
+  // allows reliable startrow-based pagination (same params as the browser URL bar shows)
+  const buildSapUrl = (startRow) => {
+    const u = new URL("https://jobs.sap.com/search/");
+    u.searchParams.set("q", keyword || "");
+    if (location) u.searchParams.set("locationsearch", location);
+    if (statusValue) u.searchParams.set("optionsFacetsDD_customfield3", statusValue);
+    if (country) u.searchParams.set("optionsFacetsDD_country", country);
+    if (startRow > 0) u.searchParams.set("startrow", String(startRow));
+    return u.toString();
+  };
+
+  const results = [];
+  const seen = new Set();
+  const rowSelector = "#searchresults tbody tr.data-row, #searchresults tbody tr, tr.data-row, .job-listing-row, .job-row";
+  const entrySelector = "a.jobTitle-link[href], .jobTitle-link[href], .jobTitle a[href], a[href]";
+  const PAGE_SIZE = 25;
+  const MAX_PAGES = 12; // safety cap: 12 × 25 = 300 jobs
+
+  for (let pageIdx = 0; pageIdx < MAX_PAGES; pageIdx++) {
+    const pageUrl = buildSapUrl(pageIdx * PAGE_SIZE);
+    await page.goto(pageUrl, { waitUntil: "domcontentloaded", timeout: BASE_NAV_TIMEOUT_MS });
+    await dismissCookieBanner(page, "successfactors");
+    await Promise.race([
+      page.waitForSelector(entrySelector, { timeout: BASE_ACTION_TIMEOUT_MS }),
+      page.waitForSelector(".no-results, .jobs-search-no-result", { timeout: BASE_ACTION_TIMEOUT_MS })
+    ]).catch(() => null);
+
+    const pageJobs = await page.evaluate(({ rowSelector, entrySelector }) => {
+      const rows = Array.from(document.querySelectorAll(rowSelector)).filter(row => row.querySelector(entrySelector));
+      const jobs = [];
+      rows.forEach(row => {
+        let link = row.querySelector(entrySelector);
+        if (!link) link = row.querySelector("a");
+        if (!link) return;
+        const url = link.href;
+        jobs.push({
+          title: link.textContent.trim(),
+          url,
+          date: row.querySelector('span[data-careersite-propertyid="date"], .job-date, .date, td.date, span.jobDate, [data-automation-id="postedOn"], [data-automation-id="jobPostingDate"], time')?.textContent?.trim() || "N/A",
+          location: row.querySelector(".colLocation .jobLocation, .jobLocation, td.location, .job-location, .location")?.textContent?.replace(/\s+/g, " ").trim() || "N/A",
+          requisitionId: (url.match(/\/(\d+)\/?$/) || [])[1] || "N/A",
+          status: "Not Started"
+        });
+      });
+      return jobs;
+    }, { rowSelector, entrySelector });
+
+    if (pageJobs.length === 0) break;
+
+    for (const job of pageJobs) {
+      const key = (job.url || "").split("?")[0].replace(/\/+$/, "");
+      if (!job.url || seen.has(key)) continue;
+      seen.add(key);
+      results.push(job);
+    }
+
+    console.log(`SAP page ${pageIdx + 1}: scraped ${pageJobs.length} jobs (total so far: ${results.length})`);
+
+    // Last page has fewer than a full page of results
+    if (pageJobs.length < PAGE_SIZE) break;
+  }
+
+  return results;
+}
+
+function getBasfCityInfo(locationValue) {
+  const map = {
+    "ludwigshafen": { city: "Ludwigshafen am Rhein", state: "Rheinland-Pfalz"       },
+    "mannheim":     { city: "Mannheim",              state: "Baden-Württemberg"      },
+    "limburgerhof": { city: "Limburgerhof",          state: "Rheinland-Pfalz"       },
+    "lampertheim":  { city: "Lampertheim",           state: "Hessen"                },
+    "frankenthal":  { city: "Frankenthal",           state: "Rheinland-Pfalz"       },
+    "freiburg":     { city: "Freiburg im Breisgau",  state: "Baden-Württemberg"     },
+    "düsseldorf":   { city: "Düsseldorf",            state: "Nordrhein-Westfalen"   },
+    "grenzach":     { city: "Grenzach-Wyhlen",       state: "Baden-Württemberg"     },
+    "münster":      { city: "Münster",               state: "Nordrhein-Westfalen"   },
+    "rudolstadt":   { city: "Rudolstadt",            state: "Thüringen"             },
+    "hannover":     { city: "Hannover",              state: "Niedersachsen"         },
+    "trostberg":    { city: "Trostberg",             state: "Bayern"                },
+    "nienburg":     { city: "Nienburg",              state: "Niedersachsen"         },
+    "berlin":       { city: "Berlin",                state: "Berlin"                },
+    "lemförde":     { city: "Lemförde",              state: "Niedersachsen"         },
+    "schwarzheide": { city: "Schwarzheide",          state: "Brandenburg"           },
+  };
+  return map[locationValue] || null;
+}
+
+// ── BASF server-side location matching ──────────────────────────
+const BASF_ALIAS_MAP = {
+  "ludwigshafen": ["ludwigshafen am rhein", "ludwigshafen a.rh.", "ludwigshafen"],
+  "mannheim":     ["mannheim"],
+  "limburgerhof": ["limburgerhof"],
+  "lampertheim":  ["lampertheim"],
+  "frankenthal":  ["frankenthal"],
+  "freiburg":     ["freiburg"],
+  "düsseldorf":   ["düsseldorf", "dusseldorf", "duesseldorf"],
+  "grenzach":     ["grenzach"],
+  "münster":      ["münster", "muenster", "munster"],
+  "rudolstadt":   ["rudolstadt"],
+  "hannover":     ["hannover", "hanover"],
+  "trostberg":    ["trostberg"],
+  "nienburg":     ["nienburg"],
+  "berlin":       ["berlin"],
+  "lemförde":     ["lemförde", "lemfoerde"],
+  "schwarzheide": ["schwarzheide"],
+};
+
+function basfLocationMatches(jobLoc, sel) {
+  if (!sel) return true;
+  const job = (jobLoc || "").toLowerCase().trim();
+  const s   = sel.toLowerCase().trim();
+  // Multi-location jobs show "+N more…" — can't filter what we can't read → include
+  if (/\+\d+\s*more/i.test(job)) return true;
+  return (BASF_ALIAS_MAP[s] || [s]).some(a => job.includes(a));
+}
+
+// ── BASF JD language detection ───────────────────────────────────
+// German function words that don't appear in English text
+const GERMAN_STOPWORDS = new Set([
+  "und","mit","für","die","der","das","wird","werden","sie","ihre","ihnen",
+  "bei","auch","ist","des","dem","einen","einer","einem","oder","nicht",
+  "sowie","als","zum","zur","wir","uns","haben","sein","im","am","nach",
+  "über","durch","einer","unsere","unser","werden","können","sind","bieten",
+  "suchen","sucht","bietet","stellen","stellt",
+]);
+
+async function detectBasfJobLanguage(browser, jobUrl) {
+  const page = await browser.newPage();
   try {
-    await page.waitForSelector('input[name="q"][type="text"]', { timeout: 8000 });
+    page.setDefaultTimeout(30000);
+    page.setDefaultNavigationTimeout(30000);
+    await page.goto(jobUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
+    const text = await page.evaluate(() => {
+      const sel = ".jobad-details, .job-description, #job-description, [class*='jobDescription'], [class*='job-detail'], main, article";
+      const el  = document.querySelector(sel);
+      return (el || document.body).innerText.slice(0, 900);
+    });
+    const words = text.toLowerCase().match(/\b[a-züäöß]{2,}\b/g) || [];
+    if (words.length < 15) return true; // too short to judge → keep
+    const germanCount = words.filter(w => GERMAN_STOPWORDS.has(w)).length;
+    const ratio = germanCount / words.length;
+    console.log(`[BASF lang] ${ratio.toFixed(2)} German ratio → ${ratio < 0.12 ? "EN" : "DE"} : ${jobUrl.split("/").slice(-2).join("/")}`);
+    return ratio < 0.12; // true = English
   } catch {
-    try {
-      await page.waitForSelector('input[name="title"]', { timeout: 8000 });
-      keywordInputName = "title";
-    } catch {
-      throw new Error("Could not find keyword search input on SAP careers page");
+    return true; // on error → keep job
+  } finally {
+    await page.close();
+  }
+}
+
+async function filterBasfByLanguage(browser, jobs, concurrency = 3) {
+  if (!jobs.length) return jobs;
+  const results = [];
+  for (let i = 0; i < jobs.length; i += concurrency) {
+    const batch = jobs.slice(i, i + concurrency);
+    const checks = await Promise.allSettled(
+      batch.map(job => detectBasfJobLanguage(browser, job.url))
+    );
+    for (let j = 0; j < batch.length; j++) {
+      const isEnglish = checks[j].status === "fulfilled" ? checks[j].value : true;
+      if (isEnglish) results.push(batch[j]);
     }
   }
-  await page.fill(`input[name="${keywordInputName}"]`, keyword || "");
-  if (location) await page.fill('input[name="locationsearch"]', location);
-  // Career status filter — try exact value first, then partial label match, then skip
-  try {
-    await page.waitForSelector("#optionsFacetsDD_customfield3", { timeout: 25000 });
-    const matched = await page.evaluate((sv) => {
-      const sel = document.querySelector("#optionsFacetsDD_customfield3");
-      if (!sel) return null;
-      const opts = Array.from(sel.options);
-      let opt = opts.find(o => o.value === sv);
-      if (!opt) opt = opts.find(o => o.value.toLowerCase() === sv.toLowerCase());
-      if (!opt) opt = opts.find(o => o.text.toLowerCase().includes(sv.toLowerCase()) || sv.toLowerCase().includes(o.text.toLowerCase().split("/")[0].trim()));
-      return opt ? opt.value : null;
-    }, statusValue);
-    if (matched) await page.selectOption("#optionsFacetsDD_customfield3", matched);
-  } catch (e) {
-    console.warn(`Career status filter unavailable: ${e.message.split("\n")[0]}`);
-  }
-  // Country filter — try exact match, skip if unavailable
-  try {
-    await page.waitForSelector("#optionsFacetsDD_country", { timeout: 10000 });
-    const countryMatched = await page.evaluate((cv) => {
-      const sel = document.querySelector("#optionsFacetsDD_country");
-      if (!sel) return null;
-      const opts = Array.from(sel.options);
-      let opt = opts.find(o => o.value === cv) || opts.find(o => o.value.toLowerCase() === cv.toLowerCase());
-      if (!opt) opt = opts.find(o => o.text.toLowerCase().includes(cv.toLowerCase()));
-      return opt ? opt.value : null;
-    }, country);
-    if (countryMatched) await page.selectOption("#optionsFacetsDD_country", countryMatched);
-  } catch (e) {
-    console.warn(`Country filter unavailable: ${e.message.split("\n")[0]}`);
-  }
-  await page.evaluate(() => { const btn = document.querySelector('input[type="submit"]'); if (btn) btn.click(); });
+  return results;
+}
+
+async function scrapeOnePageBasf(page, keyword, locationValue, _country, _statusValue, startRow = 0) {
+  const url = new URL(`${BASF_BASE_URL}/search/`);
+  url.searchParams.set("locale", "en_US");
+  url.searchParams.set("sortColumn", "referencedate");
+  url.searchParams.set("sortDirection", "desc");
+  if (startRow > 0) url.searchParams.set("startrow", String(startRow));
+  if (keyword) url.searchParams.set("keyword", keyword);
+  console.log(`[BASF] navigating to: ${url.toString()}`);
+  await page.goto(url.toString(), { waitUntil: "domcontentloaded", timeout: BASE_NAV_TIMEOUT_MS });
+  await dismissCookieBanner(page, "successfactors");
   await Promise.race([
-    page.waitForSelector("a.jobTitle-link, .jobTitle-link, .jobTitle, .jobTitle a", { timeout: BASE_ACTION_TIMEOUT_MS }),
+    page.waitForSelector("a.jobTitle-link, .jobTitle-link", { timeout: BASE_ACTION_TIMEOUT_MS }),
     page.waitForSelector(".no-results, .jobs-search-no-result", { timeout: BASE_ACTION_TIMEOUT_MS })
   ]);
   return page.evaluate(() => {
     const results = [], seen = new Set();
-    // Try multiple selectors for job rows
     const jobRows = Array.from(document.querySelectorAll("#searchresults tbody tr.data-row, #searchresults tbody tr, tr.data-row, .job-listing-row, .job-row")).filter(row => row.querySelector("a"));
     jobRows.forEach(row => {
       let link = row.querySelector("a.jobTitle-link[href], .jobTitle-link[href], .jobTitle a[href], a[href]");
@@ -708,26 +950,32 @@ async function scrapeOnePage(page, keyword, location, country, statusValue) {
       const url = link.href, key = (url || "").split("?")[0].replace(/\/+$/, "");
       if (!url || seen.has(key)) return;
       seen.add(key);
+      // BASF uses span.jobDate inside td.colDate (SAP uses td.date / data-careersite-propertyid="date")
+      const dateEl = row.querySelector('td.colDate span.jobDate, span.jobDate:not(.visible-phone), span[data-careersite-propertyid="date"], .job-date, td.date');
+      const locEl  = row.querySelector(".colLocation .jobLocation, .jobLocation, td.location");
+      if (locEl) locEl.querySelectorAll("style, script").forEach(s => s.remove());
       results.push({
         title: link.textContent.trim(), url,
-        date: row.querySelector('span[data-careersite-propertyid="date"], .job-date, .date, td.date')?.textContent?.trim() || "N/A",
-        location: (() => { const el = row.querySelector(".colLocation .jobLocation, .jobLocation, td.location"); if (el) el.querySelectorAll("style, script").forEach(s => s.remove()); return el?.textContent?.replace(/\s+/g, " ").trim() || "N/A"; })(),
+        date: dateEl?.textContent?.trim() || "N/A",
+        location: locEl?.textContent?.replace(/\s+/g, " ").trim() || "N/A",
         requisitionId: (url.match(/\/(\d+)\/?$/) || [])[1] || "N/A",
         status: "Not Started"
       });
     });
-    // Fallback: try all job links
     if (results.length === 0) {
       document.querySelectorAll("a.jobTitle-link[href], .jobTitle-link[href], .jobTitle a[href], a[href]").forEach(link => {
         const url = link.href, key = (url || "").split("?")[0].replace(/\/+$/, "");
         if (!url || seen.has(key)) return;
         seen.add(key);
         const row = link.closest("tr") || link.parentElement;
+        const dateEl = row?.querySelector('td.colDate span.jobDate, span.jobDate:not(.visible-phone), span[data-careersite-propertyid="date"], .job-date, td.date');
+        const locEl  = row?.querySelector(".colLocation .jobLocation, .jobLocation, td.location");
+        if (locEl) locEl?.querySelectorAll("style, script").forEach(s => s.remove());
         results.push({
           title: link.textContent.trim(),
           url,
-          date: row?.querySelector('span[data-careersite-propertyid="date"], .job-date, .date, td.date')?.textContent?.trim() || "N/A",
-          location: (() => { const el = row?.querySelector(".colLocation .jobLocation, .jobLocation, td.location"); if (el) el.querySelectorAll("style, script").forEach(s => s.remove()); return el?.textContent?.replace(/\s+/g, " ").trim() || "N/A"; })(),
+          date: dateEl?.textContent?.trim() || "N/A",
+          location: locEl?.textContent?.replace(/\s+/g, " ").trim() || "N/A",
           requisitionId: (url.match(/\/(\d+)\/?$/) || [])[1] || "N/A",
           status: "Not Started"
         });
@@ -743,7 +991,8 @@ async function scrapeOnePage(page, keyword, location, country, statusValue) {
 
 app.post("/scrape", async (req, res) => {
   const { keyword, location, state, city, country, careerStatus, period, portal = "sap" } = req.body;
-  if (!keyword && !location) return res.status(400).json({ success: false, error: "Enter a keyword or location." });
+  // SAP/BASF: keyword optional — location filtered client-side. Other portals need at least one.
+  if (!keyword && !location && portal !== "sap" && portal !== "basf" && portal !== "siemens") return res.status(400).json({ success: false, error: "Enter a keyword or location." });
 
   // ── SAP portal — existing optimized scraper ──
   if (portal === "sap") {
@@ -751,7 +1000,10 @@ app.post("/scrape", async (req, res) => {
     console.log(`Scraping SAP: "${keyword}" in ${location || "all"}, ${country} (${careerStatus})`);
   try {
     const browser = await getSharedBrowser();
-    const page = await browser.newPage();
+    // Fresh context per scrape — isolated cookies so SAP bot-block from one session
+    // doesn't carry into the next
+    const context = await browser.newContext();
+    const page = await context.newPage();
     page.setDefaultTimeout(BASE_ACTION_TIMEOUT_MS);
     page.setDefaultNavigationTimeout(BASE_NAV_TIMEOUT_MS);
     const allJobs = [], seenUrls = new Set();
@@ -760,10 +1012,10 @@ app.post("/scrape", async (req, res) => {
       for (const job of jobs) { const key = (job.url || "").split("?")[0].replace(/\/+$/, ""); if (!seenUrls.has(key)) { seenUrls.add(key); allJobs.push(job); } }
     } catch (err) {
       console.error(`Search failed: ${err.message}`);
-      await page.close();
+      await context.close();
       return res.status(500).json({ success: false, error: `Search failed: ${safeError(err)}` });
     }
-    await page.close();
+    await context.close();
     const jobsWithDates = await enrichJobsWithPostedDates(browser, allJobs);
     const filtered = filterByPeriod(jobsWithDates, period);
 
@@ -804,6 +1056,117 @@ app.post("/scrape", async (req, res) => {
     return res.status(500).json({ success: false, error: safeError(err) });
   }
   } // end SAP portal
+  // ── BASF portal — SuccessFactors (same platform as SAP) ──
+  else if (portal === "basf") {
+    if (!country || !careerStatus || !period) return res.status(400).json({ success: false, error: "Missing required fields." });
+    console.log(`Scraping BASF: "${keyword}" in ${location || "all"}, ${country} (${careerStatus})`);
+    try {
+      const browser = await getSharedBrowser();
+      const page = await browser.newPage();
+      page.setDefaultTimeout(BASE_ACTION_TIMEOUT_MS);
+      page.setDefaultNavigationTimeout(BASE_NAV_TIMEOUT_MS);
+      // ── Step 1: paginate all BASF pages, collect student-role titles ──
+      const allStudentJobs = [], seenUrls = new Set();
+      const STUDENT_KEYWORD_RE = /working student|internship|\bintern\b|thesis|student worker|werkstudent/i;
+      const PAGE_SIZE = 25;
+      const MAX_PAGES = 30;   // safety cap: 30 × 25 = 750 jobs max
+      try {
+        let startRow = 0, pagesScraped = 0;
+        while (pagesScraped < MAX_PAGES) {
+          const jobs = await scrapeOnePageBasf(page, keyword, location, country, careerStatus, startRow);
+          if (jobs.length === 0) break;
+          let newUrlsThisPage = 0;
+          for (const job of jobs) {
+            const key = (job.url || "").split("?")[0].replace(/\/+$/, "");
+            if (seenUrls.has(key)) continue;
+            seenUrls.add(key);
+            newUrlsThisPage++;
+            if (STUDENT_KEYWORD_RE.test(job.title)) allStudentJobs.push(job);
+          }
+          pagesScraped++;
+          if (newUrlsThisPage === 0) break;
+          if (jobs.length < PAGE_SIZE) break;
+          startRow += PAGE_SIZE;
+        }
+        console.log(`[BASF] scraped ${pagesScraped} page(s) (startrow 0–${startRow}), ${allStudentJobs.length} student titles found`);
+      } catch (err) {
+        console.error(`BASF search failed: ${err.message}`);
+        await page.close();
+        return res.status(500).json({ success: false, error: `Search failed: ${safeError(err)}` });
+      }
+      await page.close();
+
+      // ── Step 2: server-side location filter (fast, no page visits) ──
+      const locationFiltered = allStudentJobs.filter(job => basfLocationMatches(job.location, location));
+      console.log(`[BASF] ${locationFiltered.length} jobs after location filter ("${location || "all"}")`);
+
+      // ── Step 3: visit each matched job's detail page to detect language ──
+      console.log(`[BASF] checking language of ${locationFiltered.length} job descriptions (3 parallel)…`);
+      const englishJobs = await filterBasfByLanguage(browser, locationFiltered, 3);
+      console.log(`[BASF] ${englishJobs.length} English jobs after JD language check`);
+
+      // ── Step 4: normalise dates (already extracted from search list) ──
+      const jobsWithDates = englishJobs.map(job => {
+        const rawDate     = looksLikeDate(job.date) ? job.date : "N/A";
+        let   displayDate = rawDate;
+        if (rawDate !== "N/A") {
+          const d = parseJobDate(rawDate);
+          if (d) displayDate = d.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+        }
+        const cleanLocation = (job.location && job.location !== "N/A")
+          ? job.location.split(",")[0].trim()
+          : "N/A";
+        return { ...job, date: displayDate, rawDate, location: cleanLocation };
+      });
+
+      // ── Step 5: period filter ──
+      const now = new Date();
+      const filtered = period === "any" ? jobsWithDates : jobsWithDates.filter(job => {
+        const posted = parseJobDate(job.rawDate || job.date);
+        if (!posted) return true; // keep if date unknown
+        const days = (now - posted) / 86400000;
+        if (period === "today")  return days >= 0 && days < 1;
+        if (period === "1week")  return days >= 0 && days <= 7;
+        if (period === "2weeks") return days >= 0 && days <= 14;
+        if (period === "3weeks") return days >= 0 && days <= 21;
+        if (period === "1month") return days >= 0 && days <= 30;
+        return true;
+      });
+
+      const kw = String(keyword || "").trim().toLowerCase();
+      const hasKeyword = kw.length > 0;
+      if (vectorReady && retrieveContext) {
+        for (const job of filtered) {
+          try {
+            const fitQuery = [job.title, hasKeyword ? kw : "", job.location].filter(Boolean).join(" ");
+            const result = await retrieveContext(fitQuery, { topSkills: 5, topProjects: 0, topWork: 0 });
+            Object.assign(job, computeQuickMatchFromSkills(job, keyword, result.skills, { includeRecency: true }));
+          } catch {
+            job.matchScore = 0;
+            job.titleMatch = false;
+            job.topMatchedSkills = [];
+            job.matchMeta = null;
+          }
+        }
+        filtered.sort((a, b) => {
+          if (a.titleMatch !== b.titleMatch) return a.titleMatch ? -1 : 1;
+          return (b.matchScore || 0) - (a.matchScore || 0);
+        });
+      } else {
+        filtered.forEach(job => {
+          const titleLower = String(job.title || "").toLowerCase();
+          job.titleMatch = hasKeyword ? titleLower.includes(kw) : false;
+        });
+        filtered.sort((a, b) => (a.titleMatch === b.titleMatch ? 0 : a.titleMatch ? -1 : 1));
+      }
+
+      console.log(`Found ${filtered.length} jobs on BASF`);
+      return res.json({ success: true, jobs: filtered });
+    } catch (err) {
+      console.error("BASF scrape error:", err.message);
+      return res.status(500).json({ success: false, error: safeError(err) });
+    }
+  } // end BASF portal
   // ── Siemens portal — Phenom People platform ──
   else if (portal === "siemens") {
     console.log(`Scraping Siemens: "${keyword}" in ${location || "all"} (${careerStatus})`);
@@ -1684,6 +2047,15 @@ app.post("/cv-selector-data", async (req, res) => {
     const allProjects = bank.user_projects || [];
     const allCerts    = (bank.user_certifications || []).map(c => ({ id: c.cert_id, name: c.title, provider: c.provider || "", date: c.date || "" }));
 
+    // Static profile header + education for client-side draft pre-fill (no AI needed)
+    const profileInfo = bank.profile || {};
+    const educationData = (bank.education || []).map(ed => ({
+      degree: ed.degree,
+      institution: ed.institution,
+      date: ed.period || "",
+      coursework: Array.isArray(ed.key_modules) ? ed.key_modules.join(", ") : (ed.relevance || "")
+    }));
+
     // Research papers + activities for selector
     const researchPapers = (bank.research_papers || []).map(rp => ({
       id: rp.id, title: rp.title, institution: rp.institution || "",
@@ -1746,11 +2118,107 @@ app.post("/cv-selector-data", async (req, res) => {
       projects: scoredProjects,
       certifications: allCerts,
       research: allResearch,
+      profile_info: profileInfo,
+      education: educationData,
       aiPickWE: topWeIds,
       aiPickProjects: topProjectIds,
       aiPickCerts: allCerts.map(c => c.id)
     });
   } catch (err) {
+    return res.status(500).json({ success: false, error: safeError(err) });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// POST /generate-section  — Cheap per-section CV generation
+// Generates only profile_summary, technical_skills, or key_competencies
+// ═══════════════════════════════════════════════════════════════
+app.post("/generate-section", async (req, res) => {
+  if (!aiProvider) return res.status(503).json({ success: false, error: "No AI provider configured." });
+
+  const { jdText, section, pinnedWeIds, pinnedProjectIds } = req.body;
+  if (!jdText || !section) return res.status(400).json({ success: false, error: "Missing jdText or section." });
+
+  const VALID = ["profile_summary", "technical_skills", "key_competencies"];
+  if (!VALID.includes(section)) return res.status(400).json({ success: false, error: "Invalid section. Use: " + VALID.join(", ") });
+
+  const toList = (v) => {
+    if (Array.isArray(v)) return v.map(x => String(x).trim()).filter(Boolean);
+    if (typeof v === "string") return v.split(",").map(x => x.trim()).filter(Boolean);
+    return [];
+  };
+  const pinnedWEList = toList(pinnedWeIds);
+  const pinnedProjectList = toList(pinnedProjectIds);
+
+  const now = Date.now();
+  const wait = AI_MIN_GAP_MS - (now - lastAICall);
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  lastAICall = Date.now();
+
+  try {
+    let bank = skillBank || {};
+    try { bank = loadBank(); skillBank = bank; } catch (_) {}
+
+    if (!vectorReady || !retrieveContext) return res.status(503).json({ success: false, error: "Vector store not initialized." });
+
+    const ragContext = await retrieveContext(jdText, { topSkills: 10, topProjects: 2, topWork: 2 }, bank);
+
+    if (pinnedWEList.length || pinnedProjectList.length) {
+      const workById = new Map((bank.user_work_experience || []).map(w => [w.work_id, w]));
+      const projById = new Map((bank.user_projects || []).map(p => [p.project_id, p]));
+      const toWork = w => ({ id: w.work_id, document: `${w.job_title} at ${w.company} (${w.period}): ${(w.responsibilities||[]).join(" ")}`, metadata: { title: w.job_title, company: w.company, period: w.period, skills_used: w.skills_used || [] } });
+      const toProj = p => ({ id: p.project_id, document: `${p.project_name} (${p.tech}): ${p.description||""}`, metadata: { name: p.project_name, tech: p.tech } });
+      if (pinnedWEList.length) ragContext.work = pinnedWEList.map(id => workById.get(id)).filter(Boolean).map(toWork);
+      if (pinnedProjectList.length) ragContext.projects = pinnedProjectList.map(id => projById.get(id)).filter(Boolean).map(toProj);
+    }
+
+    const skillText = ragContext.skills.map(s => `${s.metadata.skill_name} (${s.metadata.level}): ${s.document}`).join("\n");
+    const workText = ragContext.work.map(w => `${w.metadata.title} at ${w.metadata.company}: ${w.document}`).join("\n\n");
+
+    let systemPrompt, userPrompt, outputKey;
+
+    if (section === "profile_summary") {
+      outputKey = "profile";
+      systemPrompt = `You are a CV writer for Varun Raval. Generate ONLY the profile summary.
+RULES: EXACTLY 2 sentences, 35-55 words total. Sentence 1: who Varun is + target role fit. Sentence 2: strongest 2 capability proofs for this specific JD.
+NEVER use clichés ("results-driven", "passionate", "proven track record", etc.).
+Return ONLY valid JSON: { "profile": "<2 sentences>" }
+
+=== VARUN'S MATCHED SKILLS ===
+${skillText}
+
+=== WORK EXPERIENCE ===
+${workText}`;
+      userPrompt = `=== JOB DESCRIPTION ===\n${jdText.slice(0, 3000)}\n\nGenerate profile JSON. Output ONLY { "profile": "..." }`;
+    } else if (section === "technical_skills") {
+      outputKey = "technical_skills";
+      systemPrompt = `You are a CV writer for Varun Raval. Generate ONLY the technical_skills section.
+Group into 4-6 categories (e.g., "SAP Ecosystem", "Development & APIs", "AI & Analytics", "Cloud & DevOps", "Tools & Platforms").
+Each category: 4-8 tools separated by semicolons. Use ONLY tools from matched skills data.
+Return ONLY valid JSON: { "technical_skills": [{ "category": "...", "items": "Tool; Tool; Tool" }] }
+
+=== VARUN'S MATCHED SKILLS ===
+${skillText}`;
+      userPrompt = `=== JOB DESCRIPTION ===\n${jdText.slice(0, 2000)}\n\nGenerate technical_skills JSON. Output ONLY { "technical_skills": [...] }`;
+    } else {
+      outputKey = "key_competencies";
+      systemPrompt = `You are a CV writer for Varun Raval. Generate ONLY the key_competencies field.
+Select 10-14 competencies that match both Varun's skills AND the JD requirements, separated by • (bullet).
+Return ONLY valid JSON: { "key_competencies": "Competency 1 • Competency 2 • ..." }
+
+=== VARUN'S MATCHED SKILLS ===
+${skillText}`;
+      userPrompt = `=== JOB DESCRIPTION ===\n${jdText.slice(0, 2000)}\n\nGenerate key_competencies JSON. Output ONLY { "key_competencies": "..." }`;
+    }
+
+    console.log(`/generate-section [${section}] via ${aiProvider}...`);
+    const raw = await callAI(systemPrompt, userPrompt);
+    const parsed = parseModelJson(raw);
+    if (!parsed || parsed[outputKey] == null) throw new Error(`AI did not return expected field: ${outputKey}`);
+
+    return res.json({ success: true, section, content: parsed[outputKey] });
+  } catch (err) {
+    console.error("generate-section error:", err.message);
     return res.status(500).json({ success: false, error: safeError(err) });
   }
 });
@@ -3476,8 +3944,12 @@ Return ONLY the rewritten text. No commentary.`;
 // START
 // ═══════════════════════════════════════════════════════════════
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
+  const { networkInterfaces } = require('os');
+  const nets = networkInterfaces();
+  const lanIp = Object.values(nets).flat().find(n => n.family === 'IPv4' && !n.internal)?.address || 'unknown';
   console.log(`\n  SAP Job Automator`);
-  console.log(`  http://localhost:${PORT}`);
+  console.log(`  Local:   http://localhost:${PORT}`);
+  console.log(`  Network: http://${lanIp}:${PORT}  ← open this on iPad`);
   console.log(`  AI: ${aiProvider || "NONE (set API key in .env)"}\n`);
 });

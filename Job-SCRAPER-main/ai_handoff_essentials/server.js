@@ -396,8 +396,7 @@ function normalizeSapJobUrl(url) {
 }
 
 function looksLikeDate(value) {
-  if (!value || value === "N/A") return false;
-  return /[A-Za-z]{3,9}\s+\d{1,2},\s+\d{4}|\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4}-\d{2}-\d{2}/.test(value);
+  return parseJobDate(value) !== null;
 }
 
 function extractRequisitionIdFromUrl(url) {
@@ -563,15 +562,65 @@ async function enrichJobsWithPostedDates(browser, jobs) {
 
 function parseJobDate(raw) {
   if (!raw || raw === "N/A") return null;
-  const d = new Date(raw);
-  if (!Number.isNaN(d.getTime())) return d;
-  // Handle abbreviated month with or without comma: "Mar 18 2026" or "Mar 18, 2026"
-  const m = raw.match(/^([A-Za-z]{3})\s+(\d{1,2}),?\s+(\d{4})$/);
-  if (m) {
-    const months = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
-    const mo = months[m[1]];
-    if (mo !== undefined) return new Date(+m[3], mo, +m[2]);
+  let text = String(raw).trim();
+  text = text.replace(/^[Pp]osted\s*(?:on\s*)?:?\s*/i, "").replace(/^on\s+/i, "");
+  const lower = text.toLowerCase();
+  if (lower === "today" || lower === "just posted" || lower === "just now") return new Date();
+  if (lower === "yesterday") {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d;
   }
+  let match = lower.match(/^(\d+)\s+days?\s+ago$/);
+  if (match) {
+    const d = new Date();
+    d.setDate(d.getDate() - Number(match[1]));
+    return d;
+  }
+  match = lower.match(/^(\d+)\s+hours?\s+ago$/);
+  if (match) {
+    const d = new Date();
+    d.setHours(d.getHours() - Number(match[1]));
+    return d;
+  }
+  match = lower.match(/^(\d+)\s+weeks?\s+ago$/);
+  if (match) {
+    const d = new Date();
+    d.setDate(d.getDate() - Number(match[1]) * 7);
+    return d;
+  }
+
+  let d = new Date(text);
+  if (!Number.isNaN(d.getTime())) return d;
+
+  const monthNames = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+  };
+
+  match = text.match(/^([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})$/);
+  if (match) {
+    const mo = monthNames[match[1].slice(0, 3).toLowerCase()];
+    if (mo !== undefined) return new Date(Number(match[3]), mo, Number(match[2]));
+  }
+
+  match = text.match(/^(\d{1,2})\s+([A-Za-z]{3,9}),?\s+(\d{4})$/);
+  if (match) {
+    const mo = monthNames[match[2].slice(0, 3).toLowerCase()];
+    if (mo !== undefined) return new Date(Number(match[3]), mo, Number(match[1]));
+  }
+
+  match = text.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/);
+  if (match) {
+    const part1 = Number(match[1]);
+    const part2 = Number(match[2]);
+    const year = Number(match[3]) + (match[3].length === 2 ? 2000 : 0);
+    const day = part1;
+    const month = part2 - 1;
+    d = new Date(year, month, day);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+
   return null;
 }
 

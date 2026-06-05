@@ -13,8 +13,74 @@
   const GOAL_KEY = "job_hunt_hq_weekly_goal";
   const THEME_KEY = "job_hunt_hq_theme";
   const THEME_EVENT = "jobhunt-theme-changed";
+  const TRACKER_VIEW_KEY = "job_hunt_hq_tracker_view";
   const STAGES = ["Wishlist", "Applied", "OA/Test", "Interview", "Rejected", "Offer"];
   const DEFAULT_COMPANY_SHORTCUTS = ["SAP", "Siemens", "DHL"];
+
+  // ═══════════════════════════════════════════════════════════════
+  // LOCATION DATA + MATCHING (SAP & BASF)
+  // ═══════════════════════════════════════════════════════════════
+  const aliasMap = {
+    "garching":     ["münchen","munich","muenchen","garching bei münchen","garching"],
+    "st. leon-rot": ["sankt leon-rot","st leon rot","saint leon-rot","st.leon-rot"],
+    "walldorf":     ["walldorf","walldorf baden"],
+    "ludwigshafen": ["ludwigshafen am rhein","ludwigshafen a.rh.","ludwigshafen"],
+    "düsseldorf":   ["düsseldorf","dusseldorf","duesseldorf"],
+    "münster":      ["münster","muenster","munster"],
+    "hannover":     ["hannover","hanover"],
+    "berlin":       ["berlin"],
+  };
+
+  function locationMatches(jobLoc, sel) {
+    if (!sel) return true;
+    const job = (jobLoc || "").toLowerCase().trim();
+    const s   = sel.toLowerCase().trim();
+    // Multi-location jobs show "+N more…" — include them since hidden locations may match
+    if (/\+\d+\s*more/i.test(job)) return true;
+    return (aliasMap[s] || [s]).some(a => job.includes(a));
+  }
+
+  const SAP_LOCATIONS = [
+    { label: "All Locations",           value: ""            },
+    { label: "Walldorf (20km · HQ)",    value: "walldorf"    },
+    { label: "St. Leon-Rot (20km)",     value: "st. leon-rot"},
+    { label: "Heidelberg (18km)",       value: "heidelberg"  },
+    { label: "Gerlingen (100km)",       value: "gerlingen"   },
+    { label: "Bonn (170km)",            value: "bonn"        },
+    { label: "Ratingen (220km)",        value: "ratingen"    },
+    { label: "Garching/Munich (330km)", value: "garching"    },
+    { label: "Berlin (483km)",          value: "berlin"      },
+    { label: "Potsdam (490km)",         value: "potsdam"     },
+    { label: "Dresden (570km)",         value: "dresden"     },
+  ];
+
+  const BASF_LOCATIONS = [
+    { label: "All Locations",                    value: ""             },
+    { label: "Mannheim (0km)",                   value: "mannheim"     },
+    { label: "Ludwigshafen am Rhein (2km · HQ)", value: "ludwigshafen" },
+    { label: "Limburgerhof (9km)",               value: "limburgerhof" },
+    { label: "Lampertheim (13km)",               value: "lampertheim"  },
+    { label: "Frankenthal (15km)",               value: "frankenthal"  },
+    { label: "Freiburg (170km)",                 value: "freiburg"     },
+    { label: "Düsseldorf (220km)",               value: "düsseldorf"   },
+    { label: "Grenzach (240km)",                 value: "grenzach"     },
+    { label: "Münster (380km)",                  value: "münster"      },
+    { label: "Rudolstadt (400km)",               value: "rudolstadt"   },
+    { label: "Hannover (430km)",                 value: "hannover"     },
+    { label: "Trostberg (450km)",                value: "trostberg"    },
+    { label: "Nienburg (460km)",                 value: "nienburg"     },
+    { label: "Berlin (485km)",                   value: "berlin"       },
+    { label: "Lemförde (490km)",                 value: "lemförde"     },
+    { label: "Schwarzheide (560km)",             value: "schwarzheide" },
+  ];
+
+  function buildLocationDropdown(portal) {
+    const sel = document.getElementById("scrape-location-dropdown");
+    if (!sel) return;
+    const locs = portal === "basf" ? BASF_LOCATIONS : SAP_LOCATIONS;
+    sel.innerHTML = locs.map(l => `<option value="${l.value}">${l.label}</option>`).join("");
+    sel._portal   = portal;
+  }
 
   // ═══════════════════════════════════════════════════════════════
   // STATE
@@ -35,7 +101,8 @@
     searchQuery: "",
     searchTokens: [],
     editingId: null,
-    theme: safeStorageGet(THEME_KEY) || "light"
+    theme: safeStorageGet(THEME_KEY) || "light",
+    currentTrackerView: safeStorageGet(TRACKER_VIEW_KEY) || "kanban"
   };
 
   const anState = {
@@ -420,6 +487,267 @@
   }
 
   // ═══════════════════════════════════════════════════════════════
+  // INTERVIEW & COMMUNICATION DATA SAVE HELPERS
+  // ═══════════════════════════════════════════════════════════════
+  async function saveInterviewRound(appId, roundData) {
+    const idx = state.applications.findIndex((a) => a.id === appId);
+    if (idx < 0) return;
+    const app = state.applications[idx];
+    const interviews = [...(app.interviews || [])];
+    interviews.push({ round: interviews.length + 1, ...roundData });
+    state.applications[idx] = { ...app, interviews, updatedAt: new Date().toISOString() };
+    await persistApplication(state.applications[idx]);
+    renderUI();
+  }
+
+  async function saveCommunication(appId, commData) {
+    const idx = state.applications.findIndex((a) => a.id === appId);
+    if (idx < 0) return;
+    const app = state.applications[idx];
+    const communications = [...(app.communications || [])];
+    communications.push(commData);
+    state.applications[idx] = { ...app, communications, updatedAt: new Date().toISOString() };
+    await persistApplication(state.applications[idx]);
+    renderUI();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // TRACKER VIEW SWITCHER
+  // ═══════════════════════════════════════════════════════════════
+  const IV_COLS = [
+    { id: "iv-invited",   label: "Invited",       hint: "Invite received, not yet scheduled" },
+    { id: "iv-scheduled", label: "Scheduled",      hint: "Date confirmed, interview upcoming" },
+    { id: "iv-completed", label: "Completed",      hint: "Interview done, awaiting decision" },
+    { id: "iv-decision",  label: "Decision Due",   hint: "Follow-up / decision pending" },
+  ];
+
+  function getInterviewRoundStatus(app) {
+    const rounds = app.interviews || [];
+    if (!rounds.length) return "iv-invited";
+    const last = rounds[rounds.length - 1];
+    if (last.outcome === "Passed") return "iv-decision";
+    if (last.outcome && last.outcome !== "Pending") return "iv-completed";
+    const hasDate = !!last.date;
+    const isPast = hasDate && new Date(last.date + "T23:59:59") < new Date();
+    if (isPast) return "iv-completed";
+    if (hasDate) return "iv-scheduled";
+    return "iv-invited";
+  }
+
+  function switchTrackerView(view) {
+    state.currentTrackerView = view;
+    safeStorageSet(TRACKER_VIEW_KEY, view);
+    document.querySelectorAll(".vsw-btn").forEach((btn) => {
+      btn.classList.toggle("vsw-btn--active", btn.dataset.tview === view);
+    });
+    const containers = { kanban: "kanban-board", interview: "interview-focus-board", list: "list-view-container", pipeline: "pipeline-view-container" };
+    Object.entries(containers).forEach(([v, id]) => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = v === view ? "" : "none";
+    });
+    renderTrackerView();
+  }
+
+  function renderTrackerView() {
+    switch (state.currentTrackerView) {
+      case "kanban":    renderKanban(); break;
+      case "interview": renderInterviewFocusView(); break;
+      case "list":      renderListView(); break;
+      case "pipeline":  renderPipelineView(); break;
+      default:          renderKanban();
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // INTERVIEW FOCUS VIEW (View 2)
+  // ═══════════════════════════════════════════════════════════════
+  function renderInterviewFocusView() {
+    const container = document.getElementById("interview-focus-board");
+    if (!container) return;
+    const interviewApps = state.applications.filter((a) => a.stage === "Interview");
+    container.innerHTML =
+      `<div class="ivf-header">
+        <span class="ivf-title">&#127919; Interview Focus</span>
+        <span class="ivf-count">${interviewApps.length} active interview${interviewApps.length !== 1 ? "s" : ""}</span>
+      </div>
+      <div class="ivf-board">
+        ${IV_COLS.map((col) => {
+          const colApps = interviewApps.filter((a) => getInterviewRoundStatus(a) === col.id);
+          return `<div class="ivf-column">
+            <div class="ivf-col-header">
+              <span class="ivf-col-title">${col.label}</span>
+              <span class="ivf-col-count">${colApps.length}</span>
+            </div>
+            <div class="ivf-col-body">
+              ${colApps.length === 0
+                ? `<div class="ivf-empty">${esc(col.hint)}</div>`
+                : colApps.map((app) => renderInterviewFocusCard(app)).join("")}
+            </div>
+          </div>`;
+        }).join("")}
+      </div>`;
+    container.querySelectorAll("[data-ivf-open]").forEach((btn) => {
+      btn.addEventListener("click", () => openAppDetailModal(btn.dataset.ivfOpen));
+    });
+  }
+
+  function renderInterviewFocusCard(app) {
+    const rounds = app.interviews || [];
+    const lastRound = rounds[rounds.length - 1] || null;
+    const roundNum = rounds.length;
+    const PLATFORM_ICONS = { Teams: "&#128187;", Zoom: "&#127909;", Phone: "&#128222;", "On-site": "&#127970;", "Google Meet": "&#128249;" };
+    const platform = lastRound?.platform || "";
+    const icon = PLATFORM_ICONS[platform] || "&#128197;";
+    const dateStr = lastRound?.date ? new Date(lastRound.date + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
+    const timeStr = lastRound?.time || "";
+    const interviewer = (lastRound?.interviewers || [])[0] || app.contactName || "";
+    const commsCount = (app.communications || []).length;
+    return `<article class="ivf-card">
+      <div class="ivf-card-head">
+        <div>
+          <p class="ivf-card-company">${esc(app.company)}</p>
+          ${roundNum > 0 ? `<span class="ivf-round-badge">R${roundNum}</span>` : ""}
+        </div>
+        <button type="button" class="ivf-open-btn" data-ivf-open="${esc(app.id)}" title="Open details">&#8599;</button>
+      </div>
+      <p class="ivf-card-role">${esc(app.role)}</p>
+      ${lastRound && dateStr ? `<div class="ivf-card-meta"><span>${icon} ${dateStr}${timeStr ? " " + timeStr : ""}</span>${platform ? `<span>${esc(platform)}</span>` : ""}</div>` : ""}
+      ${interviewer ? `<div class="ivf-card-contact">&#128100; ${esc(interviewer)}</div>` : ""}
+      ${commsCount > 0 ? `<div class="ivf-card-comms">&#9993; ${commsCount} message${commsCount > 1 ? "s" : ""}</div>` : ""}
+      <div class="ivf-card-footer">
+        <button type="button" class="btn btn-xs ivf-open-btn" data-ivf-open="${esc(app.id)}" style="background:var(--bg-surface);border:1px solid var(--border-default);color:var(--text-secondary)">&#128221; Log Update</button>
+      </div>
+    </article>`;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // LIST VIEW (View 3)
+  // ═══════════════════════════════════════════════════════════════
+  let listSortState = { col: "updatedAt", dir: "desc" };
+
+  function renderListView() {
+    const container = document.getElementById("list-view-container");
+    if (!container) return;
+    const apps = getFilteredApplications();
+    const sorted = [...apps].sort((a, b) => {
+      const dir = listSortState.dir === "asc" ? 1 : -1;
+      const va = a[listSortState.col] || "";
+      const vb = b[listSortState.col] || "";
+      return va < vb ? -dir : va > vb ? dir : 0;
+    });
+    const arrow = (col) => listSortState.col === col ? (listSortState.dir === "asc" ? " &#9650;" : " &#9660;") : "";
+    container.innerHTML =
+      `<div class="lv-wrap">
+        <table class="lv-table" role="grid">
+          <thead>
+            <tr>
+              <th class="lv-th lv-sortable" data-lvcol="company">Company${arrow("company")}</th>
+              <th class="lv-th lv-sortable" data-lvcol="role">Role${arrow("role")}</th>
+              <th class="lv-th">Stage</th>
+              <th class="lv-th lv-sortable lv-hide-sm" data-lvcol="reqId">Req ID${arrow("reqId")}</th>
+              <th class="lv-th lv-sortable" data-lvcol="updatedAt">Updated${arrow("updatedAt")}</th>
+              <th class="lv-th lv-hide-sm">Contact</th>
+              <th class="lv-th">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sorted.length === 0
+              ? `<tr><td colspan="7" class="lv-empty">No applications match the current filter</td></tr>`
+              : sorted.map((app) => {
+                  const slug = (app.stage || "").toLowerCase().replace(/[^a-z]/g, "");
+                  const updDate = app.updatedAt ? new Date(app.updatedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "—";
+                  return `<tr class="lv-row">
+                    <td class="lv-td lv-td-company">${esc(app.company)}</td>
+                    <td class="lv-td lv-td-role" title="${esc(app.role)}">${esc(app.role)}</td>
+                    <td class="lv-td">
+                      <select class="lv-stage-sel stage-pill-${slug}" data-lv-stage-id="${esc(app.id)}" title="Change stage">
+                        ${STAGES.map((s) => `<option value="${s}" ${s === app.stage ? "selected" : ""}>${s}</option>`).join("")}
+                      </select>
+                    </td>
+                    <td class="lv-td lv-hide-sm">${esc(app.reqId || "—")}</td>
+                    <td class="lv-td lv-td-date">${updDate}</td>
+                    <td class="lv-td lv-hide-sm lv-td-contact" title="${esc(app.contactName || "")}">${esc(app.contactName || "—")}</td>
+                    <td class="lv-td lv-td-actions">
+                      <button type="button" class="btn btn-xs" data-lv-detail="${esc(app.id)}" title="View details">&#8599;</button>
+                      <button type="button" class="btn btn-xs" data-lv-edit="${esc(app.id)}" title="Edit">&#9998;</button>
+                    </td>
+                  </tr>`;
+                }).join("")}
+          </tbody>
+        </table>
+        <div class="lv-footer">${sorted.length} application${sorted.length !== 1 ? "s" : ""}</div>
+      </div>`;
+    container.querySelectorAll("[data-lvcol]").forEach((th) => {
+      th.addEventListener("click", () => {
+        const col = th.dataset.lvcol;
+        if (listSortState.col === col) listSortState.dir = listSortState.dir === "asc" ? "desc" : "asc";
+        else { listSortState.col = col; listSortState.dir = "asc"; }
+        renderListView();
+      });
+    });
+    container.querySelectorAll("[data-lv-stage-id]").forEach((sel) => {
+      sel.addEventListener("change", () => moveApplicationToStage(sel.dataset.lvStageId, sel.value));
+    });
+    container.querySelectorAll("[data-lv-detail]").forEach((btn) => {
+      btn.addEventListener("click", () => openAppDetailModal(btn.dataset.lvDetail));
+    });
+    container.querySelectorAll("[data-lv-edit]").forEach((btn) => {
+      btn.addEventListener("click", () => openModal(btn.dataset.lvEdit));
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // PIPELINE VIEW (View 4)
+  // ═══════════════════════════════════════════════════════════════
+  const PIPELINE_STAGES = ["Wishlist", "Applied", "OA/Test", "Interview", "Offer"];
+
+  function renderPipelineView() {
+    const container = document.getElementById("pipeline-view-container");
+    if (!container) return;
+    const apps = getFilteredApplications();
+    container.innerHTML =
+      `<div class="pv-wrap">
+        <div class="pv-header-row">
+          <div class="pv-job-label">Job</div>
+          ${PIPELINE_STAGES.map((s) => `<div class="pv-stage-label">${s}</div>`).join("")}
+          <div class="pv-stage-label" style="color:var(--accent-secondary)">Rejected</div>
+        </div>
+        ${apps.length === 0
+          ? `<div class="pv-empty">No applications match the current filter</div>`
+          : apps.map((app) => {
+              const isRejected = app.stage === "Rejected";
+              const isOffer = app.stage === "Offer";
+              const currentIdx = PIPELINE_STAGES.indexOf(app.stage);
+              const dots = PIPELINE_STAGES.map((s, i) => {
+                let cls = "pv-dot pv-dot-empty";
+                if (isOffer) { cls = i <= 4 ? "pv-dot pv-dot-reached" : "pv-dot pv-dot-empty"; if (i === 4) cls = "pv-dot pv-dot-offer"; }
+                else if (isRejected && currentIdx >= 0 && i <= currentIdx) cls = "pv-dot pv-dot-reached";
+                else if (!isRejected && !isOffer && i < currentIdx) cls = "pv-dot pv-dot-reached";
+                else if (!isRejected && !isOffer && i === currentIdx) cls = "pv-dot pv-dot-active";
+                return `<div class="pv-stage-cell"><span class="${cls}" title="${esc(s)}"></span></div>`;
+              }).join("");
+              const rejDot = isRejected
+                ? `<div class="pv-stage-cell"><span class="pv-dot pv-dot-terminated" title="Rejected"></span></div>`
+                : `<div class="pv-stage-cell"><span class="pv-dot pv-dot-empty" title="Not rejected"></span></div>`;
+              const updDate = app.updatedAt ? new Date(app.updatedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "";
+              return `<div class="pv-row">
+                <div class="pv-job-cell">
+                  <button type="button" class="pv-job-btn" data-pv-detail="${esc(app.id)}" title="${esc(app.company)} — ${esc(app.role)}">
+                    <span class="pv-job-company">${esc(app.company)}</span>
+                    <span class="pv-job-role">${esc(app.role)}</span>
+                    ${updDate ? `<span class="pv-job-date">${updDate}</span>` : ""}
+                  </button>
+                </div>
+                ${dots}${rejDot}
+              </div>`;
+            }).join("")}
+      </div>`;
+    container.querySelectorAll("[data-pv-detail]").forEach((btn) => {
+      btn.addEventListener("click", () => openAppDetailModal(btn.dataset.pvDetail));
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // STATS
   // ═══════════════════════════════════════════════════════════════
   function renderStats() {
@@ -787,6 +1115,90 @@
       html += `<div class="app-detail-skills"><span class="app-detail-skills-lbl">Matched Skills</span>${app.topMatchedSkills.slice(0, 6).map((s) => `<span class="scrape-skill-tag">${esc(s)}</span>`).join("")}</div>`;
     }
     html += analysisHtml;
+
+    // ── Focus / Spotlight sections: Interview Rounds + Communications ──
+    const interviews = app.interviews || [];
+    const comms = app.communications || [];
+
+    const roundsHtml = interviews.length === 0
+      ? `<div class="adm-empty-hint">No rounds logged yet</div>`
+      : interviews.map((r, i) => {
+          const outcomeCls = `adm-outcome-${(r.outcome || "pending").toLowerCase().replace(/\s+/g, "")}`;
+          return `<div class="adm-round">
+            <span class="adm-round-num">R${i + 1}</span>
+            <div style="flex:1">
+              <div class="adm-round-info">
+                ${r.date ? `<span>&#128197; ${esc(r.date)}${r.time ? " " + esc(r.time) : ""}</span>` : ""}
+                ${r.platform ? `<span>&#128187; ${esc(r.platform)}</span>` : ""}
+                ${(r.interviewers || []).length ? `<span>&#128100; ${esc(r.interviewers.join(", "))}</span>` : ""}
+                ${r.type ? `<span>${esc(r.type)}</span>` : ""}
+                <span class="adm-round-outcome ${outcomeCls}">${esc(r.outcome || "Pending")}</span>
+              </div>
+              ${r.myNotes ? `<div class="adm-round-notes">${esc(r.myNotes)}</div>` : ""}
+            </div>
+          </div>`;
+        }).join("");
+
+    const commsHtml = comms.length === 0
+      ? `<div class="adm-empty-hint">No communications logged yet</div>`
+      : [...comms].sort((a, b) => (a.date || "") > (b.date || "") ? -1 : 1).map((c) =>
+          `<div class="adm-comm">
+            <span class="adm-comm-dir">${c.direction === "Sent" ? "&#128228;" : "&#128229;"}</span>
+            <div style="flex:1">
+              <div><span class="adm-comm-date">${esc(c.date || "")}</span> <span class="adm-comm-from">${esc(c.from || "")}</span></div>
+              ${c.subject ? `<div class="adm-comm-subject">${esc(c.subject)}</div>` : ""}
+              ${c.summary ? `<div class="adm-comm-summary">${esc(c.summary)}</div>` : ""}
+            </div>
+          </div>`).join("");
+
+    html += `
+    <div class="adm-section">
+      <div class="adm-section-hdr">
+        <h3 class="adm-section-title">Interview Rounds <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">${interviews.length} logged</span></h3>
+        <button type="button" class="btn btn-xs" id="adm-add-round-btn">+ Add Round</button>
+      </div>
+      <div class="adm-section-body" id="adm-rounds-body">${roundsHtml}</div>
+      <div id="adm-round-form" style="display:none" class="adm-inline-form-panel">
+        <div class="adm-inline-form">
+          <div class="adm-inline-form-grid">
+            <div><label>Date</label><input type="date" id="adm-rf-date" class="modal-input" style="font-size:var(--text-xs);padding:5px 8px"/></div>
+            <div><label>Time</label><input type="time" id="adm-rf-time" class="modal-input" style="font-size:var(--text-xs);padding:5px 8px"/></div>
+            <div><label>Platform</label><select id="adm-rf-platform" class="modal-input" style="font-size:var(--text-xs);padding:5px 8px"><option>Teams</option><option>Zoom</option><option>Phone</option><option>On-site</option><option>Google Meet</option><option>Other</option></select></div>
+            <div><label>Type</label><select id="adm-rf-type" class="modal-input" style="font-size:var(--text-xs);padding:5px 8px"><option>HR Screen</option><option>Technical</option><option>Case Study</option><option>Manager</option><option>Final Round</option></select></div>
+            <div><label>Interviewer(s)</label><input type="text" id="adm-rf-interviewers" class="modal-input" placeholder="Name(s), comma separated" style="font-size:var(--text-xs);padding:5px 8px"/></div>
+            <div><label>Outcome</label><select id="adm-rf-outcome" class="modal-input" style="font-size:var(--text-xs);padding:5px 8px"><option>Pending</option><option>Passed</option><option>Rejected</option><option>No Response</option></select></div>
+          </div>
+          <div><label>Notes</label><textarea id="adm-rf-notes" rows="2" class="modal-input" placeholder="How did it go?" style="font-size:var(--text-xs);padding:5px 8px;width:100%;box-sizing:border-box;resize:vertical"></textarea></div>
+          <div class="adm-inline-form-actions">
+            <button type="button" class="btn" id="adm-rf-cancel">Cancel</button>
+            <button type="button" class="btn btn-primary" id="adm-rf-save">Save Round</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="adm-section" style="margin-bottom:6px">
+      <div class="adm-section-hdr">
+        <h3 class="adm-section-title">Communications <span style="font-size:10px;font-weight:400;color:var(--text-muted);text-transform:none">${comms.length} logged</span></h3>
+        <button type="button" class="btn btn-xs" id="adm-add-comm-btn">+ Log Email</button>
+      </div>
+      <div class="adm-section-body" id="adm-comms-body">${commsHtml}</div>
+      <div id="adm-comm-form" style="display:none" class="adm-inline-form-panel">
+        <div class="adm-inline-form">
+          <div class="adm-inline-form-grid">
+            <div><label>Date</label><input type="date" id="adm-cf-date" class="modal-input" style="font-size:var(--text-xs);padding:5px 8px"/></div>
+            <div><label>Direction</label><select id="adm-cf-dir" class="modal-input" style="font-size:var(--text-xs);padding:5px 8px"><option>Received</option><option>Sent</option></select></div>
+            <div><label>From / To</label><input type="text" id="adm-cf-from" class="modal-input" placeholder="Person name" style="font-size:var(--text-xs);padding:5px 8px"/></div>
+            <div><label>Subject</label><input type="text" id="adm-cf-subject" class="modal-input" placeholder="Email subject" style="font-size:var(--text-xs);padding:5px 8px"/></div>
+          </div>
+          <div><label>Summary</label><textarea id="adm-cf-summary" rows="2" class="modal-input" placeholder="Brief summary of the email" style="font-size:var(--text-xs);padding:5px 8px;width:100%;box-sizing:border-box;resize:vertical"></textarea></div>
+          <div class="adm-inline-form-actions">
+            <button type="button" class="btn" id="adm-cf-cancel">Cancel</button>
+            <button type="button" class="btn btn-primary" id="adm-cf-save">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
     html += `<div class="modal-actions app-detail-actions adm-footer-actions">`;
     html += `<button type="button" class="btn" id="app-det-edit">✎ Edit</button>`;
     html += `<select class="modal-input app-detail-stage-sel" id="app-det-stage" title="Move to stage">${STAGES.map((s) => `<option value="${s}" ${s === app.stage ? "selected" : ""}>${s}</option>`).join("")}</select>`;
@@ -802,6 +1214,45 @@
     $("app-det-edit")?.addEventListener("click", () => { closeModal(); openModal(id); });
     $("app-det-stage")?.addEventListener("change", (e) => { moveApplicationToStage(id, e.target.value); closeModal(); });
     $("app-det-delete")?.addEventListener("click", () => { if (confirm(`Delete "${app.company} — ${app.role}"?`)) { deleteApplicationById(id); closeModal(); } });
+
+    // Interview round form
+    $("adm-add-round-btn")?.addEventListener("click", () => {
+      const form = $("adm-round-form");
+      if (form) form.style.display = form.style.display === "none" ? "" : "none";
+    });
+    $("adm-rf-cancel")?.addEventListener("click", () => { if ($("adm-round-form")) $("adm-round-form").style.display = "none"; });
+    $("adm-rf-save")?.addEventListener("click", async () => {
+      const roundData = {
+        date: $("adm-rf-date")?.value || "",
+        time: $("adm-rf-time")?.value || "",
+        platform: $("adm-rf-platform")?.value || "",
+        type: $("adm-rf-type")?.value || "",
+        interviewers: ($("adm-rf-interviewers")?.value || "").split(",").map((s) => s.trim()).filter(Boolean),
+        outcome: $("adm-rf-outcome")?.value || "Pending",
+        myNotes: $("adm-rf-notes")?.value?.trim() || ""
+      };
+      await saveInterviewRound(id, roundData);
+      openAppDetailModal(id);
+    });
+
+    // Communication form
+    $("adm-add-comm-btn")?.addEventListener("click", () => {
+      const form = $("adm-comm-form");
+      if (form) form.style.display = form.style.display === "none" ? "" : "none";
+    });
+    $("adm-cf-cancel")?.addEventListener("click", () => { if ($("adm-comm-form")) $("adm-comm-form").style.display = "none"; });
+    $("adm-cf-save")?.addEventListener("click", async () => {
+      const commData = {
+        date: $("adm-cf-date")?.value || new Date().toISOString().slice(0, 10),
+        direction: $("adm-cf-dir")?.value || "Received",
+        from: $("adm-cf-from")?.value?.trim() || "",
+        subject: $("adm-cf-subject")?.value?.trim() || "",
+        summary: $("adm-cf-summary")?.value?.trim() || ""
+      };
+      await saveCommunication(id, commData);
+      openAppDetailModal(id);
+    });
+
     $("app-det-analyze")?.addEventListener("click", () => {
       closeModal();
       const job = {
@@ -914,6 +1365,8 @@
       state.applications[idx] = { ...existing, ...payload };
     } else {
       payload.createdAt = new Date().toISOString();
+      payload.interviews = [];
+      payload.communications = [];
       state.applications.unshift(payload);
       // Auto-add to generation queue for fit analysis if app has a link
       if (payload.link && window.GenerateModule?.addToQueue) {
@@ -1268,9 +1721,17 @@
   // SEARCH VIEW (SCRAPING)
   // ═══════════════════════════════════════════════════════════════
   async function handleScrapeSearch() {
-    const keyword = DOM.scrapeKeyword?.value?.trim() || "";
-    const location = DOM.scrapeLocation?.value?.trim() || "";
-    if (!keyword && !location) { showToast("Enter a keyword or location", "error"); return; }
+    const portal   = DOM.scrapePortal?.value || "sap";
+    const keyword  = DOM.scrapeKeyword?.value?.trim() || "";
+    const isSapBasf = portal === "sap" || portal === "basf";
+    let location = "";
+    if (isSapBasf) {
+      const ddEl = document.getElementById("scrape-location-dropdown");
+      location = ddEl?.value || "";
+    } else {
+      location = DOM.scrapeLocation?.value?.trim() || "";
+    }
+    if (!isSapBasf && !keyword && !location) { showToast("Enter a keyword or location", "error"); return; }
     const period = DOM.scrapePeriod?.value || "1week";
     const careerStatus = DOM.scrapeCareerStatus?.value || "Student";
     const country = DOM.scrapeCountry?.value || "DE";
@@ -1316,7 +1777,7 @@
       const res = await fetch("/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyword, location, state, city, period, careerStatus, country, portal: DOM.scrapePortal?.value || "sap" })
+        body: JSON.stringify({ keyword, location, state, city, period, careerStatus, country, portal })
       });
       if (!res.ok) {
         let errMsg = `Server error (${res.status})`;
@@ -1329,8 +1790,7 @@
           renderScrapeResults();
           showToast(`Found ${scrapeState.jobs.length} jobs`);
           // Warn if keyword doesn't seem related to the selected portal
-          const selectedPortal = DOM.scrapePortal?.value || "sap";
-          if (selectedPortal === "sap") {
+          if (portal === "sap") {
             const sapKws = ["sap","btp","hana","fiori","s/4","abap","cloud","analytics","erp","concur","ariba","successfactors","signavio","hybris","commerce","datasphere","joule"];
             const kwLower = keyword.toLowerCase();
             if (!sapKws.some(k => kwLower.includes(k)) && scrapeState.jobs.length > 0) {
@@ -1361,11 +1821,15 @@
 
   function renderScrapeResults() {
     if (!DOM.scrapeResultsBody) return;
-    if (DOM.scrapeResultCount) DOM.scrapeResultCount.textContent = `${scrapeState.jobs.length} jobs`;
     if (!scrapeState.jobs.length) {
+      if (DOM.scrapeResultCount) DOM.scrapeResultCount.textContent = "0 jobs";
       DOM.scrapeResultsBody.innerHTML = `<tr><td colspan="7" class="auto-empty">No jobs found. Adjust filters and try again.</td></tr>`;
       return;
     }
+    // Apply post-scrape location filter for SAP/BASF
+    const _portal    = DOM.scrapePortal?.value || "sap";
+    const _locSelEl  = document.getElementById("scrape-location-dropdown");
+    const _locVal    = (_portal === "sap" || _portal === "basf") ? (_locSelEl?.value || "") : "";
     const scrapeSortSel = document.getElementById("scrape-sort-select");
     const scrapeSortVal = scrapeSortSel ? scrapeSortSel.value : "match";
     const postedSortBtn = document.getElementById("scrape-posted-sort-btn");
@@ -1380,7 +1844,14 @@
           : "Sort by posted date";
     }
     const parseRawDate = (r) => { if (!r || r === "N/A") return 0; const d = new Date(r); return isNaN(d) ? 0 : d.getTime(); };
-    const displayJobs = [...scrapeState.jobs].map((job, i) => ({ job, i }));
+    let displayJobs = scrapeState.jobs.map((job, i) => ({ job, i }));
+    if (_locVal) displayJobs = displayJobs.filter(({ job }) => locationMatches(job.location, _locVal));
+    if (DOM.scrapeResultCount) DOM.scrapeResultCount.textContent = `${displayJobs.length} jobs`;
+    if (!displayJobs.length) {
+      const locLabel = _locSelEl?.options[_locSelEl.selectedIndex]?.text || _locVal;
+      DOM.scrapeResultsBody.innerHTML = `<tr><td colspan="7" class="auto-empty">No jobs match "${locLabel}". Try a different location or "All Locations".</td></tr>`;
+      return;
+    }
     if (scrapeSortVal === "date-desc") displayJobs.sort((a, b) => parseRawDate(b.job.rawDate) - parseRawDate(a.job.rawDate));
     else if (scrapeSortVal === "date-asc") displayJobs.sort((a, b) => parseRawDate(a.job.rawDate) - parseRawDate(b.job.rawDate));
     DOM.scrapeResultsBody.innerHTML = displayJobs.map(({ job, i }) => {
@@ -1570,7 +2041,17 @@
   function renderUI() {
     renderStats();
     renderFilterUI();
-    renderKanban();
+    // sync view switcher button states
+    document.querySelectorAll(".vsw-btn").forEach((btn) => {
+      btn.classList.toggle("vsw-btn--active", btn.dataset.tview === state.currentTrackerView);
+    });
+    // ensure correct container is visible
+    const containers = { kanban: "kanban-board", interview: "interview-focus-board", list: "list-view-container", pipeline: "pipeline-view-container" };
+    Object.entries(containers).forEach(([v, id]) => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = v === state.currentTrackerView ? "" : "none";
+    });
+    renderTrackerView();
     renderGoal();
     if (anState.initialized) an_applyFilters();
   }
@@ -1630,6 +2111,11 @@
     });
     DOM.analyticsBtn?.addEventListener("click", () => switchView("analytics"));
 
+    // Tracker view switcher
+    document.querySelectorAll(".vsw-btn").forEach((btn) => {
+      btn.addEventListener("click", () => switchTrackerView(btn.dataset.tview));
+    });
+
     // Theme
     DOM.themeToggle?.addEventListener("click", toggleTheme);
     $("auth-theme-toggle")?.addEventListener("click", toggleTheme);
@@ -1688,7 +2174,12 @@
 
     // Search view — Enter key triggers search
     function updateSearchBtnState() {
-      const kw = DOM.scrapeKeyword?.value?.trim() || "";
+      const portal = DOM.scrapePortal?.value || "sap";
+      if (portal === "sap" || portal === "basf") {
+        if (DOM.scrapeSearchBtn) DOM.scrapeSearchBtn.disabled = false;
+        return;
+      }
+      const kw  = DOM.scrapeKeyword?.value?.trim() || "";
       const loc = DOM.scrapeLocation?.value?.trim() || "";
       if (DOM.scrapeSearchBtn) DOM.scrapeSearchBtn.disabled = !kw && !loc;
     }
@@ -1752,17 +2243,26 @@
 
     // Show/hide Siemens-specific state+city filters when portal changes
     function syncPortalFilters() {
-      const portal = DOM.scrapePortal?.value || "sap";
-      const isSiemens = portal === "siemens";
-      const stateRow = document.getElementById("filter-state");
-      const cityRow  = document.getElementById("filter-city");
-      const locRow   = document.getElementById("filter-location");
+      const portal     = DOM.scrapePortal?.value || "sap";
+      const isSiemens  = portal === "siemens";
+      const isSapBasf  = portal === "sap" || portal === "basf";
+      const stateRow   = document.getElementById("filter-state");
+      const cityRow    = document.getElementById("filter-city");
+      const locRow     = document.getElementById("filter-location");
       if (stateRow) stateRow.style.display = isSiemens ? "" : "none";
       if (cityRow)  cityRow.style.display  = isSiemens ? "" : "none";
       if (locRow)   locRow.style.display   = isSiemens ? "none" : "";
+      // Toggle text input vs dropdown for SAP/BASF
+      const locInput  = document.getElementById("scrape-location");
+      const locDdWrap = document.getElementById("scrape-location-dropdown-wrap");
+      if (locInput)  locInput.style.display  = isSapBasf ? "none" : "";
+      if (locDdWrap) locDdWrap.style.display = isSapBasf ? "" : "none";
+      if (isSapBasf) buildLocationDropdown(portal);
     }
-    DOM.scrapePortal?.addEventListener("change", syncPortalFilters);
+    DOM.scrapePortal?.addEventListener("change", () => { syncPortalFilters(); updateSearchBtnState(); renderScrapeResults(); });
     syncPortalFilters(); // run once on load
+
+    document.getElementById("scrape-location-dropdown")?.addEventListener("change", () => { updateSearchBtnState(); renderScrapeResults(); });
     DOM.addToTrackerBtn?.addEventListener("click", addSelectedToTracker);
     DOM.goGenerateBtn?.addEventListener("click", () => {
       if (!scrapeState.selected.size) { showToast("Select at least one job", "error"); return; }
@@ -1821,7 +2321,7 @@
     setAuthUser: (user) => { updateAccountStatusUI(user); },
     addTrackerApplication: async (appData) => {
       const id = appData.id || `app_${Date.now()}`;
-      const app = { id, company: appData.company || "", role: appData.role || "", link: appData.link || "", location: appData.location || "", reqId: appData.reqId || "", postingDate: "", stage: appData.stage || "Wishlist", deadline: "", contactType: "", contactName: "", notes: appData.notes || "", createdAt: new Date().toISOString() };
+      const app = { id, company: appData.company || "", role: appData.role || "", link: appData.link || "", location: appData.location || "", reqId: appData.reqId || "", postingDate: "", stage: appData.stage || "Wishlist", deadline: "", contactType: "", contactName: "", notes: appData.notes || "", interviews: [], communications: [], createdAt: new Date().toISOString() };
       state.applications.push(app);
       await persistApplication(app);
       renderUI();
