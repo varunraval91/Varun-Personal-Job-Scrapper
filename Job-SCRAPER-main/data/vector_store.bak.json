@@ -1,0 +1,2019 @@
+{
+  "skill_chunks": {
+    "metadata": {},
+    "items": {
+      "SK001": {
+        "id": "SK001",
+        "document": "SAP BTP Built CAP Node.js OData V4 service on BTP. Configured API routing, environment setup, and OData wrappers. M.Sc. coursework module. SAP_Technical Intermediate AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Intermediate",
+          "skill_name": "SAP BTP",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK002": {
+        "id": "SK002",
+        "document": "SAP HANA Cloud Designed SALES1000 and INVENTORY tables in HANA Cloud. Built four Calculation Views with JOIN, aggregation, YoY logic, and stock coverage. SAP_Technical Intermediate SAC – End-to-End Sales Analytics Product SAP Analytics Cloud",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Intermediate",
+          "skill_name": "SAP HANA Cloud",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK003": {
+        "id": "SK003",
+        "document": "ABAP (RAP, CDS, AMDP) Completed 3-month ABAP training at IGROWSOFT (Mar-Jun 2025) under ABAP Consultant. Built custom applications using OOP in Eclipse ADT. SAP_Technical Intermediate",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Intermediate",
+          "skill_name": "ABAP (RAP, CDS, AMDP)",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK004": {
+        "id": "SK004",
+        "document": "SAP UI5 / Fiori Built full Fiori 2.0 HR/Salary management app with MVC architecture and OData from S/4HANA. Authored Fiori UX working paper. SAP_Technical Advanced SAP UI5 – Salary & HR Management and Data Visualization SAP UI5, JavaScript & Fiori Elements",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Advanced",
+          "skill_name": "SAP UI5 / Fiori",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK005": {
+        "id": "SK005",
+        "document": "OData / REST APIs Built and consumed OData V4 endpoints via CAP Node.js and SAP UI5 apps. Created full ingestion-to-visualization pipeline on BTP. SAP_Technical Intermediate SAP UI5 – Salary & HR Management and Data Visualization SAP UI5, JavaScript & Fiori Elements AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Intermediate",
+          "skill_name": "OData / REST APIs",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK006": {
+        "id": "SK006",
+        "document": "SAP Analytics Cloud (SAC) Built four-page SAC analytics product on 1,000+ records. Designed RISE-style pipeline connecting HANA Cloud to SAC via live connection. SAP_Technical Advanced SAC – End-to-End Sales Analytics Product SAP Analytics Cloud",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Advanced",
+          "skill_name": "SAP Analytics Cloud (SAC)",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK007": {
+        "id": "SK007",
+        "document": "SAP Signavio Building profile toward process transformation context for analytics. Combining data-driven thinking with process context for enterprise decisions. SAP_Technical Beginner",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Beginner",
+          "skill_name": "SAP Signavio",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK008": {
+        "id": "SK008",
+        "document": "SAP Datasphere Building skills in data integration, cleaning, cataloging, and semantic layer construction for enterprise-ready data management lifecycle. SAP_Technical Beginner",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Beginner",
+          "skill_name": "SAP Datasphere",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK009": {
+        "id": "SK009",
+        "document": "SAP Data Intelligence Developing pipeline-oriented mindset for data integration and automation. Building toward repeatable, monitored data pipelines on SAP. SAP_Technical Beginner",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Beginner",
+          "skill_name": "SAP Data Intelligence",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK010": {
+        "id": "SK010",
+        "document": "SAP S/4HANA Authored 17-page ECC-to-S/4HANA migration paper with three case studies. Deep understanding of brownfield, greenfield, and bluefield strategies. SAP_Technical Intermediate",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Intermediate",
+          "skill_name": "SAP S/4HANA",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK011": {
+        "id": "SK011",
+        "document": "SAP Business Application Studio Used BAS and Web IDE as primary development environments for BTP and UI5 application development projects. SAP_Technical Intermediate SAP UI5 – Salary & HR Management and Data Visualization SAP UI5, JavaScript & Fiori Elements",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Intermediate",
+          "skill_name": "SAP Business Application Studio",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK012": {
+        "id": "SK012",
+        "document": "SAP Joule / Business AI Participated in SAP Joule AI integration events. Conducted guided user interviews with SAP customers under SAP UX team. SAP_Technical Beginner",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Beginner",
+          "skill_name": "SAP Joule / Business AI",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK013": {
+        "id": "SK013",
+        "document": "SAP VMS Operates SAP VMS infrastructure for multi-camera live streaming at IX Studio. Manages input routing, signal monitoring, and scene switching. SAP_Technical Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Advanced",
+          "skill_name": "SAP VMS",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK014": {
+        "id": "SK014",
+        "document": "SAP SuccessFactors Designed interactive templates and presentation assets for SAP SuccessFactors during Non-Commercial Licensing role at SAP Walldorf. SAP_Technical Beginner Digital Assets Curator and Communication Expert SAP — Non-Commercial Licensing",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Beginner",
+          "skill_name": "SAP SuccessFactors",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK015": {
+        "id": "SK015",
+        "document": "SAP ERP Modules (FI/CO/MM/SD/HR) Covered in M.Sc. coursework on Integrated Business Processes in SAP S/4HANA. Listed across multiple CV versions. SAP_Technical Beginner",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Beginner",
+          "skill_name": "SAP ERP Modules (FI/CO/MM/SD/HR)",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK016": {
+        "id": "SK016",
+        "document": "SAP Integration Suite / Apache Camel Growing interest in integration patterns including routing, transformation, and error handling within SAP BTP cloud-native context. SAP_Technical Beginner",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Beginner",
+          "skill_name": "SAP Integration Suite / Apache Camel",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK017": {
+        "id": "SK017",
+        "document": "RISE with SAP / Intelligent Enterprise Analyzed RISE commercial model in S/4HANA migration paper. Referenced across CVs linking BTP, S/4HANA, and Intelligent Enterprise vision. SAP_Technical Intermediate",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Intermediate",
+          "skill_name": "RISE with SAP / Intelligent Enterprise",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK018": {
+        "id": "SK018",
+        "document": "SAP CAP (Cloud Application Programming) Built CAP Node.js OData V4 services exposing HANA Cloud data to SAC via live connection in RISE-style retail analytics pipeline on BTP. SAP_Technical Intermediate AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Intermediate",
+          "skill_name": "SAP CAP (Cloud Application Programming)",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK019": {
+        "id": "SK019",
+        "document": "JavaScript (ES6+) Built full-stack job automator and Kanban tracker app in Vanilla JS. SAP UI5 apps with ES6+ features, Firebase integration, and Chart.js analytics. Engineering_Dev Advanced SAP UI5 – Salary & HR Management and Data Visualization SAP UI5, JavaScript & Fiori Elements AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Advanced",
+          "skill_name": "JavaScript (ES6+)",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK020": {
+        "id": "SK020",
+        "document": "TypeScript Applied TypeScript in SAP UI5/Fiori applications and Angular-based AI-assisted UI prototype. Listed in recent technical CVs. Engineering_Dev Intermediate SAP UI5 – Salary & HR Management and Data Visualization SAP UI5, JavaScript & Fiori Elements",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Intermediate",
+          "skill_name": "TypeScript",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK021": {
+        "id": "SK021",
+        "document": "Node.js Developed Node.js services for job scraping, RAG assembly, CV generation, and PDF export. Built CAP Node.js services on BTP. Engineering_Dev Intermediate AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Intermediate",
+          "skill_name": "Node.js",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK022": {
+        "id": "SK022",
+        "document": "Express.js Implemented Express API routes for scraping, JD summary, skill-bank query, CV generation, and cover-letter export workflows. Engineering_Dev Intermediate AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Intermediate",
+          "skill_name": "Express.js",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK023": {
+        "id": "SK023",
+        "document": "Python Built automated ETL pipeline with Pandas reducing manual prep by 80%. Type detection, missing values, dedup, and KPI recalculation. Engineering_Dev Intermediate Retail Sales Data Cleaning Automation Pipeline Python, Jupyter Notebook, Pandas",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Intermediate",
+          "skill_name": "Python",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK024": {
+        "id": "SK024",
+        "document": "SQL Used SQL for SAP HANA Cloud data modeling, Calculation Views with aggregation and JOIN logic, and query optimization. Engineering_Dev Intermediate SAC – End-to-End Sales Analytics Product SAP Analytics Cloud",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Intermediate",
+          "skill_name": "SQL",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK025": {
+        "id": "SK025",
+        "document": "HTML5 / CSS3 Built frontend interfaces for job application automator. Used in SAP UI5 framework development and responsive web layouts. Engineering_Dev Intermediate SAP UI5 – Salary & HR Management and Data Visualization SAP UI5, JavaScript & Fiori Elements AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Intermediate",
+          "skill_name": "HTML5 / CSS3",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK026": {
+        "id": "SK026",
+        "document": "Java Strengthening Java fundamentals including OOP, collections, exceptions, and basic testing for cloud-ready services on SAP BTP. Engineering_Dev Beginner",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Beginner",
+          "skill_name": "Java",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK027": {
+        "id": "SK027",
+        "document": "Angular Building Angular-based AI prototype UI with components, services, reactive forms, and basic routing on SAP BTP. Engineering_Dev Beginner AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Beginner",
+          "skill_name": "Angular",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK028": {
+        "id": "SK028",
+        "document": "React Contributed to frontend implementation of Untold app at Digi Tech Yard using React alongside Angular and Node.js workflows. Engineering_Dev Beginner UX/UI Designer & Researcher Digi Tech Yard",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Beginner",
+          "skill_name": "React",
+          "phase": "Design",
+          "type": "tool"
+        }
+      },
+      "SK029": {
+        "id": "SK029",
+        "document": "Git / GitHub Active GitHub profile (ravalvarun-SAP). Uses feature branching and pull requests for UI5 projects and job automator app. Engineering_Dev Intermediate SAP UI5 – Salary & HR Management and Data Visualization SAP UI5, JavaScript & Fiori Elements AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Intermediate",
+          "skill_name": "Git / GitHub",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK030": {
+        "id": "SK030",
+        "document": "Playwright Used Playwright to automate SAP career-site scraping with filters, pagination handling, and detail-page extraction for structured data. Engineering_Dev Intermediate AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Intermediate",
+          "skill_name": "Playwright",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK031": {
+        "id": "SK031",
+        "document": "Retrieval-Augmented Generation (RAG) Designed local RAG pipeline matching job descriptions with relevant skills, projects, and work evidence for CV generation. Engineering_Dev Intermediate AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Intermediate",
+          "skill_name": "Retrieval-Augmented Generation (RAG)",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK032": {
+        "id": "SK032",
+        "document": "LLM Integration / Prompt Workflows Developing LangChain/LangGraph-style orchestration flows separating prompt templates, tools, and response handling for maintainable AI-assisted UI prototypes. Engineering_Dev Intermediate AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Intermediate",
+          "skill_name": "LLM Integration / Prompt Workflows",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK033": {
+        "id": "SK033",
+        "document": "VS Code Primary development environment for BTP, Node.js, Python, and web development projects throughout M.Sc. and professional work. Engineering_Dev Advanced Retail Sales Data Cleaning Automation Pipeline Python, Jupyter Notebook, Pandas SAP UI5 – Salary & HR Management and Data Visualization SAP UI5, JavaScript & Fiori Elements AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Advanced",
+          "skill_name": "VS Code",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK034": {
+        "id": "SK034",
+        "document": "Eclipse ADT Used Eclipse ADT for ABAP development during S/4HANA ABAP/CA training. Built cloud-ready applications with RAP and CDS. Engineering_Dev Intermediate",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Intermediate",
+          "skill_name": "Eclipse ADT",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK035": {
+        "id": "SK035",
+        "document": "GitHub Actions / CI-CD Awareness Basic awareness of GitHub Actions and build pipelines referenced in DevOps tooling sections of technical CVs for BTP context. Engineering_Dev Beginner AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Beginner",
+          "skill_name": "GitHub Actions / CI-CD Awareness",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK036": {
+        "id": "SK036",
+        "document": "ETL Pipeline Design Built Python/Pandas ETL pipeline achieving 80% time reduction. Automated type checks, missing value handling, dedup, and KPI recalculation. Data_Analytics Intermediate Retail Sales Data Cleaning Automation Pipeline Python, Jupyter Notebook, Pandas",
+        "metadata": {
+          "category": "Data_Analytics",
+          "level": "Intermediate",
+          "skill_name": "ETL Pipeline Design",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK037": {
+        "id": "SK037",
+        "document": "Data Modeling (HANA) Designed HANA Cloud table structures and four Calculation Views with JOIN, aggregation, and YoY time-series logic for analytics. Data_Analytics Intermediate SAC – End-to-End Sales Analytics Product SAP Analytics Cloud",
+        "metadata": {
+          "category": "Data_Analytics",
+          "level": "Intermediate",
+          "skill_name": "Data Modeling (HANA)",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK038": {
+        "id": "SK038",
+        "document": "BI Dashboards / Executive Analytics Built four-page SAC product with executive KPIs, profitability drilldowns, and forecasting across 1,000+ records, 14 dimensions, and 7 regions. Data_Analytics Advanced SAC – End-to-End Sales Analytics Product SAP Analytics Cloud",
+        "metadata": {
+          "category": "Data_Analytics",
+          "level": "Advanced",
+          "skill_name": "BI Dashboards / Executive Analytics",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK039": {
+        "id": "SK039",
+        "document": "Exploratory Data Analysis (EDA) Applied EDA in retail sales data cleaning pipeline and SAC analytics project. Listed as key competency across technical CVs. Data_Analytics Intermediate SAC – End-to-End Sales Analytics Product SAP Analytics Cloud Retail Sales Data Cleaning Automation Pipeline Python, Jupyter Notebook, Pandas",
+        "metadata": {
+          "category": "Data_Analytics",
+          "level": "Intermediate",
+          "skill_name": "Exploratory Data Analysis (EDA)",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK040": {
+        "id": "SK040",
+        "document": "TF-IDF / Cosine Similarity Retrieval Built lightweight retrieval engine using TF-IDF and cosine similarity to rank skill and experience relevance against job descriptions. Data_Analytics Intermediate AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "Data_Analytics",
+          "level": "Intermediate",
+          "skill_name": "TF-IDF / Cosine Similarity Retrieval",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK041": {
+        "id": "SK041",
+        "document": "MS Excel Advanced use of pivot tables, formulas, conditional formatting, complex data tables, and basic macros/VBA for data analysis workflows. Data_Analytics Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio Digital Assets Curator and Communication Expert SAP — Non-Commercial Licensing Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Data_Analytics",
+          "level": "Advanced",
+          "skill_name": "MS Excel",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK042": {
+        "id": "SK042",
+        "document": "Power BI / Tableau Listed as supporting data visualization tools across multiple CV versions alongside SAP Analytics Cloud as primary BI platform. Data_Analytics Beginner",
+        "metadata": {
+          "category": "Data_Analytics",
+          "level": "Beginner",
+          "skill_name": "Power BI / Tableau",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK043": {
+        "id": "SK043",
+        "document": "Data Profiling / Quality Checks Profiled 14 dimensional fields across 7 regions ensuring 100% data completeness and zero-error reporting in SAC analytics product. Data_Analytics Intermediate SAC – End-to-End Sales Analytics Product SAP Analytics Cloud",
+        "metadata": {
+          "category": "Data_Analytics",
+          "level": "Intermediate",
+          "skill_name": "Data Profiling / Quality Checks",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK044": {
+        "id": "SK044",
+        "document": "Figma Primary prototyping tool for 10+ years. Designed Tiltification (published app), Hello Doctor, Reel World, and Family Management UX apps. Design_UX Advanced Reel World – Smartphone App to Book Movie Tickets Figma, UX Research Family Management – Smartphone App for Early Cure Figma, UX Research",
+        "metadata": {
+          "category": "Design_UX",
+          "level": "Advanced",
+          "skill_name": "Figma",
+          "phase": "Design",
+          "type": "tool"
+        }
+      },
+      "SK045": {
+        "id": "SK045",
+        "document": "UX Research / User Interviews Full UX process: contextual enquiry, competitive analysis, personas, task flows, IA, wireframes, prototyping for Hello Doctor and Joule AI research. Design_UX Advanced UX/UI Designer & Researcher Digi Tech Yard",
+        "metadata": {
+          "category": "Design_UX",
+          "level": "Advanced",
+          "skill_name": "UX Research / User Interviews",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK046": {
+        "id": "SK046",
+        "document": "Fiori UX Design Principles Authored 4,200-word Fiori 2.0 working paper analyzing five design principles with quantified business impact. Built UI5 apps applying these principles. Design_UX Advanced SAP UI5 – Salary & HR Management and Data Visualization SAP UI5, JavaScript & Fiori Elements",
+        "metadata": {
+          "category": "Design_UX",
+          "level": "Advanced",
+          "skill_name": "Fiori UX Design Principles",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK047": {
+        "id": "SK047",
+        "document": "Visual Communication / Brand Design M.Des Communication Design. Certified in Branding Foundations and Advanced Branding via LinkedIn Learning. Brand assets across three SAP roles. Design_UX Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio Digital Assets Curator and Communication Expert SAP — Non-Commercial Licensing",
+        "metadata": {
+          "category": "Design_UX",
+          "level": "Advanced",
+          "skill_name": "Visual Communication / Brand Design",
+          "phase": "Design",
+          "type": "skill"
+        }
+      },
+      "SK048": {
+        "id": "SK048",
+        "document": "Adobe XD Used for wireframing, UI design, and interactive prototyping at Digi Tech Yard. Created UX-informed templates at SAP roles. Design_UX Intermediate UX/UI Designer & Researcher Digi Tech Yard",
+        "metadata": {
+          "category": "Design_UX",
+          "level": "Intermediate",
+          "skill_name": "Adobe XD",
+          "phase": "Design",
+          "type": "tool"
+        }
+      },
+      "SK049": {
+        "id": "SK049",
+        "document": "Sketch / InVision Used for screen design, interactive prototypes, and stakeholder reviews during UX work at Digi Tech Yard on Untold app. Design_UX Intermediate UX/UI Designer & Researcher Digi Tech Yard",
+        "metadata": {
+          "category": "Design_UX",
+          "level": "Intermediate",
+          "skill_name": "Sketch / InVision",
+          "phase": "Design",
+          "type": "tool"
+        }
+      },
+      "SK050": {
+        "id": "SK050",
+        "document": "Axure RP Listed in UX software stack for conditional logic prototyping and developer-ready specs alongside Figma and Sketch. Design_UX Intermediate UX/UI Designer & Researcher Digi Tech Yard",
+        "metadata": {
+          "category": "Design_UX",
+          "level": "Intermediate",
+          "skill_name": "Axure RP",
+          "phase": "Design",
+          "type": "tool"
+        }
+      },
+      "SK051": {
+        "id": "SK051",
+        "document": "Canva Created on-brand marketing collateral, event promotion graphics, and LinkedIn campaign assets at SAP Demand Management and NCL roles. Design_UX Intermediate Digital Assets Curator and Communication Expert SAP — Non-Commercial Licensing Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Design_UX",
+          "level": "Intermediate",
+          "skill_name": "Canva",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK052": {
+        "id": "SK052",
+        "document": "Interaction Design / Information Architecture Built information architecture, mind maps, task flows, and wireframes for Hello Doctor healthcare app and Untold mobile app at Digi Tech Yard. Design_UX Intermediate UX/UI Designer & Researcher Digi Tech Yard",
+        "metadata": {
+          "category": "Design_UX",
+          "level": "Intermediate",
+          "skill_name": "Interaction Design / Information Architecture",
+          "phase": "Design",
+          "type": "skill"
+        }
+      },
+      "SK053": {
+        "id": "SK053",
+        "document": "Presentation Design / Executive Communication Core deliverable across all SAP roles producing executive presentations, newsletters, and C-suite visual assets at IX Studio. Design_UX Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio Digital Assets Curator and Communication Expert SAP — Non-Commercial Licensing Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Design_UX",
+          "level": "Advanced",
+          "skill_name": "Presentation Design / Executive Communication",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK054": {
+        "id": "SK054",
+        "document": "Accessibility / Inclusive Design Incorporated inclusive design principles in visual content and instructional design to ensure accessibility for diverse audiences. Design_UX Intermediate Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App",
+        "metadata": {
+          "category": "Design_UX",
+          "level": "Intermediate",
+          "skill_name": "Accessibility / Inclusive Design",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK055": {
+        "id": "SK055",
+        "document": "Graphic Design for Learning Materials Applied M.Des typography, visual hierarchy, and layout expertise to create educational graphics, diagrams, and icons at SAP and Byju's. Design_UX Advanced Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App",
+        "metadata": {
+          "category": "Design_UX",
+          "level": "Advanced",
+          "skill_name": "Graphic Design for Learning Materials",
+          "phase": "Design",
+          "type": "skill"
+        }
+      },
+      "SK056": {
+        "id": "SK056",
+        "document": "DaVinci Resolve Built reusable DaVinci Resolve templates for SAP CONNECT 2024. Professional editing and color grading for MEIKO and Voestalpine client films. Creative_Media Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio Digital Assets Curator and Communication Expert SAP — Non-Commercial Licensing",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Advanced",
+          "skill_name": "DaVinci Resolve",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK057": {
+        "id": "SK057",
+        "document": "Adobe Premiere Pro Professional NLE editing tool used across 12+ years of video production for films, commercials, corporate, and educational content. Creative_Media Advanced Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App Visual Designer & Video Producer The Glitch Media Pvt. Ltd. Assistant Director / Video Producer / Content Creator BYJU'S / Natak Entertainment / Elcom International Independent Producer / Freelance Films, Documentaries, Corporate & Promotional Videos",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Advanced",
+          "skill_name": "Adobe Premiere Pro",
+          "phase": "Creative_Production",
+          "type": "tool"
+        }
+      },
+      "SK058": {
+        "id": "SK058",
+        "document": "Adobe After Effects Professional motion graphics and VFX tool. Created 2D animation, kinetic typography, compositing, and visual effects across multiple roles. Creative_Media Advanced Video Producer & Communication Expert SAP — Services Sales MEE (DemGen) Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Advanced",
+          "skill_name": "Adobe After Effects",
+          "phase": "Creative_Production",
+          "type": "tool"
+        }
+      },
+      "SK059": {
+        "id": "SK059",
+        "document": "Adobe Photoshop Professional use for graphic design, photo retouching, and digital asset creation across design, media, and SAP communication roles. Creative_Media Advanced Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App Visual Designer & Video Producer The Glitch Media Pvt. Ltd.",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Advanced",
+          "skill_name": "Adobe Photoshop",
+          "phase": "Creative_Production",
+          "type": "tool"
+        }
+      },
+      "SK060": {
+        "id": "SK060",
+        "document": "Adobe Illustrator Created vector illustrations, logo designs, character art, and brand identity assets. Portfolio shows detailed geometric animal artwork in Illustrator. Creative_Media Advanced Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Advanced",
+          "skill_name": "Adobe Illustrator",
+          "phase": "Creative_Production",
+          "type": "tool"
+        }
+      },
+      "SK061": {
+        "id": "SK061",
+        "document": "Adobe Audition Used for multi-track audio mixing, voiceover recording, and sound design across 42+ film and video production projects. Creative_Media Intermediate Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App Assistant Director / Video Producer / Content Creator BYJU'S / Natak Entertainment / Elcom International",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Intermediate",
+          "skill_name": "Adobe Audition",
+          "phase": "Creative_Production",
+          "type": "tool"
+        }
+      },
+      "SK062": {
+        "id": "SK062",
+        "document": "Final Cut Pro Core NLE tool during M.Des film studies and early production career. Used for timeline editing, color adjustments, and audio syncing. Creative_Media Intermediate Visual Designer & Video Producer The Glitch Media Pvt. Ltd. Assistant Director / Video Producer / Content Creator BYJU'S / Natak Entertainment / Elcom International Independent Producer / Freelance Films, Documentaries, Corporate & Promotional Videos",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Intermediate",
+          "skill_name": "Final Cut Pro",
+          "phase": "Creative_Production",
+          "type": "tool"
+        }
+      },
+      "SK063": {
+        "id": "SK063",
+        "document": "Camtasia Used for screen recording, tutorial videos, and corporate enablement content at SAP IX Studio and Byju's e-learning roles. Creative_Media Intermediate Live Streaming Engineer & Video Production Specialist SAP — IX Studio Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Intermediate",
+          "skill_name": "Camtasia",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK064": {
+        "id": "SK064",
+        "document": "VFX / Motion Graphics Created motion graphics for SAP S/4HANA, Business AI, Clean Core, and Integration Suite video series. Green screen compositing for campaigns. Creative_Media Advanced Video Producer & Communication Expert SAP — Services Sales MEE (DemGen) Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Advanced",
+          "skill_name": "VFX / Motion Graphics",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK065": {
+        "id": "SK065",
+        "document": "Color Grading Professional color grading in DaVinci Resolve for MEIKO and Voestalpine SAP client promotional films and 12+ years of production work. Creative_Media Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio Assistant Director / Video Producer / Content Creator BYJU'S / Natak Entertainment / Elcom International",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Advanced",
+          "skill_name": "Color Grading",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK066": {
+        "id": "SK066",
+        "document": "2D Animation Produced 2D animation and VFX content at Byju's Disney collaboration. Used After Effects for frame animation and kinetic typography. Creative_Media Intermediate Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Intermediate",
+          "skill_name": "2D Animation",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK067": {
+        "id": "SK067",
+        "document": "Blender / Substance 3D Used for 3D modeling, product visualization, and rendering scenes for videos and social media at Orange Sellers marketplace projects. Creative_Media Beginner Video Production Specialist — Amazon Marketplace Orange Sellers",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Beginner",
+          "skill_name": "Blender / Substance 3D",
+          "phase": "Creative_Production",
+          "type": "tool"
+        }
+      },
+      "SK068": {
+        "id": "SK068",
+        "document": "Marvelous Designer / CLO3D / SketchUp / Rhino / Twinmotion Listed under 2D/3D Design tools in CV. Used for product visualization, fashion simulation, and architectural rendering exploration. Creative_Media Beginner Video Production Specialist — Amazon Marketplace Orange Sellers",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Beginner",
+          "skill_name": "Marvelous Designer / CLO3D / SketchUp / Rhino / Twinmotion",
+          "phase": "Creative_Production",
+          "type": "tool"
+        }
+      },
+      "SK069": {
+        "id": "SK069",
+        "document": "Cinematography / Camera Operation Shot SAP client films for MEIKO and Voestalpine on location. Operated cameras across 42+ film projects at MIT Institute of Design. Creative_Media Advanced Video Producer & Communication Expert SAP — Services Sales MEE (DemGen) Video Producer & Photographer — Musical Events Klangpol Assistant Director / Video Producer / Content Creator BYJU'S / Natak Entertainment / Elcom International",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Advanced",
+          "skill_name": "Cinematography / Camera Operation",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK070": {
+        "id": "SK070",
+        "document": "Audio Engineering / Sound Design Manages audio for up to 12 microphones at SAP IX Studio hybrid events. Multi-track mixing and voiceover recording across career. Creative_Media Intermediate Live Streaming Engineer & Video Production Specialist SAP — IX Studio",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Intermediate",
+          "skill_name": "Audio Engineering / Sound Design",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK071": {
+        "id": "SK071",
+        "document": "Photography Event photographer at SAP BTP Hackathon Prague 2024. Created LinkedIn social cards and edited photos in Lightroom for immediate distribution. Creative_Media Intermediate Video Producer & Communication Expert SAP — Services Sales MEE (DemGen) Video Producer & Photographer — Musical Events Klangpol",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Intermediate",
+          "skill_name": "Photography",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK072": {
+        "id": "SK072",
+        "document": "Live Streaming / Multi-Camera Production Manages end-to-end live production at IX Studio with 5-camera systems, stream decks, 12-foot LED screen, and audio panel for hybrid events. Creative_Media Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Advanced",
+          "skill_name": "Live Streaming / Multi-Camera Production",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK073": {
+        "id": "SK073",
+        "document": "Storyboarding Used in video pre-production across 12+ years, UX wireframing at Digi Tech Yard, and instructional design at Byju's. Creative_Media Advanced Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App UX/UI Designer & Researcher Digi Tech Yard Visual Designer & Video Producer The Glitch Media Pvt. Ltd.",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Advanced",
+          "skill_name": "Storyboarding",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK074": {
+        "id": "SK074",
+        "document": "VR Photography / 360° Video Certified in VR Photography and Video via LinkedIn Learning. Produced VR documentaries and 360-degree content for hospitality and tourism sectors. Creative_Media Intermediate Independent Producer / Freelance Films, Documentaries, Corporate & Promotional Videos",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Intermediate",
+          "skill_name": "VR Photography / 360° Video",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK075": {
+        "id": "SK075",
+        "document": "Unreal Engine Integrates real-time rendering into hybrid event workflows at SAP IX Studio for immersive backgrounds and dynamic overlays. Creative_Media Beginner Live Streaming Engineer & Video Production Specialist SAP — IX Studio",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Beginner",
+          "skill_name": "Unreal Engine",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK076": {
+        "id": "SK076",
+        "document": "Synthesia AI Produced AI avatar-based video content for internal enablement and communication campaigns at SAP IX Studio and NCL unit. Creative_Media Intermediate Live Streaming Engineer & Video Production Specialist SAP — IX Studio Digital Assets Curator and Communication Expert SAP — Non-Commercial Licensing",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Intermediate",
+          "skill_name": "Synthesia AI",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK077": {
+        "id": "SK077",
+        "document": "Vyond / Powtoon Used for animated explainer and e-learning videos at Byju's. Listed under E-Learning Tools alongside Articulate Storyline 360. Creative_Media Intermediate Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Intermediate",
+          "skill_name": "Vyond / Powtoon",
+          "phase": "Creative_Production",
+          "type": "tool"
+        }
+      },
+      "SK078": {
+        "id": "SK078",
+        "document": "Food / Fashion / FMCG Product Shoots Led product shoots for FMCG, fashion, food, and lifestyle brands across advertising agencies, Orange Sellers, and freelance work. Creative_Media Advanced Video Production Specialist — Amazon Marketplace Orange Sellers Visual Designer & Video Producer The Glitch Media Pvt. Ltd. Independent Producer / Freelance Films, Documentaries, Corporate & Promotional Videos",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Advanced",
+          "skill_name": "Food / Fashion / FMCG Product Shoots",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK079": {
+        "id": "SK079",
+        "document": "MS Office Suite / SharePoint Professional use across all three SAP Walldorf roles for documentation, collaboration, and stakeholder communication workflows. Tools_Platforms Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio Digital Assets Curator and Communication Expert SAP — Non-Commercial Licensing Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Tools_Platforms",
+          "level": "Advanced",
+          "skill_name": "MS Office Suite / SharePoint",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK080": {
+        "id": "SK080",
+        "document": "MS PowerPoint Created advanced presentations with custom animations, data visualizations, and interactive elements for SAP executive audiences. Tools_Platforms Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio Digital Assets Curator and Communication Expert SAP — Non-Commercial Licensing",
+        "metadata": {
+          "category": "Tools_Platforms",
+          "level": "Advanced",
+          "skill_name": "MS PowerPoint",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK081": {
+        "id": "SK081",
+        "document": "Jira Used Jira in Agile sprints at SAP Services Sales MEE to track tasks, unblock work, and maintain delivery transparency. Tools_Platforms Intermediate Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Tools_Platforms",
+          "level": "Intermediate",
+          "skill_name": "Jira",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK082": {
+        "id": "SK082",
+        "document": "Miro Supported remote workshops, user journey mapping, and ideation sessions for defining flows and information architecture in UX projects. Tools_Platforms Intermediate UX/UI Designer & Researcher Digi Tech Yard",
+        "metadata": {
+          "category": "Tools_Platforms",
+          "level": "Intermediate",
+          "skill_name": "Miro",
+          "phase": "Design",
+          "type": "tool"
+        }
+      },
+      "SK083": {
+        "id": "SK083",
+        "document": "Mural Used for virtual brainstorming, mood boarding, content mapping, and sprint planning with international SAP teams across MEE region. Tools_Platforms Intermediate Live Streaming Engineer & Video Production Specialist SAP — IX Studio Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Tools_Platforms",
+          "level": "Intermediate",
+          "skill_name": "Mural",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK084": {
+        "id": "SK084",
+        "document": "HubSpot Tracked campaign performance and managed partner communication during Content and Communication Expert role at SAP Services Sales MEE. Tools_Platforms Intermediate Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Tools_Platforms",
+          "level": "Intermediate",
+          "skill_name": "HubSpot",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK085": {
+        "id": "SK085",
+        "document": "LinkedIn Maintained professional presence with 500+ connections. Shared industry insights and created campaign assets for SAP LinkedIn initiatives. Tools_Platforms Intermediate Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Tools_Platforms",
+          "level": "Intermediate",
+          "skill_name": "LinkedIn",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK086": {
+        "id": "SK086",
+        "document": "CMS Platforms (WordPress / Shopify / Wix / Webflow / TYPO3) Used CMS platforms for page creation, content updates, and SEO-friendly layouts in corporate and freelance web publishing projects. Tools_Platforms Intermediate Independent Producer / Freelance Films, Documentaries, Corporate & Promotional Videos",
+        "metadata": {
+          "category": "Tools_Platforms",
+          "level": "Intermediate",
+          "skill_name": "CMS Platforms (WordPress / Shopify / Wix / Webflow / TYPO3)",
+          "phase": "Creative_Production",
+          "type": "tool"
+        }
+      },
+      "SK087": {
+        "id": "SK087",
+        "document": "Generative AI Tools (Midjourney / DALL-E / Firefly / DeepSeek) Certified in Generative AI (LinkedIn Learning 2023). Used Midjourney, DALL-E, Firefly, and DeepSeek for visual concept ideation at SAP roles. Tools_Platforms Intermediate Live Streaming Engineer & Video Production Specialist SAP — IX Studio Digital Assets Curator and Communication Expert SAP — Non-Commercial Licensing",
+        "metadata": {
+          "category": "Tools_Platforms",
+          "level": "Intermediate",
+          "skill_name": "Generative AI Tools (Midjourney / DALL-E / Firefly / DeepSeek)",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK088": {
+        "id": "SK088",
+        "document": "Blackmagic Decoders / Stream Decks Operates Blackmagic decoders and stream decks for multi-camera live streaming setups at SAP IX Studio hybrid events. Tools_Platforms Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio",
+        "metadata": {
+          "category": "Tools_Platforms",
+          "level": "Advanced",
+          "skill_name": "Blackmagic Decoders / Stream Decks",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK089": {
+        "id": "SK089",
+        "document": "Jupyter Notebook Used Jupyter Notebook for Python ETL pipeline development, data cleaning automation, and exploratory data analysis workflows. Tools_Platforms Intermediate Retail Sales Data Cleaning Automation Pipeline Python, Jupyter Notebook, Pandas",
+        "metadata": {
+          "category": "Tools_Platforms",
+          "level": "Intermediate",
+          "skill_name": "Jupyter Notebook",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK090": {
+        "id": "SK090",
+        "document": "Chrome DevTools Used for frontend debugging, performance inspection, and DOM manipulation during SAP UI5 and web development projects. Tools_Platforms Intermediate SAP UI5 – Salary & HR Management and Data Visualization SAP UI5, JavaScript & Fiori Elements",
+        "metadata": {
+          "category": "Tools_Platforms",
+          "level": "Intermediate",
+          "skill_name": "Chrome DevTools",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK091": {
+        "id": "SK091",
+        "document": "Agile / Scrum / Kanban Worked in Agile sprints using Jira at SAP Services Sales MEE. Tracked tasks, sprint planning, and delivery transparency. Domain_Professional Intermediate Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Agile / Scrum / Kanban",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK092": {
+        "id": "SK092",
+        "document": "Cross-Functional Communication Bridged technical and business stakeholders across three SAP departments. MEE region communication with global and regional teams. Domain_Professional Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio Digital Assets Curator and Communication Expert SAP — Non-Commercial Licensing Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Advanced",
+          "skill_name": "Cross-Functional Communication",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK093": {
+        "id": "SK093",
+        "document": "Stakeholder Communication Delivered client-facing transformation advisory at SAP. Synthesized user research findings into structured documentation for stakeholders. Domain_Professional Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Advanced",
+          "skill_name": "Stakeholder Communication",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK094": {
+        "id": "SK094",
+        "document": "Academic Writing / Research Authored two comprehensive working papers with 15+ references each on Fiori UX and S/4HANA migration using case study methodology. Domain_Professional Advanced",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Advanced",
+          "skill_name": "Academic Writing / Research",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK095": {
+        "id": "SK095",
+        "document": "Business Process Analysis / Optimization Analyzed ERP migration processes in working paper. Applied process transformation context at SAP Transformation Advisory Center. Domain_Professional Intermediate Live Streaming Engineer & Video Production Specialist SAP — IX Studio",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Business Process Analysis / Optimization",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK096": {
+        "id": "SK096",
+        "document": "Technical Documentation Produced user research documentation, working papers, project reports, and structured analysis across academic and SAP professional work. Domain_Professional Advanced",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Advanced",
+          "skill_name": "Technical Documentation",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK097": {
+        "id": "SK097",
+        "document": "ERP Migration Strategy Authored 17-page paper covering brownfield, greenfield, and bluefield strategies with Henkel, Airbus, and Haribo case studies. Domain_Professional Intermediate",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "ERP Migration Strategy",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK098": {
+        "id": "SK098",
+        "document": "Content Production Management Led end-to-end production for MEIKO and Voestalpine SAP client films. Managed six content categories including SAP video series across departments. Domain_Professional Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio Digital Assets Curator and Communication Expert SAP — Non-Commercial Licensing Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Advanced",
+          "skill_name": "Content Production Management",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK099": {
+        "id": "SK099",
+        "document": "Instructional Design / Learning Experience Applied M.Des information architecture and visual storytelling to structured educational content at Byju's and SAP working papers. Domain_Professional Intermediate Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Instructional Design / Learning Experience",
+          "phase": "Design",
+          "type": "skill"
+        }
+      },
+      "SK100": {
+        "id": "SK100",
+        "document": "Technical Content Translation Translated SAP technical offerings into client-accessible communication at Services Sales MEE and Transformation Advisory Center. Domain_Professional Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Advanced",
+          "skill_name": "Technical Content Translation",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK101": {
+        "id": "SK101",
+        "document": "Customer Research / Insights Conducted user interviews at SAP events on Joule AI. Synthesized customer pain points and qualitative insights for stakeholders. Domain_Professional Intermediate",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Customer Research / Insights",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK102": {
+        "id": "SK102",
+        "document": "Design Thinking Core methodology from M.Des Communication Design at MIT Institute of Design 2015-2018. Applied at Digi Tech Yard for UX research. Domain_Professional Intermediate UX/UI Designer & Researcher Digi Tech Yard",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Design Thinking",
+          "phase": "Design",
+          "type": "skill"
+        }
+      },
+      "SK103": {
+        "id": "SK103",
+        "document": "Change Management Central finding in S/4HANA migration paper: governance discipline determines outcomes. Referenced ADKAR and Prosci frameworks. Domain_Professional Intermediate",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Change Management",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK104": {
+        "id": "SK104",
+        "document": "Product Management / Strategy Built product management awareness at Byju's through cross-functional collaboration. Contributed to product launch strategy at Digi Tech Yard. Domain_Professional Intermediate Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App UX/UI Designer & Researcher Digi Tech Yard",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Product Management / Strategy",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK105": {
+        "id": "SK105",
+        "document": "SEO / Social Media Growth Certified in Social Media Marketing Foundations via LinkedIn Learning. Managed YouTube channel with 3,000 subscribers using SEO optimization. Domain_Professional Intermediate Independent Producer / Freelance Films, Documentaries, Corporate & Promotional Videos",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "SEO / Social Media Growth",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK106": {
+        "id": "SK106",
+        "document": "Demand Generation / B2B Sales Enablement Content and Communication Expert at SAP Demand Management, Services Sales MEE. Supported demand generation for SAP partner ecosystem. Domain_Professional Intermediate Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Demand Generation / B2B Sales Enablement",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK107": {
+        "id": "SK107",
+        "document": "Script Writing / Content Copywriting Wrote scripts for corporate videos, YouTube content, SAP partner testimonials, and storyboards across 12+ years of production work. Domain_Professional Advanced Video Producer & Communication Expert SAP — Services Sales MEE (DemGen) Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App Independent Producer / Freelance Films, Documentaries, Corporate & Promotional Videos",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Advanced",
+          "skill_name": "Script Writing / Content Copywriting",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK108": {
+        "id": "SK108",
+        "document": "Digital Asset Management / Governance Managed curation and licensing compliance workflows at SAP Non-Commercial Licensing. Ensured IP guidelines and asset traceability. Domain_Professional Intermediate Digital Assets Curator and Communication Expert SAP — Non-Commercial Licensing",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Digital Asset Management / Governance",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK109": {
+        "id": "SK109",
+        "document": "Team Leadership (Media Crews) Managed crews of 10 to 100 members across TV, film, and advertising projects as Executive Producer and Assistant Director. Domain_Professional Advanced Assistant Director / Video Producer / Content Creator BYJU'S / Natak Entertainment / Elcom International Independent Producer / Freelance Films, Documentaries, Corporate & Promotional Videos",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Advanced",
+          "skill_name": "Team Leadership (Media Crews)",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK110": {
+        "id": "SK110",
+        "document": "Budget Management / Multi-Project Coordination Handled resource planning, vendor negotiations, cost tracking, and scheduling for simultaneous film, commercial, and corporate projects. Domain_Professional Advanced Assistant Director / Video Producer / Content Creator BYJU'S / Natak Entertainment / Elcom International Independent Producer / Freelance Films, Documentaries, Corporate & Promotional Videos",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Advanced",
+          "skill_name": "Budget Management / Multi-Project Coordination",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK111": {
+        "id": "SK111",
+        "document": "Assistant Direction / Line Production Worked as Assistant Director at Filmalaya Studio and Natak Entertainment managing schedules, departments, and on-set continuity. Domain_Professional Advanced Assistant Director / Video Producer / Content Creator BYJU'S / Natak Entertainment / Elcom International",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Advanced",
+          "skill_name": "Assistant Direction / Line Production",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK112": {
+        "id": "SK112",
+        "document": "E-Learning Development (K-12 / Corporate) Developed multimedia e-learning content at Byju's including Disney collaboration for USA/UK audiences. Applied across corporate training roles. Domain_Professional Advanced Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Advanced",
+          "skill_name": "E-Learning Development (K-12 / Corporate)",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK113": {
+        "id": "SK113",
+        "document": "SME Collaboration / Needs Analysis Collaborated with subject matter experts at Byju's and SAP to translate complex content into engaging e-learning modules and documentation. Domain_Professional Intermediate Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App Live Streaming Engineer & Video Production Specialist SAP — IX Studio",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "SME Collaboration / Needs Analysis",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK114": {
+        "id": "SK114",
+        "document": "Articulate Storyline 360 / SCORM Created SCORM-compliant e-learning courses with interactive slides, quizzes, branching scenarios, and LMS deployment at Byju's. Domain_Professional Intermediate Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Articulate Storyline 360 / SCORM",
+          "phase": "Creative_Production",
+          "type": "tool"
+        }
+      },
+      "SK115": {
+        "id": "SK115",
+        "document": "H5P Interactive E-Learning Designed interactive quizzes, click-through modules, and micro-learning activities embedded into digital training at SAP and corporate contexts. Domain_Professional Intermediate Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "H5P Interactive E-Learning",
+          "phase": "Creative_Production",
+          "type": "tool"
+        }
+      },
+      "SK116": {
+        "id": "SK116",
+        "document": "Corporate Communications / Newsletter Production Produced newsletters, presentations, banners, and portal updates aligned with SAP brand guidelines across three Walldorf department roles. Domain_Professional Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio Digital Assets Curator and Communication Expert SAP — Non-Commercial Licensing Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Advanced",
+          "skill_name": "Corporate Communications / Newsletter Production",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK117": {
+        "id": "SK117",
+        "document": "Brand Campaign Strategy / Social Advertising Holds LinkedIn Learning certificates in Facebook, Instagram, and YouTube Advertising. Implemented social media campaigns at Orange Sellers. Domain_Professional Intermediate Video Production Specialist — Amazon Marketplace Orange Sellers",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Brand Campaign Strategy / Social Advertising",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK118": {
+        "id": "SK118",
+        "document": "Live Event Production / Hybrid Events Manages 6-8 events weekly at IX Studio. Portfolio shows IBM SAP Power Customer Council, SAP Expert Series, and green screen productions. Domain_Professional Advanced Live Streaming Engineer & Video Production Specialist SAP — IX Studio",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Advanced",
+          "skill_name": "Live Event Production / Hybrid Events",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK119": {
+        "id": "SK119",
+        "document": "Amazon Marketplace / FBA Production Created 2D/3D product visuals, animations, and 3D models for multiple Amazon marketplace brands at Orange Sellers in Utrecht. Domain_Professional Intermediate Video Production Specialist — Amazon Marketplace Orange Sellers",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Amazon Marketplace / FBA Production",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK120": {
+        "id": "SK120",
+        "document": "Vlogging / YouTube / Instagram Content Runs YouTube channel with approximately 3,000 subscribers. Independently produces, edits, and distributes city-focused video content. Domain_Professional Intermediate Independent Producer / Freelance Films, Documentaries, Corporate & Promotional Videos",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Vlogging / YouTube / Instagram Content",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK121": {
+        "id": "SK121",
+        "document": "Machine Translation / Localization Managed multilingual localization workflows for corporate content. Ran automated translations with manual review for English and German alignment. Domain_Professional Intermediate Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Machine Translation / Localization",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK122": {
+        "id": "SK122",
+        "document": "German Language (B1) German B1 level with ongoing formal learning. Supports day-to-day collaboration and understanding of German documentation at SAP. Domain_Professional Beginner",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Beginner",
+          "skill_name": "German Language (B1)",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK123": {
+        "id": "SK123",
+        "document": "Digital Training Didactics Applied adult learning principles, microlearning formats, and scenario-based design for corporate and educational content at SAP and Byju's. Domain_Professional Intermediate Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Digital Training Didactics",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK124": {
+        "id": "SK124",
+        "document": "Firebase (Authentication + Firestore) Built Job Tracker app with Firebase Authentication and Firestore cloud persistence. Implemented auth state observers, user-scoped collections, and security rules. Engineering_Dev Intermediate",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Intermediate",
+          "skill_name": "Firebase (Authentication + Firestore)",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK125": {
+        "id": "SK125",
+        "document": "Chart.js Integrated Chart.js for analytics dashboards in Job Tracker app with bar and doughnut charts, lifecycle management, and theme-aware rendering. Engineering_Dev Intermediate",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Intermediate",
+          "skill_name": "Chart.js",
+          "phase": "SAP_Masters",
+          "type": "tool"
+        }
+      },
+      "SK126": {
+        "id": "SK126",
+        "document": "DOM Manipulation / Event-Driven Programming Built full Kanban app with Vanilla JavaScript using DOM manipulation, HTML5 Drag-and-Drop API, composable filter pipelines, and event-driven state management. Engineering_Dev Intermediate",
+        "metadata": {
+          "category": "Engineering_Dev",
+          "level": "Intermediate",
+          "skill_name": "DOM Manipulation / Event-Driven Programming",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK127": {
+        "id": "SK127",
+        "document": "Knowledge Graphs / Semantic Data Modeling Studied SAP Datasphere semantic layer construction and SAP Data Intelligence metadata cataloging. Interested in JSON-LD, RDF, and SPARQL technologies. Data_Analytics Beginner",
+        "metadata": {
+          "category": "Data_Analytics",
+          "level": "Beginner",
+          "skill_name": "Knowledge Graphs / Semantic Data Modeling",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK128": {
+        "id": "SK128",
+        "document": "BPMN / Process Documentation Documented Order-to-Cash process in BPMN-style notation using SAP Signavio for RISE-style analytics project on BTP. SAP_Technical Beginner AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Beginner",
+          "skill_name": "BPMN / Process Documentation",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK129": {
+        "id": "SK129",
+        "document": "Procreate (iPad) Created digital paintings and character illustrations using Procreate on iPad. Portfolio shows detailed artwork alongside Adobe Photoshop digital painting. Creative_Media Intermediate",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Intermediate",
+          "skill_name": "Procreate (iPad)",
+          "phase": "Creative_Production",
+          "type": "tool"
+        }
+      },
+      "SK130": {
+        "id": "SK130",
+        "document": "Adobe Lightroom Used Adobe Lightroom for event photography editing at SAP BTP Hackathon Prague 2024. Created LinkedIn social cards from edited photos. Creative_Media Intermediate Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Intermediate",
+          "skill_name": "Adobe Lightroom",
+          "phase": "SAP_Professional",
+          "type": "tool"
+        }
+      },
+      "SK131": {
+        "id": "SK131",
+        "document": "Logo Design / Brand Identity Designed multiple brand logos including Creative Square, Creative Bug, Fitness Point, and Dream Films Productions in Adobe Illustrator. Design_UX Advanced",
+        "metadata": {
+          "category": "Design_UX",
+          "level": "Advanced",
+          "skill_name": "Logo Design / Brand Identity",
+          "phase": "Design",
+          "type": "skill"
+        }
+      },
+      "SK132": {
+        "id": "SK132",
+        "document": "Poster Design / Typography Designed documentary cover posters with bold typography for MIT Institute of Design productions including four film projects. Design_UX Advanced",
+        "metadata": {
+          "category": "Design_UX",
+          "level": "Advanced",
+          "skill_name": "Poster Design / Typography",
+          "phase": "Design",
+          "type": "skill"
+        }
+      },
+      "SK133": {
+        "id": "SK133",
+        "document": "Digital Painting / Illustration Created detailed digital paintings in Photoshop and Procreate. Portfolio includes character art, vector illustrations, and stylized animal artwork. Creative_Media Intermediate",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Intermediate",
+          "skill_name": "Digital Painting / Illustration",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK134": {
+        "id": "SK134",
+        "document": "3D Environment Design (IX Studio) Listed as core IX Studio responsibility. Designed immersive 3D environments for 12-foot LED screen hybrid events at SAP Walldorf. Creative_Media Intermediate Live Streaming Engineer & Video Production Specialist SAP — IX Studio",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Intermediate",
+          "skill_name": "3D Environment Design (IX Studio)",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK135": {
+        "id": "SK135",
+        "document": "SAP Client Promotional Films Produced end-to-end promotional films for SAP clients MEIKO and Voestalpine including ideation, shooting, interviews, editing, and color grading. Creative_Media Advanced Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Advanced",
+          "skill_name": "SAP Client Promotional Films",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK136": {
+        "id": "SK136",
+        "document": "TV Commercial / Advertisement Production Directed and edited TV commercials for Ferrero Rocher, Vodafone, Elcom, CouponDunia, and Hotfut as Director, Writer, Editor, and VFX artist. Creative_Media Advanced Independent Producer / Freelance Films, Documentaries, Corporate & Promotional Videos",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Advanced",
+          "skill_name": "TV Commercial / Advertisement Production",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK137": {
+        "id": "SK137",
+        "document": "Documentary Filmmaking Directed and produced documentaries including Organ Donors, Akhada wrestling arena, Vim women empowerment, and Don Cutting tea culture film. Creative_Media Advanced Independent Producer / Freelance Films, Documentaries, Corporate & Promotional Videos",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Advanced",
+          "skill_name": "Documentary Filmmaking",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK138": {
+        "id": "SK138",
+        "document": "Music Video Direction / Production Directed and edited music video picturisation for Seafret's 'Tell me it's real' including camera operation, editing, and visual storytelling. Creative_Media Intermediate Independent Producer / Freelance Films, Documentaries, Corporate & Promotional Videos",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Intermediate",
+          "skill_name": "Music Video Direction / Production",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK139": {
+        "id": "SK139",
+        "document": "SAP Event Content Strategy (S/4HANA, AI, Clean Core) Produced video series on SAP S/4HANA transformation, Business AI, Process Automation, Integration Suite, and Clean Core for demand generation. Domain_Professional Advanced Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Advanced",
+          "skill_name": "SAP Event Content Strategy (S/4HANA, AI, Clean Core)",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK140": {
+        "id": "SK140",
+        "document": "On-Site Client Interviewing / Event Journalism Conducted eight client interviews at SAP BTP Hackathon Prague 2024. Created real-time social media content under tight event deadlines. Domain_Professional Advanced Video Producer & Communication Expert SAP — Services Sales MEE (DemGen)",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Advanced",
+          "skill_name": "On-Site Client Interviewing / Event Journalism",
+          "phase": "SAP_Professional",
+          "type": "skill"
+        }
+      },
+      "SK141": {
+        "id": "SK141",
+        "document": "Published Mobile App UX (Tiltification) Designed UX/UI for Tiltification spirit level app published on both Play Store and App Store with acoustic feedback and dual-axis alignment. Design_UX Advanced",
+        "metadata": {
+          "category": "Design_UX",
+          "level": "Advanced",
+          "skill_name": "Published Mobile App UX (Tiltification)",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK142": {
+        "id": "SK142",
+        "document": "Integrated Marketing Strategy Certified in Integrated Marketing Strategies and Ideation for Marketers via LinkedIn Learning. Applied at SAP demand generation and Orange Sellers. Domain_Professional Intermediate Video Producer & Communication Expert SAP — Services Sales MEE (DemGen) Video Production Specialist — Amazon Marketplace Orange Sellers",
+        "metadata": {
+          "category": "Domain_Professional",
+          "level": "Intermediate",
+          "skill_name": "Integrated Marketing Strategy",
+          "phase": "Creative_Production",
+          "type": "skill"
+        }
+      },
+      "SK143": {
+        "id": "SK143",
+        "document": "SAP Community Actively participated in SAP Community forums, contributing solutions and collaborating on technical discussions SAP_Technical Intermediate",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Intermediate",
+          "skill_name": "SAP Community",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK144": {
+        "id": "SK144",
+        "document": "Adobe Creative Suite Designed social media graphics and basic marketing materials using Photoshop and Illustrator. I have advanced proficiency in Adobe Photoshop, Adobe Premiere Pro, After Effects, and Adobe Illustrator Creative_Media Intermediate",
+        "metadata": {
+          "category": "Creative_Media",
+          "level": "Intermediate",
+          "skill_name": "Adobe Creative Suite",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK145": {
+        "id": "SK145",
+        "document": "SAP Ariba Network I have managed procurement cycles and streamlined supplier interactions, handling everything from initial sourcing to final payment, directly within the SAP Ariba Network. SAP_Technical Intermediate",
+        "metadata": {
+          "category": "SAP_Technical",
+          "level": "Intermediate",
+          "skill_name": "SAP Ariba Network",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      },
+      "SK146": {
+        "id": "SK146",
+        "document": "Microsoft Excel. Level: Intermediate. Utilized Excel for data manipulation, analysis, and visualization, including pivot tables Data_Analytics",
+        "metadata": {
+          "category": "Data_Analytics",
+          "level": "Intermediate",
+          "skill_name": "Microsoft Excel",
+          "phase": "SAP_Masters",
+          "type": "skill"
+        }
+      }
+    }
+  },
+  "projects": {
+    "metadata": {},
+    "items": {
+      "PJ001": {
+        "id": "PJ001",
+        "document": "SAC – End-to-End Sales Analytics Product SAP Analytics Cloud Built a 4-page SAC analytics product on 1,000+ sales records with executive KPIs and drilldowns by region, product, and sales channel (online/offline). Designed overview, product/channel, profitability, and forecast pages, including time-series revenue and profit forecasting. Implemented calculated measures and Linked Analysis for one-click filtering, and profiled 14 dimensions across 7 regions to ensure zero-error reporting. SAP HANA Cloud SAP Analytics Cloud (SAC) SQL Data Modeling (HANA) BI Dashboards / Executive Analytics Exploratory Data Analysis (EDA) Data Profiling / Quality Checks",
+        "metadata": {
+          "name": "SAC – End-to-End Sales Analytics Product",
+          "tech": "SAP Analytics Cloud",
+          "sub_category": ""
+        }
+      },
+      "PJ002": {
+        "id": "PJ002",
+        "document": "Retail Sales Data Cleaning Automation Pipeline Python, Jupyter Notebook, Pandas Built automated Python pipeline to clean, validate, and summarize messy retail sales datasets. Implemented type detection, missing value handling, duplicate removal, and KPI recalculation. Generated analysis-ready outputs with summary reports, reducing manual data preparation time by ~80%. Python VS Code ETL Pipeline Design Exploratory Data Analysis (EDA) Jupyter Notebook",
+        "metadata": {
+          "name": "Retail Sales Data Cleaning Automation Pipeline",
+          "tech": "Python, Jupyter Notebook, Pandas",
+          "sub_category": ""
+        }
+      },
+      "PJ003": {
+        "id": "PJ003",
+        "document": "SAP UI5 – Salary & HR Management and Data Visualization SAP UI5, JavaScript & Fiori Elements Developed SAP UI5 applications following Fiori 2.0 concepts for salary management and analytics dashboards. Implemented time tracking, salary calculation, and benefits management with responsive UI and validations. Consumed OData services from SAP S/4HANA and built interactive charts with filtering and aggregation. Used MVC architecture and Git-based workflow for maintainable front-end code. SAP UI5 / Fiori OData / REST APIs SAP Business Application Studio JavaScript (ES6+) TypeScript HTML5 / CSS3 Git / GitHub VS Code Fiori UX Design Principles Chrome DevTools",
+        "metadata": {
+          "name": "SAP UI5 – Salary & HR Management and Data Visualization",
+          "tech": "SAP UI5, JavaScript & Fiori Elements",
+          "sub_category": ""
+        }
+      },
+      "PJ004": {
+        "id": "PJ004",
+        "document": "Reel World – Smartphone App to Book Movie Tickets Figma, UX Research Full UX design cycle: research, wireframes, prototyping, high-fidelity UI for mobile movie ticket booking app. Figma",
+        "metadata": {
+          "name": "Reel World – Smartphone App to Book Movie Tickets",
+          "tech": "Figma, UX Research",
+          "sub_category": ""
+        }
+      },
+      "PJ005": {
+        "id": "PJ005",
+        "document": "Family Management – Smartphone App for Early Cure Figma, UX Research Healthcare-focused UX project. Complete design cycle from research to prototype. Figma",
+        "metadata": {
+          "name": "Family Management – Smartphone App for Early Cure",
+          "tech": "Figma, UX Research",
+          "sub_category": ""
+        }
+      },
+      "PJ006": {
+        "id": "PJ006",
+        "document": "AI-Powered SAP Job Application Automator JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG Built a full-stack JavaScript application that scrapes SAP job postings, extracts and analyzes job descriptions, retrieves relevant skills and experience through a local RAG pipeline, and generates tailored CVs and cover letters with PDF export. Designed the software architecture, REST API flow, and JSON-based retrieval layer in Node.js and Express, while also shaping the UX/UI and product workflow for job selection, relevance scoring, project selection, and guided document generation. SAP BTP OData / REST APIs SAP CAP (Cloud Application Programming) JavaScript (ES6+) Node.js Express.js HTML5 / CSS3 Angular Git / GitHub Playwright Retrieval-Augmented Generation (RAG) LLM Integration / Prompt Workflows VS Code GitHub Actions / CI-CD Awareness TF-IDF / Cosine Similarity Retrieval BPMN / Process Documentation",
+        "metadata": {
+          "name": "AI-Powered SAP Job Application Automator",
+          "tech": "JavaScript, Node.js, Express, REST APIs, Playwright, Software Architecture, Product Workflow Design, UX/UI, HTML, CSS, TF-IDF RAG",
+          "sub_category": ""
+        }
+      },
+      "MPJ001": {
+        "id": "MPJ001",
+        "document": "MEIKO – SAP Client Promotional Film DaVinci Resolve, Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop Produced end-to-end promotional film for MEIKO showcasing how SAP Field Service Management boosted their business. Led client communication, scheduled filming appointments, and followed SAP brand guidelines. Solely responsible for entire editing and post-production including sound design, video editing, motion graphics creation, and color grading.",
+        "metadata": {
+          "name": "MEIKO – SAP Client Promotional Film",
+          "tech": "DaVinci Resolve, Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+          "sub_category": "SAP_Client_Film"
+        }
+      },
+      "MPJ002": {
+        "id": "MPJ002",
+        "document": "Voestalpine – SAP Client Promotional Film DaVinci Resolve, Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop Produced promotional film for Voestalpine, a globally leading technology group and SAP client, showcasing how SAP Field Service Management helped boost their business. Participated in shooting, editing, and full post-production process including color grading at their Linz, Austria facility.",
+        "metadata": {
+          "name": "Voestalpine – SAP Client Promotional Film",
+          "tech": "DaVinci Resolve, Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+          "sub_category": "SAP_Client_Film"
+        }
+      },
+      "MPJ003": {
+        "id": "MPJ003",
+        "document": "SAP S/4HANA Transformation Video Series (5 Videos) Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop Produced 5-video series describing securing transformation to SAP S/4HANA, featuring customer experiences consolidating global operations. Videos in both German and English versions, designed to inspire viewers to book meetings with SAP consultants.",
+        "metadata": {
+          "name": "SAP S/4HANA Transformation Video Series (5 Videos)",
+          "tech": "Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+          "sub_category": "SAP_Video_Series"
+        }
+      },
+      "MPJ004": {
+        "id": "MPJ004",
+        "document": "SAP Business AI Video Series (2 Videos) Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop Produced 2-video series on SAP Business AI covering AI use cases and customer transformation stories. Motion graphics and post-production aligned with SAP brand guidelines for demand generation.",
+        "metadata": {
+          "name": "SAP Business AI Video Series (2 Videos)",
+          "tech": "Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+          "sub_category": "SAP_Video_Series"
+        }
+      },
+      "MPJ005": {
+        "id": "MPJ005",
+        "document": "SAP Process Automation Video Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop Produced promotional video describing SAP Process Automation capabilities for services sales enablement and partner communication.",
+        "metadata": {
+          "name": "SAP Process Automation Video",
+          "tech": "Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+          "sub_category": "SAP_Video_Series"
+        }
+      },
+      "MPJ006": {
+        "id": "MPJ006",
+        "document": "SAP Integration Suite Video Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop Produced video describing SAP Integration Suite capabilities for services communication and partner enablement.",
+        "metadata": {
+          "name": "SAP Integration Suite Video",
+          "tech": "Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+          "sub_category": "SAP_Video_Series"
+        }
+      },
+      "MPJ007": {
+        "id": "MPJ007",
+        "document": "SAP Clean Core Video Series (2 Videos) Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop Produced 2-video series about Clean Core strategy — keeping the core of SAP systems as standard as possible. Created for SAP transformation advisory communication.",
+        "metadata": {
+          "name": "SAP Clean Core Video Series (2 Videos)",
+          "tech": "Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+          "sub_category": "SAP_Video_Series"
+        }
+      },
+      "MPJ008": {
+        "id": "MPJ008",
+        "document": "SAP GDPR Compliance Video Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop Produced GDPR compliance video for SAP services sales and partner communication, covering data protection requirements in SAP environments.",
+        "metadata": {
+          "name": "SAP GDPR Compliance Video",
+          "tech": "Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+          "sub_category": "SAP_Video_Series"
+        }
+      },
+      "MPJ009": {
+        "id": "MPJ009",
+        "document": "CONNECT 2024 – SAP Partner Summit Event & NCL Videos DaVinci Resolve, Adobe Photoshop, Figma Created two videos for SAP CONNECT 2024 Partner Summit: one for the event and another for post-event highlights. Built motion graphics aligned with SAP brand guidelines showcasing the Non-Commercial Licensing (NCL) portfolio — partner-exclusive licenses for test, demo, and development. Created reusable DaVinci Resolve templates and motion graphics assets.",
+        "metadata": {
+          "name": "CONNECT 2024 – SAP Partner Summit Event & NCL Videos",
+          "tech": "DaVinci Resolve, Adobe Photoshop, Figma",
+          "sub_category": "SAP_Event_Production"
+        }
+      },
+      "MPJ010": {
+        "id": "MPJ010",
+        "document": "SAP BTP Hackathon Prague 2024 – Event Coverage & Content Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop, Adobe Lightroom, Figma Served as event chronicler for the 4-day SAP BTP Hackathon 2024 in Prague with teams from Asahi, BKV, CCC, Euro Cash, Slovenske Elektrarne, SumUp, TGW, and Zabka Polska. Captured photos and videos, edited on-the-fly under tight deadlines, created LinkedIn social cards for all SAP and client team members, and conducted 8 pre-planned interviews with key client representatives and SAP personnel.",
+        "metadata": {
+          "name": "SAP BTP Hackathon Prague 2024 – Event Coverage & Content",
+          "tech": "Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop, Adobe Lightroom, Figma",
+          "sub_category": "SAP_Event_Production"
+        }
+      },
+      "MPJ011": {
+        "id": "MPJ011",
+        "document": "IX Studio – 3D Environment & Immersive Event Production Unreal Engine, Stream Decks, Panasonic Controllers, SAP VMS, Blackmagic Decoders Manage end-to-end studio operations at SAP's Immersive Experience (IX) Studio in Walldorf. Design 3D environments for a 12-foot LED screen, operate 5-camera systems with stream decks and Panasonic controllers, manage audio engineering for up to 12 microphones, and deliver 6-8 hybrid events weekly including IBM SAP Power Customer Council and SAP Expert Series productions.",
+        "metadata": {
+          "name": "IX Studio – 3D Environment & Immersive Event Production",
+          "tech": "Unreal Engine, Stream Decks, Panasonic Controllers, SAP VMS, Blackmagic Decoders",
+          "sub_category": "SAP_Studio_Production"
+        }
+      },
+      "MPJ012": {
+        "id": "MPJ012",
+        "document": "Tiltification – Spirit Level Smartphone App (Published) Figma, UX Research Designed UX/UI for Tiltification, a spirit level app published on both Play Store and App Store. The app uses acoustic signal feedback for precise dual-axis object alignment — more accurate than traditional bubble levels. Designed multiple screen states, dark/light modes, and intuitive controls for hands-free usage.",
+        "metadata": {
+          "name": "Tiltification – Spirit Level Smartphone App (Published)",
+          "tech": "Figma, UX Research",
+          "sub_category": "UX_App_Design"
+        }
+      },
+      "MPJ013": {
+        "id": "MPJ013",
+        "document": "Hello Doctor – Healthcare Smartphone App UX Design Figma, UX Research Full UX design cycle for a healthcare ecosystem app connecting doctors, pathology labs, and pharmacy stores. Carried out contextual enquiry, user research, shadowing, and interviews. Performed competitive analysis, developed personas, built mind maps and information architecture, created task flows, wireframes, and high-fidelity prototypes with interactive UI screens.",
+        "metadata": {
+          "name": "Hello Doctor – Healthcare Smartphone App UX Design",
+          "tech": "Figma, UX Research",
+          "sub_category": "UX_App_Design"
+        }
+      },
+      "MPJ014": {
+        "id": "MPJ014",
+        "document": "Logo Design Portfolio – Brand Identity Projects Adobe Illustrator Designed multiple brand logos and identity systems including Creative Square, Creative Bug, Fitness Point, and Dream Films Productions. Created in Adobe Illustrator using geometric shapes, custom typography, and brand color systems.",
+        "metadata": {
+          "name": "Logo Design Portfolio – Brand Identity Projects",
+          "tech": "Adobe Illustrator",
+          "sub_category": "Graphic_Design"
+        }
+      },
+      "MPJ015": {
+        "id": "MPJ015",
+        "document": "Documentary Film Poster Design – MIT Institute of Design Adobe Photoshop, Adobe Illustrator Designed documentary cover posters for MIT Institute of Design productions: 'Voiceless Melodies' (brass band artists), 'One Wholesome Meal' (food culture), 'A Day at Akhada' (traditional wrestling), and 'Benny the Projectionist' (cinema operator). Used bold typography and evocative imagery to capture each film's essence.",
+        "metadata": {
+          "name": "Documentary Film Poster Design – MIT Institute of Design",
+          "tech": "Adobe Photoshop, Adobe Illustrator",
+          "sub_category": "Graphic_Design"
+        }
+      },
+      "MPJ016": {
+        "id": "MPJ016",
+        "document": "Digital Painting & Illustration Portfolio Adobe Photoshop, Adobe Illustrator, Procreate (iPad) Created digital paintings and vector illustrations spanning character art, geometric animal portraits (husky, eagle, bear), stylized food illustrations, sneaker poster design, and detailed character paintings. Work done across Photoshop, Illustrator, and Procreate on iPad.",
+        "metadata": {
+          "name": "Digital Painting & Illustration Portfolio",
+          "tech": "Adobe Photoshop, Adobe Illustrator, Procreate (iPad)",
+          "sub_category": "Illustration"
+        }
+      },
+      "MPJ017": {
+        "id": "MPJ017",
+        "document": "Ferrero Rocher – Brand Campaign Films (3 Videos) Adobe Premiere Pro, Adobe After Effects Directed, produced, and edited 3 campaign films for Ferrero Rocher brand. End-to-end production from ideation through delivery for advertising and brand communication.",
+        "metadata": {
+          "name": "Ferrero Rocher – Brand Campaign Films (3 Videos)",
+          "tech": "Adobe Premiere Pro, Adobe After Effects",
+          "sub_category": "TV_Commercial"
+        }
+      },
+      "MPJ018": {
+        "id": "MPJ018",
+        "document": "Vodafone 'Made for You Offers' – Comedy Advertisement Adobe Premiere Pro, Adobe After Effects Directed, wrote, edited, and operated camera for Vodafone comedy advertisement showcasing personalized offers campaign.",
+        "metadata": {
+          "name": "Vodafone 'Made for You Offers' – Comedy Advertisement",
+          "tech": "Adobe Premiere Pro, Adobe After Effects",
+          "sub_category": "TV_Commercial"
+        }
+      },
+      "MPJ019": {
+        "id": "MPJ019",
+        "document": "Elcom Spike Guard – Comedy Advertisement with VFX Adobe Premiere Pro, Adobe After Effects Directed, wrote, edited, operated camera, and created VFX for Elcom Spike Guard comedy advertisement. Full creative ownership from concept to delivery.",
+        "metadata": {
+          "name": "Elcom Spike Guard – Comedy Advertisement with VFX",
+          "tech": "Adobe Premiere Pro, Adobe After Effects",
+          "sub_category": "TV_Commercial"
+        }
+      },
+      "MPJ020": {
+        "id": "MPJ020",
+        "document": "CouponDunia & Hotfut – Comedy Advertisements Adobe Premiere Pro, Adobe After Effects Edited CouponDunia comedy advertisement. Directed, edited, and operated camera for Hotfut (Pune Football League) advertisement.",
+        "metadata": {
+          "name": "CouponDunia & Hotfut – Comedy Advertisements",
+          "tech": "Adobe Premiere Pro, Adobe After Effects",
+          "sub_category": "TV_Commercial"
+        }
+      },
+      "MPJ021": {
+        "id": "MPJ021",
+        "document": "Organ Donors – Documentary Film Adobe Premiere Pro, Adobe After Effects Directed, produced, wrote, edited, animated, and operated camera for Organ Donors documentary. Complete creative ownership of the film from concept to final delivery.",
+        "metadata": {
+          "name": "Organ Donors – Documentary Film",
+          "tech": "Adobe Premiere Pro, Adobe After Effects",
+          "sub_category": "Documentary"
+        }
+      },
+      "MPJ022": {
+        "id": "MPJ022",
+        "document": "A Day at Akhada – Indian Traditional Wrestling Documentary Adobe Premiere Pro, Adobe After Effects Directed, produced, wrote, edited, and operated camera for documentary exploring Indian traditional wrestling arena (Akhada) culture.",
+        "metadata": {
+          "name": "A Day at Akhada – Indian Traditional Wrestling Documentary",
+          "tech": "Adobe Premiere Pro, Adobe After Effects",
+          "sub_category": "Documentary"
+        }
+      },
+      "MPJ023": {
+        "id": "MPJ023",
+        "document": "Vim Women Empowerment & Don Cutting Tea Documentaries Adobe Premiere Pro Edited Vim women empowerment campaign documentaries (Afroz Jahan Story, Biyiravi Mani Story). Operated camera for Don Cutting (Two Cups Cutting Tea) documentary about Indian tea culture.",
+        "metadata": {
+          "name": "Vim Women Empowerment & Don Cutting Tea Documentaries",
+          "tech": "Adobe Premiere Pro",
+          "sub_category": "Documentary"
+        }
+      },
+      "MPJ024": {
+        "id": "MPJ024",
+        "document": "Seafret 'Tell Me It's Real' – Music Video Adobe Premiere Pro Directed, edited, and operated camera for music video picturisation and visual storytelling for Seafret's 'Tell me it's real'.",
+        "metadata": {
+          "name": "Seafret 'Tell Me It's Real' – Music Video",
+          "tech": "Adobe Premiere Pro",
+          "sub_category": "Music_Video"
+        }
+      },
+      "MPJ025": {
+        "id": "MPJ025",
+        "document": "BYJU'S – Educational Content & Disney Collaboration Adobe Premiere Pro, Adobe After Effects, Adobe Photoshop Produced educational media at BYJU'S – The Learning App (valued at $22B, 115M+ registered students). Created 2D animation, VFX content, and game elements. Worked on international Disney collaboration producing e-learning platform for USA and UK audiences.",
+        "metadata": {
+          "name": "BYJU'S – Educational Content & Disney Collaboration",
+          "tech": "Adobe Premiere Pro, Adobe After Effects, Adobe Photoshop",
+          "sub_category": "E_Learning"
+        }
+      },
+      "MPJ026": {
+        "id": "MPJ026",
+        "document": "Corporate & Promotional Films – Orbis Elevators, Zapit, Ask Me Furniture Adobe Premiere Pro, Adobe After Effects Edited corporate and promotional films for Orbis Elevators, Zapit, and Ask Me Furniture campaigns. Part of broader freelance and production house portfolio of corporate video production.",
+        "metadata": {
+          "name": "Corporate & Promotional Films – Orbis Elevators, Zapit, Ask Me Furniture",
+          "tech": "Adobe Premiere Pro, Adobe After Effects",
+          "sub_category": "Corporate_Film"
+        }
+      },
+      "MPJ027": {
+        "id": "MPJ027",
+        "document": "Huggies Happy Mother's Day & Motion Graphics Adobe Premiere Pro, Adobe After Effects Edited Huggies Happy Mother's Day brand campaign video. Also produced standalone motion graphics including 'How to Install a Windows Operating System' tutorial covering direction, production, writing, editing, animation, and cinematography.",
+        "metadata": {
+          "name": "Huggies Happy Mother's Day & Motion Graphics",
+          "tech": "Adobe Premiere Pro, Adobe After Effects",
+          "sub_category": "Brand_Campaign"
+        }
+      }
+    }
+  },
+  "work_experience": {
+    "metadata": {},
+    "items": {
+      "WE005": {
+        "id": "WE005",
+        "document": "Video Producer, Broadcast Associate & Creative Associate BYJU'S — The Learning App Produced educational media assets, broadcast content, and creative deliverables across digital learning products. Designed game elements, 3D video elements, print graphics, and multimedia assets for learner-focused experiences. Built product management awareness through cross-functional collaboration across creative, content, and production workflows. Video editing Broadcast workflows Creative production Educational content 3D video elements Print and media graphics Product management Accessibility / Inclusive Design Graphic Design for Learning Materials Adobe Premiere Pro Adobe After Effects Adobe Photoshop Adobe Illustrator Adobe Audition Camtasia VFX / Motion Graphics 2D Animation Storyboarding Vyond / Powtoon Instructional Design / Learning Experience Product Management / Strategy Script Writing / Content Copywriting E-Learning Development (K-12 / Corporate) SME Collaboration / Needs Analysis Articulate Storyline 360 / SCORM H5P Interactive E-Learning Machine Translation / Localization Digital Training Didactics",
+        "metadata": {
+          "title": "Video Producer, Broadcast Associate & Creative Associate",
+          "company": "BYJU'S — The Learning App",
+          "period": "Jun 2018 – Mar 2021"
+        }
+      },
+      "WE001": {
+        "id": "WE001",
+        "document": "Live Streaming Engineer & Video Production Specialist SAP — IX Studio Delivered end-to-end multimedia production for hybrid events with 100+ attendees, covering live streaming, switching, recording, and on-site technical coordination. Operated 5-camera systems, stream decks, Panasonic controllers, SAP VMS workflows, a 12-ft LED screen, and audio setups for up to 12 microphones. Created reusable templates, event visuals, and infographics to support high-quality SAP event production and communication. Live streaming Video production Hybrid event production Stream decks Panasonic controllers SAP VMS Audio engineering Templates and infographics SAP VMS MS Excel Visual Communication / Brand Design Presentation Design / Executive Communication DaVinci Resolve Camtasia Color Grading Audio Engineering / Sound Design Live Streaming / Multi-Camera Production Unreal Engine Synthesia AI MS Office Suite / SharePoint MS PowerPoint Mural Generative AI Tools (Midjourney / DALL-E / Firefly / DeepSeek) Blackmagic Decoders / Stream Decks Cross-Functional Communication Stakeholder Communication Business Process Analysis / Optimization Content Production Management Technical Content Translation SME Collaboration / Needs Analysis Corporate Communications / Newsletter Production Live Event Production / Hybrid Events 3D Environment Design (IX Studio)",
+        "metadata": {
+          "title": "Live Streaming Engineer & Video Production Specialist",
+          "company": "SAP — IX Studio",
+          "period": "Oct 2024 – Present"
+        }
+      },
+      "WE003": {
+        "id": "WE003",
+        "document": "Video Producer & Communication Expert SAP — Services Sales MEE (DemGen) Produced partner testimonial videos for SAP and partner portals to support services communication and visibility. Covered SAP BTP Hackathon Prague 2024 and delivered event-focused video and communication assets. Owned green-screen campaign videos, motion graphics, and end-to-end production from pre-production through final delivery. Video production Motion graphics Green screen production Partner communication Event coverage End-to-end production MS Excel Canva Presentation Design / Executive Communication Adobe After Effects VFX / Motion Graphics Cinematography / Camera Operation Photography MS Office Suite / SharePoint Jira Mural HubSpot LinkedIn Agile / Scrum / Kanban Cross-Functional Communication Content Production Management Technical Content Translation Demand Generation / B2B Sales Enablement Script Writing / Content Copywriting Corporate Communications / Newsletter Production Adobe Lightroom SAP Client Promotional Films SAP Event Content Strategy (S/4HANA, AI, Clean Core) On-Site Client Interviewing / Event Journalism Integrated Marketing Strategy",
+        "metadata": {
+          "title": "Video Producer & Communication Expert",
+          "company": "SAP — Services Sales MEE (DemGen)",
+          "period": "Aug 2023 – Jun 2024"
+        }
+      },
+      "WE002": {
+        "id": "WE002",
+        "document": "Digital Assets Curator and Communication Expert SAP — Non-Commercial Licensing Built DaVinci Resolve SAP templates and production-ready communication assets for internal and event-related use. Prepared CONNECT 2024 booth assets and maintained structured digital asset storage and categorisation workflows. Collaborated with global teams to manage compliant, reusable media assets and improve branded content accessibility. Digital asset management DaVinci Resolve Template design Asset categorisation Global team collaboration Licensing compliance SAP SuccessFactors MS Excel Visual Communication / Brand Design Canva Presentation Design / Executive Communication DaVinci Resolve Synthesia AI MS Office Suite / SharePoint MS PowerPoint Generative AI Tools (Midjourney / DALL-E / Firefly / DeepSeek) Cross-Functional Communication Content Production Management Digital Asset Management / Governance Corporate Communications / Newsletter Production",
+        "metadata": {
+          "title": "Digital Assets Curator and Communication Expert",
+          "company": "SAP — Non-Commercial Licensing",
+          "period": "July 2024 – Oct 2024"
+        }
+      },
+      "WE004": {
+        "id": "WE004",
+        "document": "Video Production Specialist — Amazon Marketplace Orange Sellers Created 2D and 3D content, animations, and 3D models for multiple Amazon marketplace brands. Produced visual assets for social media and marketplace campaigns that supported product visibility and sales growth. Delivered multi-brand creative output across e-commerce, advertising, and product-focused media workflows. Video production 2D/3D content Animation 3D models Amazon Marketplace Social media campaigns E-commerce content Blender / Substance 3D Marvelous Designer / CLO3D / SketchUp / Rhino / Twinmotion Food / Fashion / FMCG Product Shoots Brand Campaign Strategy / Social Advertising Amazon Marketplace / FBA Production Integrated Marketing Strategy",
+        "metadata": {
+          "title": "Video Production Specialist — Amazon Marketplace",
+          "company": "Orange Sellers",
+          "period": "Apr 2021 – Oct 2021"
+        }
+      },
+      "WE006": {
+        "id": "WE006",
+        "document": "UX/UI Designer & Researcher Digi Tech Yard Led UX design of the Untold app through user research, prototyping, agile development collaboration, and iterative design refinement. Contributed to frontend implementation across React, Angular, and Node.js-oriented workflows while bridging design and development. Supported product launch planning with user-centered design decisions and marketing strategy inputs. UX research React/Angular Prototyping UI design Node.js collaboration Product launch strategy React UX Research / User Interviews Adobe XD Sketch / InVision Axure RP Interaction Design / Information Architecture Storyboarding Miro Design Thinking Product Management / Strategy",
+        "metadata": {
+          "title": "UX/UI Designer & Researcher",
+          "company": "Digi Tech Yard",
+          "period": "Jun 2018 – Jul 2019"
+        }
+      },
+      "WE008": {
+        "id": "WE008",
+        "document": "Research Assistant & UX/UI Designer University of Bremen Supported research-oriented work with UX/UI design inputs, visual layouts, and structured communication of findings. Contributed to academic project tasks in a combined research and interface-design role. Research support UX/UI design Academic project work Visual communication",
+        "metadata": {
+          "title": "Research Assistant & UX/UI Designer",
+          "company": "University of Bremen",
+          "period": "Jun 2020 – Aug 2020"
+        }
+      },
+      "WE011": {
+        "id": "WE011",
+        "document": "Independent Producer / Freelance Films, Documentaries, Corporate & Promotional Videos Produced films, documentaries, corporate videos, and promotional media for clients across entertainment, business, and social sectors. Delivered end-to-end freelance production work including planning, shooting, editing, graphics, and client coordination. End-to-end production Editing Client communication Freelance production Cinematography Corporate video Promotional content Adobe Premiere Pro Final Cut Pro VR Photography / 360° Video Food / Fashion / FMCG Product Shoots CMS Platforms (WordPress / Shopify / Wix / Webflow / TYPO3) SEO / Social Media Growth Script Writing / Content Copywriting Team Leadership (Media Crews) Budget Management / Multi-Project Coordination Vlogging / YouTube / Instagram Content TV Commercial / Advertisement Production Documentary Filmmaking Music Video Direction / Production",
+        "metadata": {
+          "title": "Independent Producer / Freelance",
+          "company": "Films, Documentaries, Corporate & Promotional Videos",
+          "period": "2011 – 2015"
+        }
+      },
+      "WE010": {
+        "id": "WE010",
+        "document": "Assistant Director / Video Producer / Content Creator BYJU'S / Natak Entertainment / Elcom International Worked across assistant direction, video production, and content creation roles in film, education, and brand communication environments. Supported shoots, creative execution, post-production, and content delivery across entertainment, advertising, and corporate media projects. Assistant direction Video editing Content creation Production coordination Post-production Adobe Premiere Pro Adobe Audition Final Cut Pro Color Grading Cinematography / Camera Operation Team Leadership (Media Crews) Budget Management / Multi-Project Coordination Assistant Direction / Line Production",
+        "metadata": {
+          "title": "Assistant Director / Video Producer / Content Creator",
+          "company": "BYJU'S / Natak Entertainment / Elcom International",
+          "period": "2016 – 2018"
+        }
+      },
+      "WE007": {
+        "id": "WE007",
+        "document": "Video Producer & Photographer — Musical Events Klangpol Filmed and photographed live musical events, balancing camera operation, composition, and low-light production requirements. Delivered edited visual assets for organizer use across web, event communication, and social channels. Video production Photography Live event coverage Editing Cinematography / Camera Operation Photography",
+        "metadata": {
+          "title": "Video Producer & Photographer — Musical Events",
+          "company": "Klangpol",
+          "period": "Jul 2020 – Jun 2021"
+        }
+      },
+      "WE009": {
+        "id": "WE009",
+        "document": "Visual Designer & Video Producer The Glitch Media Pvt. Ltd. Created visual and video content for fast-paced campaign environments across advertising and digital media. Translated campaign ideas into storyboarded and edited outputs for TV and social media distribution. Visual design Video production Advertising Storyboarding Editing Adobe Premiere Pro Adobe Photoshop Final Cut Pro Storyboarding Food / Fashion / FMCG Product Shoots",
+        "metadata": {
+          "title": "Visual Designer & Video Producer",
+          "company": "The Glitch Media Pvt. Ltd.",
+          "period": "Jun 2017 – Aug 2017"
+        }
+      }
+    }
+  }
+}

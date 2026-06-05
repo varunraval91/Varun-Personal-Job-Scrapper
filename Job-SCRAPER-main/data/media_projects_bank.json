@@ -1,0 +1,569 @@
+{
+    "media_projects":  {
+                           "sap_media_projects":  [
+                                                      {
+                                                          "id":  "MPJ001",
+                                                          "title":  "MEIKO – SAP Client Promotional Film",
+                                                          "sub_category":  "SAP_Client_Film",
+                                                          "tech":  "DaVinci Resolve, Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+                                                          "date":  "2023–2024",
+                                                          "client":  "MEIKO (Commercial Dishwashers) — SAP Client",
+                                                          "description":  "Produced end-to-end promotional film for MEIKO showcasing how SAP Field Service Management boosted their business. Led client communication, scheduled filming appointments, and followed SAP brand guidelines. Solely responsible for entire editing and post-production including sound design, video editing, motion graphics creation, and color grading.",
+                                                          "responsibilities":  [
+                                                                                   "Ideation",
+                                                                                   "Pre-Production",
+                                                                                   "Video Shooting",
+                                                                                   "Client Interviews",
+                                                                                   "Customer-facing on site",
+                                                                                   "Editing",
+                                                                                   "Post-Production",
+                                                                                   "Sound Design",
+                                                                                   "Motion Graphics",
+                                                                                   "Color Grading"
+                                                                               ],
+                                                          "impact":  "Delivered SAP-branded client success story film for partner portals and services communication",
+                                                          "phase":  "SAP_Professional",
+                                                          "source_refs":  [
+                                                                              "WE003",
+                                                                              "PJ_IX_PORTFOLIO"
+                                                                          ]
+                                                      },
+                                                      {
+                                                          "id":  "MPJ002",
+                                                          "title":  "Voestalpine – SAP Client Promotional Film",
+                                                          "sub_category":  "SAP_Client_Film",
+                                                          "tech":  "DaVinci Resolve, Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+                                                          "date":  "2023–2024",
+                                                          "client":  "Voestalpine (High Performance Metals) — SAP Client",
+                                                          "description":  "Produced promotional film for Voestalpine, a globally leading technology group and SAP client, showcasing how SAP Field Service Management helped boost their business. Participated in shooting, editing, and full post-production process including color grading at their Linz, Austria facility.",
+                                                          "responsibilities":  [
+                                                                                   "Ideation",
+                                                                                   "Pre-Production",
+                                                                                   "Video Shooting",
+                                                                                   "Client Interviews",
+                                                                                   "Customer-facing on site",
+                                                                                   "Editing",
+                                                                                   "Color Grading"
+                                                                               ],
+                                                          "impact":  "Delivered on-location client testimonial film shot at Voestalpine headquarters in Linz, Austria",
+                                                          "phase":  "SAP_Professional",
+                                                          "source_refs":  [
+                                                                              "WE003",
+                                                                              "PJ_IX_PORTFOLIO"
+                                                                          ]
+                                                      },
+                                                      {
+                                                          "id":  "MPJ003",
+                                                          "title":  "SAP S/4HANA Transformation Video Series (5 Videos)",
+                                                          "sub_category":  "SAP_Video_Series",
+                                                          "tech":  "Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+                                                          "date":  "2023–2024",
+                                                          "description":  "Produced 5-video series describing securing transformation to SAP S/4HANA, featuring customer experiences consolidating global operations. Videos in both German and English versions, designed to inspire viewers to book meetings with SAP consultants.",
+                                                          "responsibilities":  [
+                                                                                   "Ideation",
+                                                                                   "Pre-Production",
+                                                                                   "Video Editing",
+                                                                                   "Motion Graphics",
+                                                                                   "Post-Production"
+                                                                               ],
+                                                          "impact":  "5 bilingual videos (German + English) for SAP Services Sales demand generation",
+                                                          "phase":  "SAP_Professional",
+                                                          "source_refs":  [
+                                                                              "WE003",
+                                                                              "PJ_IX_PORTFOLIO"
+                                                                          ]
+                                                      },
+                                                      {
+                                                          "id":  "MPJ004",
+                                                          "title":  "SAP Business AI Video Series (2 Videos)",
+                                                          "sub_category":  "SAP_Video_Series",
+                                                          "tech":  "Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+                                                          "date":  "2023–2024",
+                                                          "description":  "Produced 2-video series on SAP Business AI covering AI use cases and customer transformation stories. Motion graphics and post-production aligned with SAP brand guidelines for demand generation.",
+                                                          "responsibilities":  [
+                                                                                   "Ideation",
+                                                                                   "Pre-Production",
+                                                                                   "Video Editing",
+                                                                                   "Motion Graphics"
+                                                                               ],
+                                                          "impact":  "2 AI-focused videos supporting SAP Business AI demand generation campaigns",
+                                                          "phase":  "SAP_Professional",
+                                                          "source_refs":  [
+                                                                              "WE003",
+                                                                              "PJ_IX_PORTFOLIO"
+                                                                          ]
+                                                      },
+                                                      {
+                                                          "id":  "MPJ005",
+                                                          "title":  "SAP Process Automation Video",
+                                                          "sub_category":  "SAP_Video_Series",
+                                                          "tech":  "Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+                                                          "date":  "2023–2024",
+                                                          "description":  "Produced promotional video describing SAP Process Automation capabilities for services sales enablement and partner communication.",
+                                                          "responsibilities":  [
+                                                                                   "Ideation",
+                                                                                   "Pre-Production",
+                                                                                   "Video Editing",
+                                                                                   "Motion Graphics"
+                                                                               ],
+                                                          "impact":  "Process Automation explainer video for SAP demand generation",
+                                                          "phase":  "SAP_Professional",
+                                                          "source_refs":  [
+                                                                              "WE003",
+                                                                              "PJ_IX_PORTFOLIO"
+                                                                          ]
+                                                      },
+                                                      {
+                                                          "id":  "MPJ006",
+                                                          "title":  "SAP Integration Suite Video",
+                                                          "sub_category":  "SAP_Video_Series",
+                                                          "tech":  "Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+                                                          "date":  "2023–2024",
+                                                          "description":  "Produced video describing SAP Integration Suite capabilities for services communication and partner enablement.",
+                                                          "responsibilities":  [
+                                                                                   "Ideation",
+                                                                                   "Pre-Production",
+                                                                                   "Video Editing",
+                                                                                   "Motion Graphics"
+                                                                               ],
+                                                          "impact":  "Integration Suite explainer video for SAP services sales",
+                                                          "phase":  "SAP_Professional",
+                                                          "source_refs":  [
+                                                                              "WE003",
+                                                                              "PJ_IX_PORTFOLIO"
+                                                                          ]
+                                                      },
+                                                      {
+                                                          "id":  "MPJ007",
+                                                          "title":  "SAP Clean Core Video Series (2 Videos)",
+                                                          "sub_category":  "SAP_Video_Series",
+                                                          "tech":  "Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+                                                          "date":  "2023–2024",
+                                                          "description":  "Produced 2-video series about Clean Core strategy — keeping the core of SAP systems as standard as possible. Created for SAP transformation advisory communication.",
+                                                          "responsibilities":  [
+                                                                                   "Ideation",
+                                                                                   "Pre-Production",
+                                                                                   "Video Editing",
+                                                                                   "Motion Graphics"
+                                                                               ],
+                                                          "impact":  "2 Clean Core strategy videos for SAP transformation communication",
+                                                          "phase":  "SAP_Professional",
+                                                          "source_refs":  [
+                                                                              "WE003",
+                                                                              "PJ_IX_PORTFOLIO"
+                                                                          ]
+                                                      },
+                                                      {
+                                                          "id":  "MPJ008",
+                                                          "title":  "SAP GDPR Compliance Video",
+                                                          "sub_category":  "SAP_Video_Series",
+                                                          "tech":  "Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop",
+                                                          "date":  "2023–2024",
+                                                          "description":  "Produced GDPR compliance video for SAP services sales and partner communication, covering data protection requirements in SAP environments.",
+                                                          "responsibilities":  [
+                                                                                   "Ideation",
+                                                                                   "Pre-Production",
+                                                                                   "Video Editing",
+                                                                                   "Motion Graphics"
+                                                                               ],
+                                                          "impact":  "GDPR explainer video for SAP compliance communication",
+                                                          "phase":  "SAP_Professional",
+                                                          "source_refs":  [
+                                                                              "WE003",
+                                                                              "PJ_IX_PORTFOLIO"
+                                                                          ]
+                                                      },
+                                                      {
+                                                          "id":  "MPJ009",
+                                                          "title":  "CONNECT 2024 – SAP Partner Summit Event \u0026 NCL Videos",
+                                                          "sub_category":  "SAP_Event_Production",
+                                                          "tech":  "DaVinci Resolve, Adobe Photoshop, Figma",
+                                                          "date":  "2024",
+                                                          "description":  "Created two videos for SAP CONNECT 2024 Partner Summit: one for the event and another for post-event highlights. Built motion graphics aligned with SAP brand guidelines showcasing the Non-Commercial Licensing (NCL) portfolio — partner-exclusive licenses for test, demo, and development. Created reusable DaVinci Resolve templates and motion graphics assets.",
+                                                          "responsibilities":  [
+                                                                                   "Ideation",
+                                                                                   "Pre-Production",
+                                                                                   "Motion Graphics",
+                                                                                   "Creating Reusable Assets",
+                                                                                   "DaVinci Resolve Template Design"
+                                                                               ],
+                                                          "impact":  "Event video + highlights reel + reusable DaVinci templates for NCL partner communication",
+                                                          "phase":  "SAP_Professional",
+                                                          "source_refs":  [
+                                                                              "WE002",
+                                                                              "PJ_IX_PORTFOLIO"
+                                                                          ]
+                                                      },
+                                                      {
+                                                          "id":  "MPJ010",
+                                                          "title":  "SAP BTP Hackathon Prague 2024 – Event Coverage \u0026 Content",
+                                                          "sub_category":  "SAP_Event_Production",
+                                                          "tech":  "Adobe After Effects, Adobe Premiere Pro, Adobe Photoshop, Adobe Lightroom, Figma",
+                                                          "date":  "Feb 2024",
+                                                          "description":  "Served as event chronicler for the 4-day SAP BTP Hackathon 2024 in Prague with teams from Asahi, BKV, CCC, Euro Cash, Slovenske Elektrarne, SumUp, TGW, and Zabka Polska. Captured photos and videos, edited on-the-fly under tight deadlines, created LinkedIn social cards for all SAP and client team members, and conducted 8 pre-planned interviews with key client representatives and SAP personnel.",
+                                                          "responsibilities":  [
+                                                                                   "Ideation",
+                                                                                   "Pre-Production",
+                                                                                   "Event Photography",
+                                                                                   "Client Photography",
+                                                                                   "Video Shooting",
+                                                                                   "Client Interviews",
+                                                                                   "Real-time Editing",
+                                                                                   "LinkedIn Social Card Design",
+                                                                                   "Photo Editing"
+                                                                               ],
+                                                          "impact":  "4-day real-time event coverage: video, photography, 8 client interviews, LinkedIn social cards for all participants",
+                                                          "phase":  "SAP_Professional",
+                                                          "source_refs":  [
+                                                                              "WE003",
+                                                                              "PJ_IX_PORTFOLIO"
+                                                                          ]
+                                                      },
+                                                      {
+                                                          "id":  "MPJ011",
+                                                          "title":  "IX Studio – 3D Environment \u0026 Immersive Event Production",
+                                                          "sub_category":  "SAP_Studio_Production",
+                                                          "tech":  "Unreal Engine, Stream Decks, Panasonic Controllers, SAP VMS, Blackmagic Decoders",
+                                                          "date":  "Oct 2024 – Present",
+                                                          "description":  "Manage end-to-end studio operations at SAP\u0027s Immersive Experience (IX) Studio in Walldorf. Design 3D environments for a 12-foot LED screen, operate 5-camera systems with stream decks and Panasonic controllers, manage audio engineering for up to 12 microphones, and deliver 6-8 hybrid events weekly including IBM SAP Power Customer Council and SAP Expert Series productions.",
+                                                          "responsibilities":  [
+                                                                                   "Studio Operations Management",
+                                                                                   "Live Event Production",
+                                                                                   "3D Environment Design",
+                                                                                   "Audio Engineering",
+                                                                                   "Stakeholder Communication",
+                                                                                   "Media Asset Development"
+                                                                               ],
+                                                          "impact":  "6-8 professional hybrid events weekly with 100+ attendees, 12-foot LED immersive productions",
+                                                          "phase":  "SAP_Professional",
+                                                          "source_refs":  [
+                                                                              "WE001",
+                                                                              "PJ_IX_PORTFOLIO"
+                                                                          ]
+                                                      }
+                                                  ],
+                           "creative_media_projects":  [
+                                                           {
+                                                               "id":  "MPJ012",
+                                                               "title":  "Tiltification – Spirit Level Smartphone App (Published)",
+                                                               "sub_category":  "UX_App_Design",
+                                                               "tech":  "Figma, UX Research",
+                                                               "date":  "2019–2020",
+                                                               "description":  "Designed UX/UI for Tiltification, a spirit level app published on both Play Store and App Store. The app uses acoustic signal feedback for precise dual-axis object alignment — more accurate than traditional bubble levels. Designed multiple screen states, dark/light modes, and intuitive controls for hands-free usage.",
+                                                               "responsibilities":  [
+                                                                                        "UX Research",
+                                                                                        "UI Design",
+                                                                                        "Prototyping",
+                                                                                        "App Store Asset Design"
+                                                                                    ],
+                                                               "impact":  "Published app on Play Store and App Store with acoustic-based precision leveling",
+                                                               "phase":  "Creative_Production",
+                                                               "source_refs":  [
+                                                                                   "PJ_PORTFOLIO_OLD"
+                                                                               ]
+                                                           },
+                                                           {
+                                                               "id":  "MPJ013",
+                                                               "title":  "Hello Doctor – Healthcare Smartphone App UX Design",
+                                                               "sub_category":  "UX_App_Design",
+                                                               "tech":  "Figma, UX Research",
+                                                               "date":  "2015–2018 (M.Des)",
+                                                               "description":  "Full UX design cycle for a healthcare ecosystem app connecting doctors, pathology labs, and pharmacy stores. Carried out contextual enquiry, user research, shadowing, and interviews. Performed competitive analysis, developed personas, built mind maps and information architecture, created task flows, wireframes, and high-fidelity prototypes with interactive UI screens.",
+                                                               "responsibilities":  [
+                                                                                        "Contextual Enquiry",
+                                                                                        "User Research",
+                                                                                        "Competitive Analysis",
+                                                                                        "Persona Development",
+                                                                                        "Mind Mapping",
+                                                                                        "Information Architecture",
+                                                                                        "Task Flows",
+                                                                                        "Wireframing",
+                                                                                        "High-Fidelity Prototyping"
+                                                                                    ],
+                                                               "impact":  "Complete design process documentation from research to interactive prototype for healthcare app",
+                                                               "phase":  "Design",
+                                                               "source_refs":  [
+                                                                                   "PJ005",
+                                                                                   "PJ_PORTFOLIO_OLD"
+                                                                               ]
+                                                           },
+                                                           {
+                                                               "id":  "MPJ014",
+                                                               "title":  "Logo Design Portfolio – Brand Identity Projects",
+                                                               "sub_category":  "Graphic_Design",
+                                                               "tech":  "Adobe Illustrator",
+                                                               "date":  "2015–2020",
+                                                               "description":  "Designed multiple brand logos and identity systems including Creative Square, Creative Bug, Fitness Point, and Dream Films Productions. Created in Adobe Illustrator using geometric shapes, custom typography, and brand color systems.",
+                                                               "responsibilities":  [
+                                                                                        "Brand Strategy",
+                                                                                        "Logo Concept",
+                                                                                        "Vector Design",
+                                                                                        "Typography",
+                                                                                        "Brand Identity System"
+                                                                                    ],
+                                                               "impact":  "4+ complete brand identity projects with logo, color system, and typography",
+                                                               "phase":  "Design",
+                                                               "source_refs":  [
+                                                                                   "PJ_PORTFOLIO_OLD"
+                                                                               ]
+                                                           },
+                                                           {
+                                                               "id":  "MPJ015",
+                                                               "title":  "Documentary Film Poster Design – MIT Institute of Design",
+                                                               "sub_category":  "Graphic_Design",
+                                                               "tech":  "Adobe Photoshop, Adobe Illustrator",
+                                                               "date":  "2015–2018 (M.Des)",
+                                                               "description":  "Designed documentary cover posters for MIT Institute of Design productions: \u0027Voiceless Melodies\u0027 (brass band artists), \u0027One Wholesome Meal\u0027 (food culture), \u0027A Day at Akhada\u0027 (traditional wrestling), and \u0027Benny the Projectionist\u0027 (cinema operator). Used bold typography and evocative imagery to capture each film\u0027s essence.",
+                                                               "responsibilities":  [
+                                                                                        "Poster Concept",
+                                                                                        "Typography Design",
+                                                                                        "Photo Compositing",
+                                                                                        "Print-ready Design"
+                                                                                    ],
+                                                               "impact":  "4 documentary cover posters for MIT Institute of Design film productions",
+                                                               "phase":  "Design",
+                                                               "source_refs":  [
+                                                                                   "PJ_PORTFOLIO_OLD",
+                                                                                   "EDU002"
+                                                                               ]
+                                                           },
+                                                           {
+                                                               "id":  "MPJ016",
+                                                               "title":  "Digital Painting \u0026 Illustration Portfolio",
+                                                               "sub_category":  "Illustration",
+                                                               "tech":  "Adobe Photoshop, Adobe Illustrator, Procreate (iPad)",
+                                                               "date":  "2015–2023",
+                                                               "description":  "Created digital paintings and vector illustrations spanning character art, geometric animal portraits (husky, eagle, bear), stylized food illustrations, sneaker poster design, and detailed character paintings. Work done across Photoshop, Illustrator, and Procreate on iPad.",
+                                                               "responsibilities":  [
+                                                                                        "Digital Painting",
+                                                                                        "Vector Illustration",
+                                                                                        "Character Design",
+                                                                                        "Poster Art"
+                                                                                    ],
+                                                               "impact":  "Portfolio of original artwork spanning traditional painting, digital painting, and vector illustration",
+                                                               "phase":  "Creative_Production",
+                                                               "source_refs":  [
+                                                                                   "PJ_PORTFOLIO_OLD"
+                                                                               ]
+                                                           },
+                                                           {
+                                                               "id":  "MPJ017",
+                                                               "title":  "Ferrero Rocher – Brand Campaign Films (3 Videos)",
+                                                               "sub_category":  "TV_Commercial",
+                                                               "tech":  "Adobe Premiere Pro, Adobe After Effects",
+                                                               "date":  "2016–2018",
+                                                               "description":  "Directed, produced, and edited 3 campaign films for Ferrero Rocher brand. End-to-end production from ideation through delivery for advertising and brand communication.",
+                                                               "responsibilities":  [
+                                                                                        "Director",
+                                                                                        "Producer",
+                                                                                        "Editor"
+                                                                                    ],
+                                                               "impact":  "3 brand campaign videos for Ferrero Rocher advertising",
+                                                               "phase":  "Creative_Production",
+                                                               "source_refs":  [
+                                                                                   "PJ_IX_PORTFOLIO",
+                                                                                   "WE011"
+                                                                               ]
+                                                           },
+                                                           {
+                                                               "id":  "MPJ018",
+                                                               "title":  "Vodafone \u0027Made for You Offers\u0027 – Comedy Advertisement",
+                                                               "sub_category":  "TV_Commercial",
+                                                               "tech":  "Adobe Premiere Pro, Adobe After Effects",
+                                                               "date":  "2016–2018",
+                                                               "description":  "Directed, wrote, edited, and operated camera for Vodafone comedy advertisement showcasing personalized offers campaign.",
+                                                               "responsibilities":  [
+                                                                                        "Director",
+                                                                                        "Writer",
+                                                                                        "Editor",
+                                                                                        "Camera Person"
+                                                                                    ],
+                                                               "impact":  "Comedy ad for Vodafone brand campaign",
+                                                               "phase":  "Creative_Production",
+                                                               "source_refs":  [
+                                                                                   "PJ_IX_PORTFOLIO",
+                                                                                   "WE011"
+                                                                               ]
+                                                           },
+                                                           {
+                                                               "id":  "MPJ019",
+                                                               "title":  "Elcom Spike Guard – Comedy Advertisement with VFX",
+                                                               "sub_category":  "TV_Commercial",
+                                                               "tech":  "Adobe Premiere Pro, Adobe After Effects",
+                                                               "date":  "2016–2018",
+                                                               "description":  "Directed, wrote, edited, operated camera, and created VFX for Elcom Spike Guard comedy advertisement. Full creative ownership from concept to delivery.",
+                                                               "responsibilities":  [
+                                                                                        "Director",
+                                                                                        "Writer",
+                                                                                        "Editor",
+                                                                                        "Camera Person",
+                                                                                        "VFX"
+                                                                                    ],
+                                                               "impact":  "VFX-integrated comedy TV commercial for Elcom",
+                                                               "phase":  "Creative_Production",
+                                                               "source_refs":  [
+                                                                                   "PJ_IX_PORTFOLIO",
+                                                                                   "WE011"
+                                                                               ]
+                                                           },
+                                                           {
+                                                               "id":  "MPJ020",
+                                                               "title":  "CouponDunia \u0026 Hotfut – Comedy Advertisements",
+                                                               "sub_category":  "TV_Commercial",
+                                                               "tech":  "Adobe Premiere Pro, Adobe After Effects",
+                                                               "date":  "2016–2018",
+                                                               "description":  "Edited CouponDunia comedy advertisement. Directed, edited, and operated camera for Hotfut (Pune Football League) advertisement.",
+                                                               "responsibilities":  [
+                                                                                        "Director",
+                                                                                        "Editor",
+                                                                                        "Camera Person"
+                                                                                    ],
+                                                               "impact":  "2 comedy advertisements for Indian brands",
+                                                               "phase":  "Creative_Production",
+                                                               "source_refs":  [
+                                                                                   "PJ_IX_PORTFOLIO",
+                                                                                   "WE011"
+                                                                               ]
+                                                           },
+                                                           {
+                                                               "id":  "MPJ021",
+                                                               "title":  "Organ Donors – Documentary Film",
+                                                               "sub_category":  "Documentary",
+                                                               "tech":  "Adobe Premiere Pro, Adobe After Effects",
+                                                               "date":  "2015–2018",
+                                                               "description":  "Directed, produced, wrote, edited, animated, and operated camera for Organ Donors documentary. Complete creative ownership of the film from concept to final delivery.",
+                                                               "responsibilities":  [
+                                                                                        "Director",
+                                                                                        "Producer",
+                                                                                        "Writer",
+                                                                                        "Editor",
+                                                                                        "Animator",
+                                                                                        "Camera Person"
+                                                                                    ],
+                                                               "impact":  "Full-length documentary with animation integration",
+                                                               "phase":  "Creative_Production",
+                                                               "source_refs":  [
+                                                                                   "PJ_IX_PORTFOLIO",
+                                                                                   "WE011"
+                                                                               ]
+                                                           },
+                                                           {
+                                                               "id":  "MPJ022",
+                                                               "title":  "A Day at Akhada – Indian Traditional Wrestling Documentary",
+                                                               "sub_category":  "Documentary",
+                                                               "tech":  "Adobe Premiere Pro, Adobe After Effects",
+                                                               "date":  "2015–2018",
+                                                               "description":  "Directed, produced, wrote, edited, and operated camera for documentary exploring Indian traditional wrestling arena (Akhada) culture.",
+                                                               "responsibilities":  [
+                                                                                        "Director",
+                                                                                        "Producer",
+                                                                                        "Writer",
+                                                                                        "Editor",
+                                                                                        "Camera Person"
+                                                                                    ],
+                                                               "impact":  "Cultural documentary with poster designed for MIT Institute of Design",
+                                                               "phase":  "Creative_Production",
+                                                               "source_refs":  [
+                                                                                   "PJ_IX_PORTFOLIO",
+                                                                                   "PJ_PORTFOLIO_OLD"
+                                                                               ]
+                                                           },
+                                                           {
+                                                               "id":  "MPJ023",
+                                                               "title":  "Vim Women Empowerment \u0026 Don Cutting Tea Documentaries",
+                                                               "sub_category":  "Documentary",
+                                                               "tech":  "Adobe Premiere Pro",
+                                                               "date":  "2015–2018",
+                                                               "description":  "Edited Vim women empowerment campaign documentaries (Afroz Jahan Story, Biyiravi Mani Story). Operated camera for Don Cutting (Two Cups Cutting Tea) documentary about Indian tea culture.",
+                                                               "responsibilities":  [
+                                                                                        "Editor",
+                                                                                        "Camera Person"
+                                                                                    ],
+                                                               "impact":  "3 social/cultural documentaries for brand campaigns and cultural storytelling",
+                                                               "phase":  "Creative_Production",
+                                                               "source_refs":  [
+                                                                                   "PJ_IX_PORTFOLIO",
+                                                                                   "WE011"
+                                                                               ]
+                                                           },
+                                                           {
+                                                               "id":  "MPJ024",
+                                                               "title":  "Seafret \u0027Tell Me It\u0027s Real\u0027 – Music Video",
+                                                               "sub_category":  "Music_Video",
+                                                               "tech":  "Adobe Premiere Pro",
+                                                               "date":  "2016–2018",
+                                                               "description":  "Directed, edited, and operated camera for music video picturisation and visual storytelling for Seafret\u0027s \u0027Tell me it\u0027s real\u0027.",
+                                                               "responsibilities":  [
+                                                                                        "Director",
+                                                                                        "Editor",
+                                                                                        "Camera Person"
+                                                                                    ],
+                                                               "impact":  "Complete music video production with visual storytelling",
+                                                               "phase":  "Creative_Production",
+                                                               "source_refs":  [
+                                                                                   "PJ_IX_PORTFOLIO"
+                                                                               ]
+                                                           },
+                                                           {
+                                                               "id":  "MPJ025",
+                                                               "title":  "BYJU\u0027S – Educational Content \u0026 Disney Collaboration",
+                                                               "sub_category":  "E_Learning",
+                                                               "tech":  "Adobe Premiere Pro, Adobe After Effects, Adobe Photoshop",
+                                                               "date":  "2018–2021",
+                                                               "description":  "Produced educational media at BYJU\u0027S – The Learning App (valued at $22B, 115M+ registered students). Created 2D animation, VFX content, and game elements. Worked on international Disney collaboration producing e-learning platform for USA and UK audiences.",
+                                                               "responsibilities":  [
+                                                                                        "Video Editing",
+                                                                                        "2D Animation",
+                                                                                        "VFX",
+                                                                                        "Game Element Design",
+                                                                                        "Educational Content Production"
+                                                                                    ],
+                                                               "impact":  "International Disney collaboration, educational content for 115M+ student platform",
+                                                               "phase":  "Creative_Production",
+                                                               "source_refs":  [
+                                                                                   "WE005",
+                                                                                   "PJ_IX_PORTFOLIO"
+                                                                               ]
+                                                           },
+                                                           {
+                                                               "id":  "MPJ026",
+                                                               "title":  "Corporate \u0026 Promotional Films – Orbis Elevators, Zapit, Ask Me Furniture",
+                                                               "sub_category":  "Corporate_Film",
+                                                               "tech":  "Adobe Premiere Pro, Adobe After Effects",
+                                                               "date":  "2011–2018",
+                                                               "description":  "Edited corporate and promotional films for Orbis Elevators, Zapit, and Ask Me Furniture campaigns. Part of broader freelance and production house portfolio of corporate video production.",
+                                                               "responsibilities":  [
+                                                                                        "Editor"
+                                                                                    ],
+                                                               "impact":  "Multiple corporate films for Indian B2B and B2C brands",
+                                                               "phase":  "Creative_Production",
+                                                               "source_refs":  [
+                                                                                   "PJ_IX_PORTFOLIO",
+                                                                                   "WE011"
+                                                                               ]
+                                                           },
+                                                           {
+                                                               "id":  "MPJ027",
+                                                               "title":  "Huggies Happy Mother\u0027s Day \u0026 Motion Graphics",
+                                                               "sub_category":  "Brand_Campaign",
+                                                               "tech":  "Adobe Premiere Pro, Adobe After Effects",
+                                                               "date":  "2016–2018",
+                                                               "description":  "Edited Huggies Happy Mother\u0027s Day brand campaign video. Also produced standalone motion graphics including \u0027How to Install a Windows Operating System\u0027 tutorial covering direction, production, writing, editing, animation, and cinematography.",
+                                                               "responsibilities":  [
+                                                                                        "Editor",
+                                                                                        "Director",
+                                                                                        "Producer",
+                                                                                        "Writer",
+                                                                                        "Animator",
+                                                                                        "Cinematography"
+                                                                                    ],
+                                                               "impact":  "Brand campaign video + motion graphics tutorial content",
+                                                               "phase":  "Creative_Production",
+                                                               "source_refs":  [
+                                                                                   "PJ_IX_PORTFOLIO",
+                                                                                   "WE011"
+                                                                               ]
+                                                           }
+                                                       ]
+                       }
+}

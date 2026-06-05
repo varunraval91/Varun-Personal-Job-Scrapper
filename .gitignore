@@ -6,12 +6,11 @@ node_modules/
 Job-SCRAPER-main/.env
 Job-SCRAPER-main/firebase-config.local.js
 
-# Personal data (skill bank, style profile, vector store)
-Job-SCRAPER-main/data/
-
-# Foundation documents (PDFs)
-Job-SCRAPER-main/library/foundation/cvs/
-Job-SCRAPER-main/library/foundation/cover_letters/
+# Personal data — included in PRIVATE repo for backup
+# (if you fork this for public sharing, re-add these lines)
+# Job-SCRAPER-main/data/
+# Job-SCRAPER-main/library/foundation/cvs/
+# Job-SCRAPER-main/library/foundation/cover_letters/
 
 # Runtime generated files
 Job-SCRAPER-main/generated/

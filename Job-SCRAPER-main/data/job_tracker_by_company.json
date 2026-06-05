@@ -1,0 +1,570 @@
+{
+  "schema_version": "1.0",
+  "last_updated": "2026-05-06T00:00:00",
+  "last_updated_note": "Updated with 18 confirmed Outlook rejections + 9 verified calendar/email interview acceptances (5 new entries, 1 stage correction). Total confirmed SAP Outlook entries: 42.",
+  "status_logic": {
+    "Interview": "Interview invite / meeting / scheduling confirmed, or screening questions answered",
+    "Rejected": "Explicit rejection email received",
+    "Applied": "Application confirmed; under review; no further update",
+    "No Response": "Application receipt exists but no interview or rejection email found",
+    "Withdrawn": "Application not completed or voluntarily withdrawn"
+  },
+  "summary": {
+    "total_companies": 4,
+    "sap_total_applications": 188,
+    "sap_confirmed_in_outlook": 42,
+    "sap_silent_no_response": 145,
+    "sap_total_interview_acceptances": 9,
+    "sap_second_round_pipelines": 1,
+    "sap_breakdown": {
+      "Interview": 10,
+      "Rejected": 32,
+      "Applied": 1,
+      "No Response": 145
+    },
+    "other_companies_total": 11
+  },
+  "companies": [
+    {
+      "company": "SAP SE",
+      "total_applications": 188,
+      "note": "188 total = ~38 confirmed Outlook entries (5 Interviews, 32 Rejections, 1 Applied) + ~150 silent SuccessFactors entries (no email generated). Silent entries are classified as No Response per ATS-standard logic. All 32 rejections have explicit rejection language from SAP Careers / SAP Talent Discovery emails.",
+      "applications": [
+        {
+          "jobTitle": "Working Student (f/m/d) - Knowledge Architect / Technical Writer",
+          "reqId": "451961",
+          "date": "2026-05-05",
+          "stage": "Interview",
+          "contactType": "Recruiter",
+          "contact": "Alex AI / Anton Steckert / Carrie Hall",
+          "notes": "Microsoft Teams interview confirmed for May 27, 2026."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Cloud ERP Product Success Enablement & Adoption",
+          "reqId": "451803",
+          "date": "2026-04-14",
+          "stage": "Interview",
+          "contactType": "Recruiter Outreach",
+          "contact": "Markus Oertelt / Dorota Josenhans / Katharina Stopf",
+          "notes": "Recruiter reached out directly; CV sent (Varun_Raval_CV_451803.pdf). Get-to-know meeting + interview coordination completed via Microsoft Teams accepted 2026-04-22."
+        },
+        {
+          "jobTitle": "SAP iXp Intern (f/m/d) - Strategic Partnerships",
+          "reqId": "451276",
+          "date": "2026-04-14",
+          "stage": "Interview",
+          "contactType": "Recruiter",
+          "contact": "Carlos Dupim",
+          "notes": "Interview invitation received and accepted; interview scheduled 2026-04-22 09:30–10:00 via Microsoft Teams."
+        },
+        {
+          "jobTitle": "SAP Service Delivery Operations iXp Intern (f/m/d) - Analytics & AI",
+          "reqId": "436106",
+          "date": "2026-01-30",
+          "stage": "Interview",
+          "interviewDate": "2026-01-30",
+          "round": "Interview",
+          "contactType": "Hiring Team",
+          "contact": "Berkant Sozbilir / Paulo Junior",
+          "jobLink": "https://my.ally.ai/6d0b6aa1-a30b-4607-adef-9b3c1f80f8e8",
+          "currentStatus": "No response",
+          "notes": "Application ID 14053094. Interview confirmation email received. Interview completed 2026-01-30; follow-up interviews held with Paulo Junior on 2026-02-09; process stalled — no decision or rejection received. Evidence: interview confirmation email."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Security & Cloud Compliance Learning",
+          "reqId": "450014",
+          "date": "2026-04-29",
+          "stage": "Interview",
+          "interviewDate": "2026-04-29",
+          "round": "Interview",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "currentStatus": "No response",
+          "notes": "Interview accepted 2026-04-29. Evidence: interview confirmation email. No decision received."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Solution & Industry Experience: Finance & Risk Demo Build Team",
+          "reqId": "449943",
+          "date": "2026-04-01",
+          "stage": "Interview",
+          "interviewDate": "2026-04-01",
+          "round": "1st Round",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "currentStatus": "Passed to 2nd Round",
+          "notes": "1st round interview on 2026-04-01. Evidence: calendar event + shortlist email. Passed to 2nd round."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Solution & Industry Experience: Finance & Risk Demo Build Team",
+          "reqId": "449943",
+          "date": "2026-04-14",
+          "stage": "Interview",
+          "interviewDate": "2026-04-14",
+          "round": "2nd Round",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "currentStatus": "No response",
+          "notes": "2nd round interview on 2026-04-14. Evidence: calendar event + 'passed 1st round' email. Awaiting final decision."
+        },
+        {
+          "jobTitle": "SAP BTP PMO iXp Intern (f/m/d) - Analytics",
+          "reqId": "446175",
+          "date": "2026-03-02",
+          "stage": "Interview",
+          "interviewDate": "2026-03-02",
+          "round": "Interview",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "currentStatus": "No response",
+          "notes": "Interview on 2026-03-02. Evidence: interview confirmation email. No decision received."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - UX Design",
+          "reqId": "",
+          "date": "2026-05-06",
+          "stage": "Interview",
+          "interviewDate": "2026-05-01",
+          "interviewDateNote": "May 2026 — exact date from calendar",
+          "round": "Interview",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "currentStatus": "Upcoming",
+          "notes": "Interview scheduled for May 2026. Evidence: calendar event. reqId not captured."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Product Communication and Marketing Coordinator",
+          "reqId": "448361",
+          "date": "2026-04-15",
+          "stage": "Interview",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Screening questions answered; awaiting next step. Application confirmed via Sent Items 2026-04-15."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Technical Writing & Team Support",
+          "reqId": "450993",
+          "date": "2026-04-14",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Formal rejection email received 2026-04-30."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - P&C (HR) Business Partner Team for the Board Area People & Culture",
+          "reqId": "451246",
+          "date": "2026-04-14",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "SAP Talent Discovery rejection received 2026-04-15."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Project Management & Operations",
+          "reqId": "446229",
+          "date": "2026-04-28",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection received 2026-04-28."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - User Experience Design for AI",
+          "reqId": "452536",
+          "date": "2026-04-27",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection received 2026-04-27."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Data Protection & Privacy, Risk & Quality Office",
+          "reqId": "450570",
+          "date": "2026-04-16",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-20. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Threat Modelling Service Operation and Automation",
+          "reqId": "451412",
+          "date": "2026-04-14",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-21. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Product Testing and Operations",
+          "reqId": "443936",
+          "date": "",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejected 2026-04-17; SAP chose to pursue other applicants."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Frontend Software Engineering (JavaScript/UI5)",
+          "reqId": "451683",
+          "date": "2026-04-14",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejected 2026-04-15; SAP chose to pursue other applicants."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Fieldglass",
+          "reqId": "451124",
+          "date": "2026-04-14",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejected 2026-04-15; SAP chose to pursue other applicants."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Business Analysis & Process Support for Sales Commissions",
+          "reqId": "447895",
+          "date": "2026-04-14",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejected 2026-04-14; SAP chose to pursue other applicants."
+        },
+        {
+          "jobTitle": "SAP iXp Intern (f/m/d) - Adoption & Consumption Business Intelligence Analyst",
+          "reqId": "443258",
+          "date": "",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejected 2026-04-14; SAP chose to pursue other applicants."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Experience Center Munich: Operations & Content",
+          "reqId": "447355",
+          "date": "",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejected 2026-04-13; SAP chose to pursue other applicants."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Operations and Project Support SAP Global Control Center",
+          "reqId": "447092",
+          "date": "",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejected 2026-04-10; SAP chose to pursue other applicants."
+        },
+        {
+          "jobTitle": "SAP iXp Intern (f/m/d) - Adoption & Consumption Project Management",
+          "reqId": "443259",
+          "date": "",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejected 2026-04-07; SAP chose to pursue other applicants."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Group Controlling Support",
+          "reqId": "452883",
+          "date": "2026-05-05",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-05-05. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Experience Center Walldorf: Storytelling, Documentation & Design",
+          "reqId": "452678",
+          "date": "2026-05-05",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-05-05. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "SAP Human Resources iXp Intern (f/m/d)",
+          "reqId": "",
+          "date": "2026-05-05",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-05-05. Email subject: 'Your Application for SAP Human Resources iXp Intern'. reqId not captured in email. Source: SAP Careers (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) — generic (title not specified in rejection email)",
+          "reqId": "",
+          "date": "2026-05-05",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-05-05. Email subject: 'Your Application for Working Student'. reqId not captured in email. Source: SAP Careers (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - People Initiatives for SAP Signavio Product & Engineering",
+          "reqId": "441485",
+          "date": "2026-04-30",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-30. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Project Coordination and AI Use Case Support for IT Operations",
+          "reqId": "452424",
+          "date": "2026-04-30",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-30. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "SAP iXp Intern (f/m/d) — generic (title not specified in rejection email)",
+          "reqId": "",
+          "date": "2026-04-27",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-27. Email subject: 'Your Application for SAP iXp Intern'. reqId not captured in email. Source: SAP Careers (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - CVG Communications Team in Walldorf",
+          "reqId": "448879",
+          "date": "2026-04-27",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-27. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Tax & Accounting AI-Driven Strategy & Transformation",
+          "reqId": "452380",
+          "date": "2026-04-27",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-27. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Experience Center Walldorf: Technical Business Support",
+          "reqId": "451999",
+          "date": "2026-04-27",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-27. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student / Intern (f/m/d) — generic (title not specified in rejection email)",
+          "reqId": "",
+          "date": "2026-04-24",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-24. Email subject: 'Your Application for Working Student / Intern'. reqId not captured in email. Source: SAP Careers (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Solution & Innovation Experience Demo Build Cloud ERP",
+          "reqId": "447949",
+          "date": "2026-04-24",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-24. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Application Developer for Machine Translation (SAP Translation Hub)",
+          "reqId": "447805",
+          "date": "2026-04-24",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-24. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Development Guidelines for Screen Reader Support in SAP UI",
+          "reqId": "451960",
+          "date": "2026-04-23",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-23. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Global Customer Support Business Transformation Office",
+          "reqId": "448203",
+          "date": "2026-04-23",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-23. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Infrastructure Services Projects",
+          "reqId": "452194",
+          "date": "2026-04-23",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-23. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Internal Audit & Enterprise Risk Management",
+          "reqId": "450530",
+          "date": "2026-04-20",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-20. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Skill Management Team",
+          "reqId": "442937",
+          "date": "2026-04-14",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Rejection email received 2026-04-14. Source: SAP Careers / SAP Talent Discovery (explicit rejection language)."
+        },
+        {
+          "jobTitle": "Working Student (f/m/d) - Application Developer / DevOps Engineer",
+          "reqId": "450992",
+          "date": "2026-04-14",
+          "stage": "Applied",
+          "contactType": "Recruiting Team",
+          "contact": "SAP Recruiting Team",
+          "notes": "Application under review as of 2026-04-14; no further recruiter update received."
+        },
+        {
+          "jobTitle": "Working Student — silent SuccessFactors applications (no Outlook evidence)",
+          "reqId": "unknown",
+          "date": "2025-01-01",
+          "dateEnd": "2026-05-06",
+          "stage": "No Response",
+          "contactType": "",
+          "contact": "",
+          "notes": "Approx. 150 applications submitted via SAP SuccessFactors that generated no confirmation email in Outlook. Correctly classified as No Response per ATS-standard logic: receipt-only or portal-only entries with no interview invite or rejection received."
+        }
+      ]
+    },
+    {
+      "company": "Infineon Technologies AG",
+      "total_applications": 6,
+      "applications": [
+        {
+          "jobTitle": "Working Student - Automotive Division Strategic Communications (f/m/div)",
+          "reqId": "HRC1574837",
+          "date": "",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "Infineon Human Resources / Recruiting Team",
+          "notes": "Rejected 2026-04-17; Infineon will not move forward with this application."
+        },
+        {
+          "jobTitle": "Internship - Change & Transformation Projects",
+          "reqId": "HRC1155301",
+          "date": "",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "Infineon Recruiting Team",
+          "notes": "Rejection received."
+        },
+        {
+          "jobTitle": "Working Student - Creative Communications",
+          "reqId": "HRC1545029",
+          "date": "",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "Infineon Recruiting Team",
+          "notes": "Rejection received."
+        },
+        {
+          "jobTitle": "Working Student - Corporate Communications",
+          "reqId": "HRC1594186",
+          "date": "",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "Infineon Recruiting Team",
+          "notes": "Rejection received."
+        },
+        {
+          "jobTitle": "Working Student - Master Data",
+          "reqId": "HRC1576856",
+          "date": "",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "Infineon Recruiting Team",
+          "notes": "Rejection received."
+        },
+        {
+          "jobTitle": "Working Student - Procurement, Reporting & Automation (f/m/div)",
+          "reqId": "HRC1552905",
+          "date": "2026-04-03",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "Infineon Human Resources Team",
+          "notes": "Rejected 2026-04-08; Infineon will not be moving forward."
+        }
+      ]
+    },
+    {
+      "company": "KWS SAAT SE & Co. KGaA",
+      "total_applications": 4,
+      "applications": [
+        {
+          "jobTitle": "Working Student Financial Management & Treasury (m/f/d)",
+          "reqId": "",
+          "date": "",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "KWS Recruiting Team",
+          "notes": "Rejected 2026-04-21; moved forward with candidates more closely aligned to role requirements."
+        },
+        {
+          "jobTitle": "Working Student Digital Solutions (m/f/d)",
+          "reqId": "",
+          "date": "",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "KWS Recruiting Team",
+          "notes": "Rejected 2026-04-10; moved forward with candidates whose backgrounds more closely aligned with role."
+        },
+        {
+          "jobTitle": "Working Student - Digital Marketing",
+          "reqId": "",
+          "date": "",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "KWS Recruiting Team",
+          "notes": "Rejection received."
+        },
+        {
+          "jobTitle": "Working Student - Master Data",
+          "reqId": "",
+          "date": "",
+          "stage": "Rejected",
+          "contactType": "Recruiting Team",
+          "contact": "KWS Recruiting Team",
+          "notes": "Rejection received."
+        }
+      ]
+    },
+    {
+      "company": "Adobe",
+      "total_applications": 1,
+      "applications": [
+        {
+          "jobTitle": "Working Student - Software Engineering (Cloud Platform)",
+          "reqId": "",
+          "date": "",
+          "stage": "Withdrawn",
+          "contactType": "",
+          "contact": "",
+          "notes": "Application not completed; reminder email received from Adobe. Application considered withdrawn/incomplete."
+        }
+      ]
+    }
+  ]
+}
