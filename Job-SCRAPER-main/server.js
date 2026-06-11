@@ -385,7 +385,10 @@ async function callAI(systemPrompt, userPrompt) {
 let sharedBrowser = null;
 async function getSharedBrowser() {
   if (!sharedBrowser || !sharedBrowser.isConnected()) {
-    sharedBrowser = await chromium.launch({ headless: process.env.PW_HEADLESS !== "false" });
+    sharedBrowser = await chromium.launch({
+      headless: process.env.PW_HEADLESS !== "false",
+      args: process.env.NODE_ENV === "production" ? ["--no-sandbox", "--disable-setuid-sandbox"] : []
+    });
   }
   return sharedBrowser;
 }

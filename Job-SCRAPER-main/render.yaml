@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: job-automator
+    env: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm install && npx playwright install chromium --with-deps
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PW_HEADLESS
+        value: "true"
+      - key: PORT
+        value: "3000"
