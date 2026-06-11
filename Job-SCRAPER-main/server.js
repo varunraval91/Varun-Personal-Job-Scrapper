@@ -17,6 +17,7 @@ const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || null;
 app.use(cors(ALLOWED_ORIGIN ? { origin: ALLOWED_ORIGIN } : undefined));
 
 app.use(express.json({ limit: "5mb" }));
+app.use("/firebase-config", require("./routes/firebaseConfig"));
 // Never cache index.html — ensures version-busted JS/CSS changes reach the browser immediately
 app.get("/", (req, res) => {
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
