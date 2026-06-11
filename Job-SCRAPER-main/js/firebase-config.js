@@ -3,13 +3,13 @@
  * Extended from tracker with library + cached JD operations.
  */
 const defaultFirebaseConfig = {
-  apiKey: "YOUR_FIREBASE_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
-  measurementId: "YOUR_MEASUREMENT_ID"
+  apiKey: "AIzaSyDG0VBXMrUdxzpw3Hwwrsr_oRtiVg_vSuM",
+  authDomain: "jobs-progress-tracker.firebaseapp.com",
+  projectId: "jobs-progress-tracker",
+  storageBucket: "jobs-progress-tracker.firebasestorage.app",
+  messagingSenderId: "556518693770",
+  appId: "1:556518693770:web:2df595285bf3ec199f0673",
+  measurementId: "G-8JNFN5X2RE"
 };
 
 const firebaseConfig =
