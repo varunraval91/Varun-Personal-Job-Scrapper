@@ -4,7 +4,7 @@ services:
     env: node
     region: frankfurt
     plan: free
-    buildCommand: npm install && npx playwright install chromium && sudo npx playwright install-deps chromium
+    buildCommand: npm install && npx playwright install chromium
     startCommand: npm start
     envVars:
       - key: NODE_ENV
