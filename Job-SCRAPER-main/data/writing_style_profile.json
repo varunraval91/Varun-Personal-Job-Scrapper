@@ -1,0 +1,83 @@
+{
+  "total_samples": 11,
+  "style_analysis": {
+    "avg_sentence_length": 24,
+    "avg_paragraph_length": 520,
+    "avg_cover_letter_words": 380,
+    "tone_description": "The tone is confident and assertive, leaning formal but with occasional informal phrasing that reveals genuine enthusiasm. Letters project a practical, experience-first identity — the writer leads with years of experience and a broad portfolio rather than academic credentials. There is a recurring pattern of self-assured declarative statements balanced with warm, collaborative language about teamwork and company alignment.",
+    "structural_pattern": "Opening identity claim with years of experience and role fit → Long career narrative paragraph covering breadth of media/creative work → Specific role or company evidence paragraph (current or most recent job) → Team player and soft skills paragraph → Additional or emerging skill area (VR, Amazon, new tech) → Closing invitation to interview with availability or salary mention",
+    "opening_patterns": [
+      "Please accept this letter as an expression of my interest in the [Position] position. I am a highly motivated and progress-focused [Job Title] with a long-standing background in this industry. With a track record of initiative and dependability, I have devised strategic initiatives which I believe will prove valuable to [Company].",
+      "I am writing to express my interest in the [Position] at [Company]. As a [degree/role context] with over [X] years of experience in [field], I believe that my skills and expertise make me an excellent candidate for the position.",
+      "I am excited to submit my application for the [Position] at [Company]. With over [X] years of experience in [field], I am confident that my skills and expertise make me an ideal candidate for the position.",
+      "I'm writing to express my interest in the [Position] position at your company. With [X] years of experience in [field], I'm confident that I have the abilities and knowledge needed to succeed in this position.",
+      "My name is Varun Raval and I am currently pursuing my M.Sc. SAP Engineering & Analytics at Hochschule Fresenius. I am excited to submit my application for the position of [Position] at [Company]. With over [X] years of experience in [field], I am confident that my skills and expertise make me an excellent candidate."
+    ],
+    "closing_patterns": [
+      "I insist you consider my [X] years of work experience in [field] and please take a moment to review my attached resume, portfolio and credentials. As per my skills, expertise and work experience, I believe I meet your all expectations for this job profile and I am very much interested to grow my career with [Company]. I would greatly appreciate the opportunity to speak with you personally regarding my candidacy and more about [Company]. Thank you for your consideration.",
+      "I would greatly appreciate the opportunity to speak with you personally regarding my candidacy and more about [Company]. Thank you for your time and consideration. Sincerely, Varun Raval",
+      "I am confident that I have the skills and experience necessary to be a valuable asset to your team, and I am eager to contribute to [Company]'s mission. I can join this position from [Month]. I would greatly appreciate the opportunity to speak with you personally regarding my candidacy. Thank you for your consideration."
+    ],
+    "signature_phrases": [
+      "Please accept this letter as an expression of my interest in the [Position] position",
+      "I am a highly motivated and progress-focused [Job Title] with a long-standing background in this industry",
+      "With a track record of initiative and dependability, I have devised strategic initiatives which I believe will prove valuable to [Company]",
+      "I insist you consider my [X] years of work experience and please take a moment to review my attached resume, portfolio and credentials",
+      "I believe I meet your all expectations for this job profile and I am very much interested to grow my career with [Company]",
+      "I would greatly appreciate the opportunity to speak with you personally regarding my candidacy and more about [Company]",
+      "Throughout the course of my [X] years of career, I contributed to storytelling"
+    ],
+    "vocabulary_preferences": {
+      "favors": [
+        "highly motivated and progress-focused",
+        "long-standing background",
+        "track record of initiative and dependability",
+        "I insist you consider",
+        "as per my skills, expertise and work experience",
+        "I believe I meet your all expectations",
+        "I am very much interested to grow my career",
+        "facilitating highly organized",
+        "progressive-minded and in tune with new developments"
+      ],
+      "avoids": [
+        "leverage synergies",
+        "I hereby apply",
+        "To whom it may concern",
+        "results-oriented professional"
+      ]
+    },
+    "sentence_variety_pattern": "Most sentences are long and compound, often connecting two or three clauses with commas and conjunctions. Short punchy sentences are rarely used for emphasis — instead emphasis comes from repetition of confident claims. Sentences frequently use em-dashes or hyphens to list multiple items inline (e.g. 'short films - feature films - documentaries - music videos'). Varun rarely opens paragraphs with a short sentence — the pattern is always a long complex opener that establishes the main point immediately.",
+    "evidence_style": "Evidence is presented as flowing narrative prose — never as bullet points within the letter body. Specific company names, role titles and industries are named inline (e.g. 'At Byju's – The Learning App, I...'). Numbers of years of experience are mentioned frequently ('8 years', '12 years', '6 years'). Project types are listed with hyphens rather than commas ('short films - documentaries - music videos - corporate videos'). Quantified outputs like team sizes ('10 to 100 crew members') and subscriber counts ('3K subs') appear occasionally but are not the primary evidence mode.",
+    "self_presentation_style": "Confident achiever with practical breadth. Varun presents himself as a versatile industry professional first and an academic second. He leads with total years of experience, names well-known employers (SAP, Byju's) as credibility anchors, and emphasizes range across formats and industries. The framing is 'proven doer with wide experience' rather than 'specialist' or 'academic researcher'. He uses the first person assertively and does not hedge accomplishments with qualifiers.",
+    "connector_words": [
+      "Furthermore",
+      "Additionally",
+      "Also",
+      "Moreover",
+      "In addition to",
+      "Throughout my career",
+      "Recently",
+      "Based on"
+    ],
+    "paragraph_count_typical": 5,
+    "uses_bold": false,
+    "how_i_bridge_academic_to_practical": "Varun typically mentions his degree as a brief credential in the opening paragraph (e.g. 'As a Master's student in SAP Engineering & Analytics at Hochschule Fresenius'), then immediately pivots to total years of professional experience without dwelling on coursework. Academic training is treated as a backdrop, not the main argument. The transition is direct: after the degree mention he moves straight into a career narrative paragraph about his work history. In later letters he sometimes omits the academic mention entirely and leads purely with professional experience.",
+    "how_i_handle_availability": "Availability is stated as a direct, simple sentence near the closing paragraph: 'I can join [Company] from [Month].' or 'I can join this position from [Month] [Year].' In one letter he also states a salary expectation explicitly ('I would expect a Berlin standard salary in the range between 48K to 58K EUR annually. However, salary can be negotiable as per the responsibilities.'). Availability is never the closing sentence — it always appears one or two sentences before the final thank-you.",
+    "things_to_never_write_as_me": [
+      "I am reaching out to express my enthusiasm for",
+      "I would be a perfect fit for this role",
+      "My passion for [X] drives me to",
+      "I am a detail-oriented self-starter",
+      "Please find attached my CV for your consideration",
+      "I look forward to the opportunity to discuss how my skills align with your needs"
+    ]
+  },
+  "best_opening_examples": [
+    "Please accept this letter as an expression of my interest in the Video Producer position. I am a highly motivated and progress-focused Video Producer with a long-standing background in this industry. With a track record of initiative and dependability, I have devised strategic initiatives which I believe will prove valuable to Storyblok.",
+    "I am excited to submit my application for the Instructional Designer position at Atlas Copco. With over 12 years of experience in instructional design, e-learning development and media productions, I am confident that my skills and expertise make me an ideal candidate for the position. I am excited about the opportunity to contribute to your team's efforts in promoting knowledge to the world, and I believe that my passion for education aligns well with your mission and values."
+  ],
+  "best_closing_examples": [
+    "I am progressive-minded and in tune with new developments in my field. I have proven to be effective and collaborative with strong interpersonal talents. I insist you consider my 8 years of work experience in Video Productions and please take a moment to review my attached resume, portfolio and credentials. As per my skills, expertise and work experience, I believe I meet your all expectations for this job profile and I am very much interested to grow my career with Storyblok. I would greatly appreciate the opportunity to speak with you personally regarding my candidacy and more about Storyblok. Thank you for your consideration.",
+    "I am confident that I have the skills and experience necessary to be a valuable asset to your team, and I am eager to contribute to Sysmex Europe's mission of providing innovative educational media solutions. Thank you for your time and consideration. I look forward to hearing from you soon."
+  ]
+}

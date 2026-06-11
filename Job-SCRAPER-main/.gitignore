@@ -9,11 +9,10 @@ firebase-config.local.js
 # Generated output (regenerable)
 generated/
 
-# Personal data (not for repo)
-data/skill_data_bank.json
-data/vector_store.json
-data/writing_style_profile.json
-library/foundation/
+# Personal data — committed in PRIVATE repo for backup + Render deploy
+# data/skill_data_bank.json
+# data/vector_store.json
+# data/writing_style_profile.json
 library/approved/
 library/ocr-cache.json
 
